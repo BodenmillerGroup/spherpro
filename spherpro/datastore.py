@@ -34,17 +34,16 @@ class DataStore(object):
     ##########################################
 
     def _read_experiment_layout(self, layoutfile):
-        sep=','
-        if 'sep' in layoutfile:
-            sep=layoutfile['sep']
-        self.experiment_layout = pd.read_csv(layoutfile['path'], sep=sep).set_index([layoutfile['plate_col'],layoutfile['condition_col']])
+        sep = layoutfile.get('sep', ',')
+        self.experiment_layout = pd.read_csv(layoutfile['path'], sep=sep
+                                            ).set_index(
+            [layoutfile['plate_col'], layoutfile['condition_col']])
 
     def _read_barcode_key(self, barcodefile):
         # Read and validate the barcode key
-        sep=','
-        if 'sep' in barcodefile:
-            sep=barcodefile['sep']
-        self.barcode_key = pd.read_csv(barcodefile['path'], sep=sep).set_index(barcodefile['well_col'])
+        sep = barcodefile.get('sep', ',')
+        self.barcode_key = pd.read_csv(barcodefile['path'], sep=sep).set_index(
+            barcodefile['well_col'])
 
     def readi_well_measurements(self, wellmesfile):
         # Read and validate the well measurements
@@ -85,4 +84,5 @@ class DataStore(object):
     def debarcode(self):
         # Use data in self for debarcoding
         raise NotImplementedError
-        # return a DF where Index is Spherenumber and rows are | Valid_BC_counts | highest_BC_counts | second_BC_count | well |
+        # return a DF where Index is Spherenumber and rows are |
+        # Valid_BC_counts  |highest_BC_counts | second_BC_count | well |
