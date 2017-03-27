@@ -6,71 +6,71 @@ class DataStore(object):
     """docstring for DataStore."""
     def __init__(self):
         # init empty properties here
-        self.ExperimentLayout = None
-        self.BarcodeKey = None
-        self.WellMeasurements = None
-        self.CutMeta = None
-        self.RoiMeta = None
-        self.ChannelMeta = None
-        self.SphereMeta = None
-        self.MeasurementData = None
+        self.experiment_layout = None
+        self.barcode_key = None
+        self.well_measurements = None
+        self.cut_meta = None
+        self.roi_meta = None
+        self.channel_meta = None
+        self.sphere_meta = None
+        self.measurement_data = None
 
-    def readConfig(self, configpath):
+    def read_config(self, configpath):
         with open(configpath, 'r') as stream:
             try:
                 self.conf = yaml.load(stream)
             except yaml.YAMLError as exc:
                 print(exc)
 
-    def readData(self):
+    def read_data(self):
         # Read the data based on the config
-        self.readExperimentLayout(self.conf['layout_csv'])
-        self.readBarcodeKey(self.conf['barcode_csv'])
-        #self.readWellMeasurements(self.conf['wells_csv'])
-        self.readChannelMeta(self.conf['channel_csv'])
+        self._readExperimentLayout(self.conf['layout_csv'])
+        self._readBarcodeKey(self.conf['barcode_csv'])
+        #self._readWellMeasurements(self.conf['wells_csv'])
+        self._readChannelMeta(self.conf['channel_csv'])
 
     ##########################################
     #   Helper functions used by readData:   #
     ##########################################
 
-    def readExperimentLayout(self, layoutfile):
+    def _read_experiment_layout(self, layoutfile):
         sep=','
         if 'sep' in layoutfile:
             sep=layoutfile['sep']
-        self.ExperimentLayout = pd.read_csv(layoutfile['path'], sep=sep).set_index([layoutfile['plate_col'],layoutfile['condition_col']])
+        self.experiment_layout = pd.read_csv(layoutfile['path'], sep=sep).set_index([layoutfile['plate_col'],layoutfile['condition_col']])
 
-    def readBarcodeKey(self, barcodefile):
+    def _read_barcode_key(self, barcodefile):
         # Read and validate the barcode key
         sep=','
         if 'sep' in barcodefile:
             sep=barcodefile['sep']
-        self.BarcodeKey = pd.read_csv(barcodefile['path'], sep=sep).set_index(barcodefile['well_col'])
+        self.barcode_key = pd.read_csv(barcodefile['path'], sep=sep).set_index(barcodefile['well_col'])
 
-    def readWellMeasurements(self, wellmesfile):
+    def readi_well_measurements(self, wellmesfile):
         # Read and validate the well measurements
         raise NotImplementedError
 
-    def readChannelMeta(self, channelfile):
+    def read_channel_meta(self, channelfile):
         # Read and validate the channel metadata
         raise NotImplementedError
 
-    def readCutlMeta(self, cutfile):
+    def read_cut_meta(self, cutfile):
         # Read and validate the channel metadata
         raise NotImplementedError
 
-    def readRoiMeta(self, roifile):
+    def read_roi_meta(self, roifile):
         # Read and validate the ROI metadata
         raise NotImplementedError
 
-    def readChannelMeta(self, channelfile):
+    def read_channel_meta(self, channelfile):
         # Read and validate the channel metadata
         raise NotImplementedError
 
-    def readMeasurementData(self):
+    def read_measurement_data(self):
         # Read and validate the measurement data
         raise NotImplementedError
 
-    def generateSphereMeta(self):
+    def generate_sphere_meta(self):
         # Generate the sphere metadata
         # 1. empty DF
         # 2. debarcode and merge info (WellID, PlateID)
