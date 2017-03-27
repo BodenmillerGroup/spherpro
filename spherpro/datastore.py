@@ -1,41 +1,50 @@
 import pandas as pd
 import numpy as np
-
+import yaml
 
 class DataStore(object):
     """docstring for DataStore."""
     def __init__(self):
-        super(DataStore, self).__init__()
         # init empty properties here
-        ExperimentLayout = None
-        BarcodeKey = None
-        WellMeasurements = None
-        CutMeta = None
-        RoiMeta = None
-        ChannelMeta = None
-        SphereMeta = None
-        MeasurementData = None
+        self.ExperimentLayout = None
+        self.BarcodeKey = None
+        self.WellMeasurements = None
+        self.CutMeta = None
+        self.RoiMeta = None
+        self.ChannelMeta = None
+        self.SphereMeta = None
+        self.MeasurementData = None
 
     def readConfig(self, configpath):
-        # Read the config and save the properties
-        raise NotImplementedError
+        with open(configpath, 'r') as stream:
+            try:
+                self.conf = yaml.load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
 
     def readData(self):
         # Read the data based on the config
-        raise NotImplementedError
-
+        self.readExperimentLayout(self.conf['layout_csv'])
+        self.readBarcodeKey(self.conf['barcode_csv'])
+        #self.readWellMeasurements(self.conf['wells_csv'])
+        self.readChannelMeta(self.conf['channel_csv'])
 
     ##########################################
     #   Helper functions used by readData:   #
     ##########################################
 
     def readExperimentLayout(self, layoutfile):
-        # Read and validate the experiment layout
-        raise NotImplementedError
+        sep=','
+        if 'sep' in layoutfile:
+            sep=layoutfile['sep']
+        self.ExperimentLayout = pd.read_csv(layoutfile['path'], sep=sep).set_index([layoutfile['plate_col'],layoutfile['condition_col']])
 
     def readBarcodeKey(self, barcodefile):
         # Read and validate the barcode key
-        raise NotImplementedError
+        sep=','
+        if 'sep' in barcodefile:
+            sep=barcodefile['sep']
+        self.BarcodeKey = pd.read_csv(barcodefile['path'], sep=sep).set_index(barcodefile['well_col'])
 
     def readWellMeasurements(self, wellmesfile):
         # Read and validate the well measurements
@@ -45,7 +54,7 @@ class DataStore(object):
         # Read and validate the channel metadata
         raise NotImplementedError
 
-    def readChannelMeta(self, channelfile):
+    def readCutlMeta(self, cutfile):
         # Read and validate the channel metadata
         raise NotImplementedError
 
