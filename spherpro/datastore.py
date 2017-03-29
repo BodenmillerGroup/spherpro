@@ -24,11 +24,17 @@ class DataStore(object):
                 print(exc)
 
     def read_data(self):
+        """read_data
+        Reads the Data using the file locations given in the configfile.
+        """
         # Read the data based on the config
         self._read_experiment_layout(self.conf['layout_csv'])
         self._read_barcode_key(self.conf['barcode_csv'])
         # self._readWellMeasurements(self.conf['wells_csv'])
         self._read_channel_meta(self.conf['channel_csv'])
+        # self._read_cut_meta(self.conf['cut_csv'])
+        # self._read_roi_meta(self.conf['roi_csv'])
+        self._read_measurement_data(self.conf['cpoutput'])
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -45,7 +51,9 @@ class DataStore(object):
     def _read_barcode_key(self, barcodefile):
         # Read and validate the barcode key
         sep = barcodefile.get('sep', ',')
-        self.barcode_key = pd.read_csv(barcodefile['path'], sep=sep).set_index(
+        self.barcode_key = pd.read_csv(
+            barcodefile['path'], sep=sep
+        ).set_index(
             barcodefile['well_col']
         )
 
@@ -55,7 +63,10 @@ class DataStore(object):
 
     def _read_channel_meta(self, channelfile):
         # Read and validate the channel metadata
-        raise NotImplementedError
+        sep = channelfile.get('sep', ',')
+        self.channel_meta = pd.read_csv(
+            channelfile['path'], sep=sep
+        )
 
     def _read_cut_meta(self, cutfile):
         # Read and validate the channel metadata
@@ -65,11 +76,8 @@ class DataStore(object):
         # Read and validate the ROI metadata
         raise NotImplementedError
 
-    def _read_channel_meta(self, channelfile):
-        # Read and validate the channel metadata
-        raise NotImplementedError
 
-    def _read_measurement_data(self):
+    def _read_measurement_data(self, measurementfile):
         # Read and validate the measurement data
         raise NotImplementedError
 
