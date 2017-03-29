@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import yaml
 
+
 class DataStore(object):
     """docstring for DataStore."""
     def __init__(self):
@@ -26,7 +27,7 @@ class DataStore(object):
         # Read the data based on the config
         self._read_experiment_layout(self.conf['layout_csv'])
         self._read_barcode_key(self.conf['barcode_csv'])
-        #self._readWellMeasurements(self.conf['wells_csv'])
+        # self._readWellMeasurements(self.conf['wells_csv'])
         self._read_channel_meta(self.conf['channel_csv'])
 
     ##########################################
@@ -35,15 +36,18 @@ class DataStore(object):
 
     def _read_experiment_layout(self, layoutfile):
         sep = layoutfile.get('sep', ',')
-        self.experiment_layout = pd.read_csv(layoutfile['path'], sep=sep
-                                            ).set_index(
-            [layoutfile['plate_col'], layoutfile['condition_col']])
+        self.experiment_layout = pd.read_csv(
+            layoutfile['path'], sep=sep
+        ).set_index(
+            [layoutfile['plate_col'], layoutfile['condition_col']]
+        )
 
     def _read_barcode_key(self, barcodefile):
         # Read and validate the barcode key
         sep = barcodefile.get('sep', ',')
         self.barcode_key = pd.read_csv(barcodefile['path'], sep=sep).set_index(
-            barcodefile['well_col'])
+            barcodefile['well_col']
+        )
 
     def _read_well_measurements(self, wellmesfile):
         # Read and validate the well measurements
