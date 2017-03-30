@@ -1,6 +1,8 @@
 
+crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
+
+cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
 cpoutput:
-  dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
   cells_csv: 'RescaledCells.csv'
   relation_csv: 'Object relationships.csv'
   images_csv: 'Image.csv'
