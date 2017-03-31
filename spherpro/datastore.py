@@ -71,9 +71,6 @@ class DataStore(object):
 
 
     def _read_measurement_data(self):
-        # We will read the CellProfiler output and
-        # cast it into a usefull scheme using pandas
-        # dataframes as a database replacement
         sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
         self._cells_csv = pd.read_csv(
             self.conf['cp_dir']+self.conf['cpoutput']['cells_csv']['path'],
