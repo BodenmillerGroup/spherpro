@@ -4,6 +4,7 @@ import yaml
 from os import listdir
 from os.path import isfile, join
 import re
+import sqlite3
 
 
 class DataStore(object):
@@ -18,6 +19,8 @@ class DataStore(object):
         self.channel_meta = None
         self.sphere_meta = None
         self.measurement_data = None
+
+        self.connectors = {'sqlite': self._connect_sqlite}
 
     def read_config(self, configpath):
         with open(configpath, 'r') as stream:
@@ -111,11 +114,9 @@ class DataStore(object):
         raise NotImplementedError
 
     ##########################################
-    #               Debarcoding:             #
+    #             Database access:           #
     ##########################################
 
-    def debarcode(self):
-        # Use data in self for debarcoding
-        raise NotImplementedError
-        # return a DF where Index is Spherenumber and rows are |
-        # Valid_BC_counts  |highest_BC_counts | second_BC_count | well |
+    def _connect_sqlite(self):
+
+        self.db_conn = sqlite3.connect(self.conf['sqlite']['db'])

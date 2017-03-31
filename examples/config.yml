@@ -1,6 +1,11 @@
 
 crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
 
+backend: 'sqlite'
+sqlite:
+  db: '/home/mleutenegger/Code/20170324_spherpro_testing/db.db'
+
+
 # Cellprofiler output info:
 cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
 stack_dir:
