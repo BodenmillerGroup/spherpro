@@ -3,7 +3,8 @@ crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
 
 # Cellprofiler output info:
 cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
-stack_dir: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
+stack_dir:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
 stack_relations: '/home/mleutenegger/Code/20170324_spherpro_testing/stack_relations.csv'
 cpoutput:
   cells_csv:

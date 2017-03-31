@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import yaml
+from os import listdir
+from os.path import isfile, join
+import re
 
 
 class DataStore(object):
@@ -34,6 +37,7 @@ class DataStore(object):
         # self._read_cut_meta(self.conf['cut_csv'])
         # self._read_roi_meta(self.conf['roi_csv'])
         self._read_measurement_data()
+        self._read_stack_meta()
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -73,19 +77,30 @@ class DataStore(object):
     def _read_measurement_data(self):
         sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
         self._cells_csv = pd.read_csv(
-            self.conf['cp_dir']+self.conf['cpoutput']['cells_csv']['path'],
+            join(self.conf['cp_dir'],self.conf['cpoutput']['cells_csv']['path']),
             sep=sep
         )
         sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
         self._images_csv = pd.read_csv(
-            self.conf['cp_dir']+self.conf['cpoutput']['images_csv']['path'],
+            join(self.conf['cp_dir'], self.conf['cpoutput']['images_csv']['path']),
             sep=sep
         )
         sep = self.conf['cpoutput']['relation_csv'].get('sep', ',')
         self._relation_csv = pd.read_csv(
-            self.conf['cp_dir']+self.conf['cpoutput']['relation_csv']['path'],
+            join(self.conf['cp_dir'], self.conf['cpoutput']['relation_csv']['path']),
             sep=sep
         )
+
+    def _read_stack_meta(self):
+        sep = self.conf['stack_dir'].get('sep', ',')
+        dir = self.conf['stack_dir']['path']
+        match = re.compile("(.*)\.csv")
+        stack_files = [f for f in listdir(dir) if isfile(join(dir, f))]
+        stack_data = [pd.read_csv(join(dir,n), sep) for n in stack_files]
+        stack_files = [match.match(name).groups()[0] for name in stack_files]
+        self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
+
+
 
     def generate_sphere_meta(self):
         # Generate the sphere metadata
