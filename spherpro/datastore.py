@@ -34,7 +34,7 @@ class DataStore(object):
         self._read_channel_meta(self.conf['channel_csv'])
         # self._read_cut_meta(self.conf['cut_csv'])
         # self._read_roi_meta(self.conf['roi_csv'])
-        self._read_measurement_data(self.conf['cpoutput'])
+        self._read_measurement_data()
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -77,9 +77,25 @@ class DataStore(object):
         raise NotImplementedError
 
 
-    def _read_measurement_data(self, measurementfile):
-        # Read and validate the measurement data
-        raise NotImplementedError
+    def _read_measurement_data(self):
+        # We will read the CellProfiler output and
+        # cast it into a usefull scheme using pandas
+        # dataframes as a database replacement
+        sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
+        cells_csv = pd.read_csv(
+            self.conf['cp_dir']+self.conf['cpoutput']['cells_csv']['path'],
+            sep=sep
+        )
+        sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
+        images_csv = pd.read_csv(
+            self.conf['cp_dir']+self.conf['cpoutput']['images_csv']['path'],
+            sep=sep
+        )
+        sep = self.conf['cpoutput']['relation_csv'].get('sep', ',')
+        relation_csv = pd.read_csv(
+            self.conf['cp_dir']+self.conf['cpoutput']['relation_csv']['path'],
+            sep=sep
+        )
 
     def generate_sphere_meta(self):
         # Generate the sphere metadata

@@ -1,12 +1,19 @@
 
 crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
 
+# Cellprofiler output info:
 cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
+stack_dir: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
+stack_relations: '/home/mleutenegger/Code/20170324_spherpro_testing/stack_relations.csv'
 cpoutput:
-  cells_csv: 'RescaledCells.csv'
-  relation_csv: 'Object relationships.csv'
-  images_csv: 'Image.csv'
+  cells_csv:
+    path: 'RescaledCells.csv'
+  relation_csv:
+    path: 'Object relationships.csv'
+  images_csv:
+    path: 'Image.csv'
 
+# Experiment layout info:
 layout_csv:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/testlayout.csv'
   plate_col: 'Plate'
@@ -14,6 +21,7 @@ layout_csv:
   condition_col: 'Compound'
   control_col: 'isControl'
 
+# Barcode Info:
 barcode_csv:
   path: '/home/vitoz/Data/60-wellplate_102-104-105-106-108-110-Pd_113-115-In_BarcodingKey.csv'
   well_col: 'Mass'
@@ -22,8 +30,7 @@ barcode_csv:
 # wells_csv:
   # path: ''
 
-channel_csv:
-  path: '/home/mleutenegger/Code/20170324_spherpro_testing/201702_stack_names.csv'
 
+# Pannel Info:
 pannel_csv:
   path: '/home/mleutenegger/Git/SpheroidSignaling/20170216_p32_s3_ac1/20170216_panel.csv'
