@@ -31,7 +31,6 @@ class DataStore(object):
         self._read_experiment_layout(self.conf['layout_csv'])
         self._read_barcode_key(self.conf['barcode_csv'])
         # self._readWellMeasurements(self.conf['wells_csv'])
-        self._read_channel_meta(self.conf['channel_csv'])
         # self._read_cut_meta(self.conf['cut_csv'])
         # self._read_roi_meta(self.conf['roi_csv'])
         self._read_measurement_data()
@@ -61,12 +60,6 @@ class DataStore(object):
         # Read and validate the well measurements
         raise NotImplementedError
 
-    def _read_channel_meta(self, channelfile):
-        # Read and validate the channel metadata
-        sep = channelfile.get('sep', ',')
-        self.channel_meta = pd.read_csv(
-            channelfile['path'], sep=sep
-        )
 
     def _read_cut_meta(self, cutfile):
         # Read and validate the channel metadata
@@ -82,17 +75,17 @@ class DataStore(object):
         # cast it into a usefull scheme using pandas
         # dataframes as a database replacement
         sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
-        cells_csv = pd.read_csv(
+        self._cells_csv = pd.read_csv(
             self.conf['cp_dir']+self.conf['cpoutput']['cells_csv']['path'],
             sep=sep
         )
         sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
-        images_csv = pd.read_csv(
+        self._images_csv = pd.read_csv(
             self.conf['cp_dir']+self.conf['cpoutput']['images_csv']['path'],
             sep=sep
         )
         sep = self.conf['cpoutput']['relation_csv'].get('sep', ',')
-        relation_csv = pd.read_csv(
+        self._relation_csv = pd.read_csv(
             self.conf['cp_dir']+self.conf['cpoutput']['relation_csv']['path'],
             sep=sep
         )
