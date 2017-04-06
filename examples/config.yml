@@ -18,6 +18,7 @@ cpoutput:
     path: 'Object relationships.csv'
   images_csv:
     path: 'Image.csv'
+re_meta: "site(?P<site>[a-zA-Z0-9]+)_.*_l(?P<cutid>[0-9]+)_x(?P<x>[0-9]+)_y(?P<y>[0-9]+).*"
 
 # Experiment layout info:
 layout_csv:

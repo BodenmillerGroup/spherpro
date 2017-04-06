@@ -41,6 +41,7 @@ class DataStore(object):
         # self._read_roi_meta(self.conf['roi_csv'])
         self._read_measurement_data()
         self._read_stack_meta()
+        self._populate_db()
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -103,20 +104,44 @@ class DataStore(object):
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
 
+    def _populate_db(self):
+        self.connectors[self.conf['backend']]()
+        self._generate_Stack()
+
+    ##########################################
+    #        Database Table Generation:      #
+    ##########################################
+
+    def _generate_Stack(self):
+        match_normal = re.compile('.*_([a-zA-Z0-9]+)_c[0-9]+')
+        stacks_normal = [match_normal.search(string).groups()[0] for string in self._cells_csv.columns.unique() if match_normal.search(string) is not None]
+        stacks_normal = list(set(stacks_normal))
+
+        match_special = re.compile('.*_([a-zA-Z0-9]+)_[0-9]+')
+        stacks_special = [match_special.search(string).groups()[0] for string in self._cells_csv.columns.unique() if match_special.search(string) is not None]
+        stacks_special = list(set(stacks_special))
+
+        data = pd.DataFrame(
+            [{key: val for (key, val) in zip(["StackName","Special"],[name,0])} for name in stacks_normal]
+        )
+        data = data.append(
+            pd.DataFrame([{key: val for (key, val) in zip(["StackName","Special"],[name,1])} for name in stacks_special])
+        )
+        data = data.set_index("StackName")
+
+        data.to_sql(con=self.db_conn, name="Stack")
 
 
-    def generate_sphere_meta(self):
-        # Generate the sphere metadata
-        # 1. empty DF
-        # 2. debarcode and merge info (WellID, PlateID)
-        # 3. Merge meta info about spheres
-        #
-        raise NotImplementedError
+    def _generate_RefStack(self):
+        pass
+
+    def _generate_DerivedStack(self):
+        pass
+
 
     ##########################################
     #             Database access:           #
     ##########################################
 
     def _connect_sqlite(self):
-
         self.db_conn = sqlite3.connect(self.conf['sqlite']['db'])
