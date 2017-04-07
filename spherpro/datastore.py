@@ -113,19 +113,13 @@ class DataStore(object):
     ##########################################
 
     def _generate_Stack(self):
-        match_normal = re.compile('.*_([a-zA-Z0-9]+)_c[0-9]+')
-        stacks_normal = [match_normal.search(string).groups()[0] for string in self._cells_csv.columns.unique() if match_normal.search(string) is not None]
-        stacks_normal = list(set(stacks_normal))
+        # lookup stacknames in the stack_files
+        # add a NoStack
+        # Save to DB
 
-        match_special = re.compile('.*_([a-zA-Z0-9]+)_[0-9]+')
-        stacks_special = [match_special.search(string).groups()[0] for string in self._cells_csv.columns.unique() if match_special.search(string) is not None]
-        stacks_special = list(set(stacks_special))
 
         data = pd.DataFrame(
-            [{key: val for (key, val) in zip(["StackName","Special"],[name,0])} for name in stacks_normal]
-        )
-        data = data.append(
-            pd.DataFrame([{key: val for (key, val) in zip(["StackName","Special"],[name,1])} for name in stacks_special])
+            [{key: val for (key, val) in zip(["StackName"],[name])} for name in self.stacks]
         )
         data = data.set_index("StackName")
 
@@ -138,6 +132,8 @@ class DataStore(object):
     def _generate_DerivedStack(self):
         pass
 
+    def _generate_measurement(self):
+        pass
 
     ##########################################
     #             Database access:           #
