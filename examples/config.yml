@@ -10,7 +10,12 @@ sqlite:
 cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
 stack_dir:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
-stack_relations: '/home/mleutenegger/Code/20170324_spherpro_testing/stack_relations.csv'
+stack_relations:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/stackrelations.csv'
+  stack_col: 'Stack' # Default: 'Stack'
+  parent_col: 'Parent' # Default: 'Parent'
+  mod_col: 'Modification' # Default: 'Modification'
+  sep: ',' # Default: ','
 cpoutput:
   cells_csv:
     path: 'RescaledCells.csv'
@@ -27,6 +32,7 @@ layout_csv:
   well_col: 'TargetWell'
   condition_col: 'Compound'
   control_col: 'isControl'
+
 
 # Barcode Info:
 barcode_csv:

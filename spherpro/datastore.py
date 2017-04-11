@@ -106,6 +106,11 @@ class DataStore(object):
         stack_data = [pd.read_csv(join(dir,n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
+        sep = self.conf['stack_relations'].get('sep', ',')
+        self.__stack_relation_csv = pd.read_csv(
+            self.conf['stack_relations']['path'],
+            sep=sep
+        )
 
     def _populate_db(self):
         self.connectors[self.conf['backend']]()
@@ -124,6 +129,8 @@ class DataStore(object):
 
         data.to_sql(con=self.db_conn, name="Stack")
 
+    def _generate_Modifications(self):
+        raise NotImplementedError
 
     def _generate_RefStack(self):
         pass
