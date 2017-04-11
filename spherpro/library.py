@@ -1,6 +1,7 @@
 import pandas as pd
+import re
 
-def find_stackmeta(stackpattern, x,
+def find_measurementmeta(stackpattern, x,
                   no_stack_str = "NoStack"):
     """
     finds the measurement meta information from a given string

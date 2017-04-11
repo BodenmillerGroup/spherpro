@@ -6,6 +6,9 @@ from os.path import isfile, join
 import re
 import sqlite3
 
+import spherpro as spp
+import spherpro.library as lib
+
 
 class DataStore(object):
     """docstring for DataStore."""
@@ -107,17 +110,13 @@ class DataStore(object):
     def _populate_db(self):
         self.connectors[self.conf['backend']]()
         self._generate_Stack()
+        self._generate_measurement()
 
     ##########################################
     #        Database Table Generation:      #
     ##########################################
 
     def _generate_Stack(self):
-        # lookup stacknames in the stack_files
-        # add a NoStack
-        # Save to DB
-
-
         data = pd.DataFrame(
             [{key: val for (key, val) in zip(["StackName"],[name])} for name in self.stacks]
         )
@@ -133,8 +132,19 @@ class DataStore(object):
         pass
 
     def _generate_measurement(self):
-        pass
-
+        stackgroup = '('
+        for stack in [i for i in self.stacks]:
+            if stackgroup == '(':
+                stackgroup = stackgroup + stack
+            else:
+                stackgroup = stackgroup + '|' + stack
+        stackgroup = stackgroup + ')'
+        measurements = self._cells_csv
+        meta = pd.Series(measurements.columns.unique()).apply(lambda x: lib.find_measurementmeta(stackgroup,x))
+        meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
+        measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
+        measurements = measurements.merge(meta, how='inner', on='variable')
+        measurements.to_sql(con=self.db_conn, name="Measurement")
     ##########################################
     #             Database access:           #
     ##########################################
