@@ -167,12 +167,6 @@ class DataStore(object):
         DerivedStack.to_sql(con=self.db_conn, name="DerivedStack")
 
 
-    def _generate_RefStack(self):
-        pass
-
-    def _generate_DerivedStack(self):
-        pass
-
     def _generate_measurement(self):
         stackgroup = '('
         for stack in [i for i in self.stacks]:
