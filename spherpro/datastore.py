@@ -107,7 +107,7 @@ class DataStore(object):
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
         sep = self.conf['stack_relations'].get('sep', ',')
-        self.__stack_relation_csv = pd.read_csv(
+        self._stack_relation_csv = pd.read_csv(
             self.conf['stack_relations']['path'],
             sep=sep
         )
@@ -115,22 +115,57 @@ class DataStore(object):
     def _populate_db(self):
         self.connectors[self.conf['backend']]()
         self._generate_Stack()
-        self._generate_measurement()
+        self._generate_Modifications()
+        #self._generate_measurement()
 
     ##########################################
     #        Database Table Generation:      #
     ##########################################
 
     def _generate_Stack(self):
-        data = pd.DataFrame(
-            [{key: val for (key, val) in zip(["StackName"],[name])} for name in self.stacks]
-        )
+        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
+
+        data = pd.DataFrame(self._stack_relation_csv[stack_col])
+        data.columns = ['StackName']
         data = data.set_index("StackName")
 
         data.to_sql(con=self.db_conn, name="Stack")
 
     def _generate_Modifications(self):
-        raise NotImplementedError
+        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
+        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
+        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
+        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
+        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+
+        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
+        Modifications = pd.DataFrame(stackrel[modname_col])
+        Modifications['tmp'] = stackrel[modpre_col]
+        Modifications.columns = ['ModificationName','ModificationPrefix']
+        Modifications = Modifications.set_index('ModificationName')
+        Modifications.to_sql(con=self.db_conn, name="Modification")
+
+        StackModification = pd.DataFrame(stackrel[stack_col])
+        StackModification['ModificationName'] = stackrel[modname_col]
+        StackModification['ParentStackName'] = stackrel[parent_col]
+        StackModification.columns = ['StackName','ModificationName','ParentStackName']
+        StackModification = StackModification.set_index(['StackName','ModificationName','ParentStackName'])
+        StackModification.to_sql(con=self.db_conn, name="StackModification")
+
+        ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
+        RefStack = pd.DataFrame(ref_stack[stack_col])
+        RefStack.columns = ['RefStackName']
+        RefStack = RefStack.set_index('RefStackName')
+        RefStack.to_sql(con=self.db_conn, name="RefStack")
+
+
+        derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
+        DerivedStack = pd.DataFrame(derived_stack[stack_col])
+        DerivedStack['RefStackName'] = derived_stack[ref_col]
+        DerivedStack.columns = ['DerivedStackName', 'RefStackName']
+        DerivedStack = DerivedStack.set_index('DerivedStackName')
+        DerivedStack.to_sql(con=self.db_conn, name="DerivedStack")
+
 
     def _generate_RefStack(self):
         pass

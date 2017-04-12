@@ -14,7 +14,9 @@ stack_relations:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/stackrelations.csv'
   stack_col: 'Stack' # Default: 'Stack'
   parent_col: 'Parent' # Default: 'Parent'
-  mod_col: 'Modification' # Default: 'Modification'
+  modname_col: 'ModificationName' # Default: 'ModificationName'
+  modpre_col: 'ModificationPrefix' # Default: 'ModificationPrefix'
+  ref_col: 'RefStack' # Default: 'RefStack'
   sep: ',' # Default: ','
 cpoutput:
   cells_csv:
