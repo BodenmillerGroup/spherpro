@@ -5,11 +5,23 @@ backend: 'sqlite'
 sqlite:
   db: '/home/mleutenegger/Code/20170324_spherpro_testing/db.db'
 
+mysql:
+  db: 'spherebro'
+  user: 'spherebro'
+  pass: 'bro'
+  host: '172.18.0.2'
+  port: '3306'
+
 
 # Cellprofiler output info:
 cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
 stack_dir:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
+  id_col: 'index' # Default: 'index'
+  name_col: 'mass' # Default: 'name'
+  stack_col: 'file_name' # Default: 'StackName' --> DEPRECATED
+  type_col: 'channel_type' # Default: 'channel_type'
+  sep: ',' # Default: ','
 stack_relations:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/stackrelations.csv'
   stack_col: 'Stack' # Default: 'Stack'

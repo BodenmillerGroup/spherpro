@@ -166,6 +166,21 @@ class DataStore(object):
         DerivedStack = DerivedStack.set_index('DerivedStackName')
         DerivedStack.to_sql(con=self.db_conn, name="DerivedStack")
 
+    def _generate_planes(self):
+        stack_col = self.conf['stack_relations'].get('stack_col', 'StackName')
+        id_col = self.conf['stack_relations'].get('id_col', 'index')
+        name_col = self.conf['stack_relations'].get('name_col', 'name')
+        type_col = self.conf['stack_relations'].get('type_col', 'channel_type')
+        planes = pd.DataFrame()
+        planes.columns = [
+            'id',
+            'RefStackName',
+            'Name',
+            'Type'
+        ]
+        for stack in self.stacks:
+
+
 
     def _generate_measurement(self):
         stackgroup = '('
