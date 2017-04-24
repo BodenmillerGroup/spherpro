@@ -207,7 +207,3 @@ class DataStore(object):
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=test.db_conn, name="MeasurementType")
         measurements.reset_index().to_sql(con=self.db_conn, name="Measurement", chunksize=100000)
-    ##########################################
-    #             Database access:           #
-    ##########################################
-
