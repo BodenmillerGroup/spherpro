@@ -170,19 +170,30 @@ class DataStore(object):
         DerivedStack.reset_index().to_sql(con=self.db_conn, name="DerivedStack")
 
     def _generate_planes(self):
-        stack_col = self.conf['stack_relations'].get('stack_col', 'StackName')
-        id_col = self.conf['stack_relations'].get('id_col', 'index')
-        name_col = self.conf['stack_relations'].get('name_col', 'name')
-        type_col = self.conf['stack_relations'].get('type_col', 'channel_type')
-        planes = pd.DataFrame()
-        planes.columns = [
-            'id',
+        stack_col = self.conf['stack_dir'].get('stack_col', 'StackName')
+        id_col = self.conf['stack_dir'].get('id_col', 'index')
+        name_col = self.conf['stack_dir'].get('name_col', 'name')
+        type_col = self.conf['stack_dir'].get('type_col', 'channel_type')
+        planes = pd.DataFrame(columns=[
+            'PlaneID',
             'RefStackName',
             'Name',
             'Type'
-        ]
+        ])
         for stack in self.stacks:
-            pass
+            self.stacks[stack].rename(columns={
+                id_col:'PlaneID',
+                stack_col:'RefStackName',
+                name_col:'Name',
+                type_col:'Type'
+            }, inplace = True)
+            planes = planes.append(self.stacks[stack])
+        planes = planes.reset_index().rename_axis('id')
+        del planes['index']
+        # cast PlaneID to be identical to the one in Measurement:
+        planes['PlaneID'] = planes['PlaneID'].apply(lambda x: 'c'+str(int(x)))
+
+        planes.to_sql(con=self.db_conn, name="PlaneMeta")
 
 
 
@@ -202,8 +213,8 @@ class DataStore(object):
         del measurements['variable']
         measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
         measurements_names.columns = ['MeasurementName']
-        measurements_names.rename_axis('id').to_sql(con=test.db_conn, name="MeasurementName")
+        measurements_names.rename_axis('id').to_sql(con=self.db_conn, name="MeasurementName")
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
-        measurements_types.rename_axis('id').to_sql(con=test.db_conn, name="MeasurementType")
+        measurements_types.rename_axis('id').to_sql(con=self.db_conn, name="MeasurementType")
         measurements.reset_index().to_sql(con=self.db_conn, name="Measurement", chunksize=100000)
