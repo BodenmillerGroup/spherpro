@@ -199,6 +199,13 @@ class DataStore(object):
         meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
         measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
+        del measurements['variable']
+        measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
+        measurements_names.columns = ['MeasurementName']
+        measurements_names.rename_axis('id').to_sql(con=test.db_conn, name="MeasurementName")
+        measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
+        measurements_types.columns = ['MeasurementType']
+        measurements_types.rename_axis('id').to_sql(con=test.db_conn, name="MeasurementType")
         measurements.reset_index().to_sql(con=self.db_conn, name="Measurement", chunksize=100000)
     ##########################################
     #             Database access:           #
