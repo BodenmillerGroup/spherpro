@@ -1,7 +1,7 @@
 
 crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
 
-backend: 'sqlite'
+backend: 'mysql'
 sqlite:
   db: '/home/mleutenegger/Code/20170324_spherpro_testing/db.db'
 
@@ -10,7 +10,7 @@ mysql:
   user: 'spherebro'
   pass: 'bro'
   host: '172.18.0.2'
-  port: '3306'
+  port: '3306' # Default: 3306
 
 
 # Cellprofiler output info:

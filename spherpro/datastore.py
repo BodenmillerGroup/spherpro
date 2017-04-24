@@ -4,10 +4,10 @@ import yaml
 from os import listdir
 from os.path import isfile, join
 import re
-import sqlite3
 
 import spherpro as spp
 import spherpro.library as lib
+import spherpro.db as db
 
 
 class DataStore(object):
@@ -23,7 +23,10 @@ class DataStore(object):
         self.sphere_meta = None
         self.measurement_data = None
 
-        self.connectors = {'sqlite': self._connect_sqlite}
+        self.connectors = {
+            'sqlite': db.connect_sqlite,
+            'mysql': db.connect_mysql
+        }
 
     def read_config(self, configpath):
         with open(configpath, 'r') as stream:
@@ -113,7 +116,7 @@ class DataStore(object):
         )
 
     def _populate_db(self):
-        self.connectors[self.conf['backend']]()
+        self.db_conn = self.connectors[self.conf['backend']](self.conf)
         self._generate_Stack()
         self._generate_Modifications()
         #self._generate_measurement()
@@ -129,7 +132,7 @@ class DataStore(object):
         data.columns = ['StackName']
         data = data.set_index("StackName")
 
-        data.to_sql(con=self.db_conn, name="Stack")
+        data.reset_index().to_sql(con=self.db_conn, name="Stack")
 
     def _generate_Modifications(self):
         parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
@@ -143,20 +146,20 @@ class DataStore(object):
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
         Modifications = Modifications.set_index('ModificationName')
-        Modifications.to_sql(con=self.db_conn, name="Modification")
+        Modifications.reset_index().to_sql(con=self.db_conn, name="Modification")
 
         StackModification = pd.DataFrame(stackrel[stack_col])
         StackModification['ModificationName'] = stackrel[modname_col]
         StackModification['ParentStackName'] = stackrel[parent_col]
         StackModification.columns = ['StackName','ModificationName','ParentStackName']
         StackModification = StackModification.set_index(['StackName','ModificationName','ParentStackName'])
-        StackModification.to_sql(con=self.db_conn, name="StackModification")
+        StackModification.reset_index().to_sql(con=self.db_conn, name="StackModification")
 
         ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
         RefStack = pd.DataFrame(ref_stack[stack_col])
         RefStack.columns = ['RefStackName']
         RefStack = RefStack.set_index('RefStackName')
-        RefStack.to_sql(con=self.db_conn, name="RefStack")
+        RefStack.reset_index().to_sql(con=self.db_conn, name="RefStack")
 
 
         derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
@@ -164,7 +167,7 @@ class DataStore(object):
         DerivedStack['RefStackName'] = derived_stack[ref_col]
         DerivedStack.columns = ['DerivedStackName', 'RefStackName']
         DerivedStack = DerivedStack.set_index('DerivedStackName')
-        DerivedStack.to_sql(con=self.db_conn, name="DerivedStack")
+        DerivedStack.reset_index().to_sql(con=self.db_conn, name="DerivedStack")
 
     def _generate_planes(self):
         stack_col = self.conf['stack_relations'].get('stack_col', 'StackName')
@@ -179,6 +182,7 @@ class DataStore(object):
             'Type'
         ]
         for stack in self.stacks:
+            pass
 
 
 
@@ -195,10 +199,8 @@ class DataStore(object):
         meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
         measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements.to_sql(con=self.db_conn, name="Measurement")
+        measurements.reset_index().to_sql(con=self.db_conn, name="Measurement", chunksize=100000)
     ##########################################
     #             Database access:           #
     ##########################################
 
-    def _connect_sqlite(self):
-        self.db_conn = sqlite3.connect(self.conf['sqlite']['db'])
