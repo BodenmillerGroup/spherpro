@@ -215,4 +215,6 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, name="MeasurementType")
-        measurements.reset_index().rename_axis('id').to_sql(con=self.db_conn, name="Measurement", chunksize=1000000)
+        measurements.reset_index().rename_axis('id')
+        del measurement['index']
+        measurements.to_sql(con=self.db_conn, name="Measurement", chunksize=1000000)
