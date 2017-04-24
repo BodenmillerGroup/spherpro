@@ -120,6 +120,7 @@ class DataStore(object):
         self._generate_Stack()
         self._generate_Modifications()
         self._generate_measurement()
+        self._generate_planes()
 
     ##########################################
     #        Database Table Generation:      #
