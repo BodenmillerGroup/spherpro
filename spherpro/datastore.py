@@ -29,6 +29,15 @@ class DataStore(object):
         }
 
     def read_config(self, configpath):
+        """
+        finds the measurement meta information from a given string
+
+        Args:
+            configpath: A string denoting the location of the config file
+
+        Raises:
+            YAMLError
+        """
         with open(configpath, 'r') as stream:
             try:
                 self.conf = yaml.load(stream)
@@ -40,11 +49,11 @@ class DataStore(object):
         Reads the Data using the file locations given in the configfile.
         """
         # Read the data based on the config
-        self._read_experiment_layout(self.conf['layout_csv'])
-        self._read_barcode_key(self.conf['barcode_csv'])
-        # self._readWellMeasurements(self.conf['wells_csv'])
-        # self._read_cut_meta(self.conf['cut_csv'])
-        # self._read_roi_meta(self.conf['roi_csv'])
+        self._read_experiment_layout()
+        self._read_barcode_key()
+        # self._readWellMeasurements()
+        # self._read_cut_meta()
+        # self._read_roi_meta()
         self._read_measurement_data()
         self._read_stack_meta()
         self._populate_db()
@@ -53,38 +62,58 @@ class DataStore(object):
     #   Helper functions used by readData:   #
     ##########################################
 
-    def _read_experiment_layout(self, layoutfile):
-        sep = layoutfile.get('sep', ',')
+    def _read_experiment_layout(self):
+        """
+        reads the experiment layout as stated in the config
+        and saves it in the datastore
+        """
+        sep = self.conf['layout_csv'].get('sep', ',')
         self.experiment_layout = pd.read_csv(
-            layoutfile['path'], sep=sep
+            self.conf['layout_csv']['path'], sep=sep
         ).set_index(
-            [layoutfile['plate_col'], layoutfile['condition_col']]
+            [self.conf['layout_csv']['plate_col'], self.conf['layout_csv']['condition_col']]
         )
 
-    def _read_barcode_key(self, barcodefile):
-        # Read and validate the barcode key
-        sep = barcodefile.get('sep', ',')
+    def _read_barcode_key(self):
+        """
+        reads the barcode key as stated in the config
+        and saves it in the datastore
+        """
+        sep = self.conf['barcode_csv'].get('sep', ',')
         self.barcode_key = pd.read_csv(
-            barcodefile['path'], sep=sep
+            self.conf['barcode_csv']['path'], sep=sep
         ).set_index(
-            barcodefile['well_col']
+            self.conf['barcode_csv']['well_col']
         )
 
-    def _read_well_measurements(self, wellmesfile):
-        # Read and validate the well measurements
+    def _read_well_measurements(self):
+        """
+        reads the well measurement file as stated in the config
+        and saves it in the datastore
+        """
         raise NotImplementedError
 
 
     def _read_cut_meta(self, cutfile):
-        # Read and validate the channel metadata
+        """
+        reads the cut meta file as stated in the config
+        and saves it in the datastore
+        """
         raise NotImplementedError
 
     def _read_roi_meta(self, roifile):
-        # Read and validate the ROI metadata
+        """
+        reads the roi meta as stated in the config
+        and saves it in the datastore
+        """
         raise NotImplementedError
 
 
     def _read_measurement_data(self):
+        """
+        reads the measurement data as stated in the config
+        and saves it in the datastore
+        """
         sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
         self._cells_csv = pd.read_csv(
             join(self.conf['cp_dir'],self.conf['cpoutput']['cells_csv']['path']),
@@ -102,6 +131,10 @@ class DataStore(object):
         )
 
     def _read_stack_meta(self):
+        """
+        reads the stack meta as stated in the config
+        and saves it in the datastore
+        """
         sep = self.conf['stack_dir'].get('sep', ',')
         dir = self.conf['stack_dir']['path']
         match = re.compile("(.*)\.csv")
@@ -116,6 +149,9 @@ class DataStore(object):
         )
 
     def _populate_db(self):
+        """
+        writes the tables to the database
+        """
         self.db_conn = self.connectors[self.conf['backend']](self.conf)
         self._generate_Stack()
         self._generate_Modifications()
@@ -127,6 +163,10 @@ class DataStore(object):
     ##########################################
 
     def _generate_Stack(self):
+        """
+        Writes the Stack table to the databse
+        """
+
         stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
 
         data = pd.DataFrame(self._stack_relation_csv[stack_col])
@@ -136,6 +176,11 @@ class DataStore(object):
         data.reset_index().to_sql(con=self.db_conn, name="Stack")
 
     def _generate_Modifications(self):
+        """
+        Creates the StackModifications, StackRelations, Modifications,
+        RefStack and DerivedStack tables and writes them to the database
+        """
+
         parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
         modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
         modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
@@ -171,6 +216,10 @@ class DataStore(object):
         DerivedStack.reset_index().to_sql(con=self.db_conn, name="DerivedStack")
 
     def _generate_planes(self):
+        """
+        generates the PlaneMeta Table and writes it to the database.
+        """
+
         stack_col = self.conf['stack_dir'].get('stack_col', 'StackName')
         id_col = self.conf['stack_dir'].get('id_col', 'index')
         name_col = self.conf['stack_dir'].get('name_col', 'name')
@@ -197,6 +246,12 @@ class DataStore(object):
         planes.to_sql(con=self.db_conn, name="PlaneMeta", )
 
     def _generate_measurement(self):
+        """
+        Generates the Measurement, MeasurementType and MeasurementName
+        tables and writes them to the database.
+        The Measurement Table can contain an extremely high ammount of rows
+        and can therefore be quite slow
+        """
         stackgroup = '('
         for stack in [i for i in self.stacks]:
             if stackgroup == '(':

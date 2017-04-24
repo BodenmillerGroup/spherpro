@@ -4,9 +4,27 @@ import pymysql
 from sqlalchemy import create_engine
 
 def connect_sqlite(conf):
+    """
+    creates a sqlite connector to be used with the Datastore.
+
+    Args:
+        conf: the config dictionnary from a Datastore object.
+
+    Returns:
+        SQLite3 connector
+    """
     return sqlite3.connect(conf['sqlite']['db'])
 
 def connect_mysql(conf):
+    """
+    creates a MySQL connector to be used with the Datastore.
+
+    Args:
+        conf: the config dictionnary from a Datastore object.
+
+    Returns:
+        MySQL connector
+    """
     host=conf['mysql']['host']
     port=conf['mysql'].get('port', '3306')
     user=conf['mysql']['user']
