@@ -7,14 +7,14 @@ def find_measurementmeta(stackpattern, x,
     finds the measurement meta information from a given string
 
     Args:
-    stackpattern: a string containing a capture group for all known stacks.
-        exp: '(DistStack|BinStack|FullStack)'
-    x: the variable string returned by Cellprofiler.
+        stackpattern: a string containing a capture group for all known stacks.
+            exp: '(DistStack|BinStack|FullStack)'
+        x: the variable string returned by Cellprofiler.
 
     Returns:
-    Returns pandas.Series, with the following strings
-    in this order:
-    x | measurement type | measurement name | stack name | plane id
+        Returns pandas.Series, with the following strings
+        in this order:
+        x | measurement type | measurement name | stack name | plane id
     """
     pre_pattern = '^([^_]*)_(.*)'
     post_pattern = '(.*)_'+stackpattern+'_(c\d+)'
