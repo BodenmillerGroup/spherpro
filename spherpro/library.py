@@ -24,7 +24,7 @@ def find_measurementmeta(stackpattern, x,
         mtype = match[0]
         rside = match[1]
     else:
-        return pd.Series([None, None, None, None, None])
+        return pd.Series(['', '', '', '', ''])
 
     match = re.search(post_pattern, rside)
     if match != None:
@@ -35,6 +35,6 @@ def find_measurementmeta(stackpattern, x,
     else:
         name = rside
         stack = no_stack_str
-        plane = None
+        plane = ''
 
     return pd.Series([x, mtype, name, stack, plane])

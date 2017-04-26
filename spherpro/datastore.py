@@ -11,7 +11,15 @@ import spherpro.db as db
 
 
 class DataStore(object):
-    """docstring for DataStore."""
+    """DataStore
+    The DataStore class is intended to be used as a storage for spheroid IMC
+    data. It features two Backends, MySQL and SQLite.
+
+    Methods:
+        read_config: read configfile
+        import_data: reads and writes data to the database
+        resume_data: reads non-database files and configures backend
+    """
     def __init__(self):
         # init empty properties here
         self.experiment_layout = None
@@ -44,7 +52,7 @@ class DataStore(object):
             except yaml.YAMLError as exc:
                 print(exc)
 
-    def read_data(self):
+    def import_data(self):
         """read_data
         Reads the Data using the file locations given in the configfile.
         """
@@ -57,6 +65,20 @@ class DataStore(object):
         self._read_measurement_data()
         self._read_stack_meta()
         self._populate_db()
+
+    def resume_data(self):
+        """read_data
+        Reads non-database files and configures backend according to
+        the configfile.
+        """
+        # Read the data based on the config
+        self._read_experiment_layout()
+        self._read_barcode_key()
+        # self._readWellMeasurements()
+        # self._read_cut_meta()
+        # self._read_roi_meta()
+        self._read_measurement_data()
+        self._read_stack_meta()
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -272,5 +294,4 @@ class DataStore(object):
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, name="MeasurementType")
         measurements.reset_index().rename_axis('id')
-        del measurement['index']
         measurements.to_sql(con=self.db_conn, name="Measurement", chunksize=1000000)
