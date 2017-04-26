@@ -6,7 +6,7 @@ sqlite:
   db: '/home/mleutenegger/Code/20170324_spherpro_testing/db.db'
 
 mysql:
-  db: 'spherebro'
+  db: 'brotest'
   user: 'spherebro'
   pass: 'bro'
   host: '172.18.0.2'

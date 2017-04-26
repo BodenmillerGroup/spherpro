@@ -16,9 +16,10 @@ class DataStore(object):
     data. It features two Backends, MySQL and SQLite.
 
     Methods:
-        read_config: read configfile
-        import_data: reads and writes data to the database
-        resume_data: reads non-database files and configures backend
+        Base:
+            read_config: read configfile
+            import_data: reads and writes data to the database
+            resume_data: reads non-database files and configures backend
     """
     def __init__(self):
         # init empty properties here
