@@ -178,8 +178,9 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf['backend']](self.conf)
         self._generate_Stack()
         self._generate_Modifications()
-        self._generate_measurement()
         self._generate_planes()
+        self._generate_images()
+        self._generate_measurement()
 
     ##########################################
     #        Database Table Generation:      #
@@ -196,7 +197,7 @@ class DataStore(object):
         data.columns = ['StackName']
         data = data.set_index("StackName")
 
-        data.reset_index().to_sql(con=self.db_conn, if_exists='append' name="Stack")
+        data.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Stack", index=False)
 
     def _generate_Modifications(self):
         """
@@ -215,28 +216,28 @@ class DataStore(object):
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
         Modifications = Modifications.set_index('ModificationName')
-        Modifications.reset_index().to_sql(con=self.db_conn, if_exists='append' name="Modification")
+        Modifications.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Modification", index=False)
 
         StackModification = pd.DataFrame(stackrel[stack_col])
         StackModification['ModificationName'] = stackrel[modname_col]
         StackModification['ParentStackName'] = stackrel[parent_col]
-        StackModification.columns = ['StackName','ModificationName','ParentStackName']
-        StackModification = StackModification.set_index(['StackName','ModificationName','ParentStackName'])
-        StackModification.reset_index().to_sql(con=self.db_conn, if_exists='append' name="StackModification")
+        StackModification.columns = ['ChildName','ModificationName','ParentName']
+        StackModification = StackModification.set_index(['ChildName','ModificationName','ParentName'])
+        StackModification.reset_index().to_sql(con=self.db_conn, if_exists='append', name="StackModification", index=False)
 
         ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
         RefStack = pd.DataFrame(ref_stack[stack_col])
-        RefStack.columns = ['RefStackName']
-        RefStack = RefStack.set_index('RefStackName')
-        RefStack.reset_index().to_sql(con=self.db_conn, if_exists='append' name="RefStack")
+        RefStack.columns = ['StackName']
+        RefStack = RefStack.set_index('StackName')
+        RefStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="RefStack", index=False)
 
 
         derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
         DerivedStack = pd.DataFrame(derived_stack[stack_col])
         DerivedStack['RefStackName'] = derived_stack[ref_col]
-        DerivedStack.columns = ['DerivedStackName', 'RefStackName']
-        DerivedStack = DerivedStack.set_index('DerivedStackName')
-        DerivedStack.reset_index().to_sql(con=self.db_conn, if_exists='append' name="DerivedStack")
+        DerivedStack.columns = ['StackName', 'RefStackName']
+        DerivedStack = DerivedStack.set_index('StackName')
+        DerivedStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="DerivedStack", index=False)
 
     def _generate_planes(self):
         """
@@ -266,7 +267,11 @@ class DataStore(object):
         # cast PlaneID to be identical to the one in Measurement:
         planes['PlaneID'] = planes['PlaneID'].apply(lambda x: 'c'+str(int(x)))
 
-        planes.to_sql(con=self.db_conn, if_exists='append' name="PlaneMeta", )
+        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+
+    def _generate_images(self):
+        raise NotImplemented
+
 
     def _generate_measurement(self):
         """
@@ -290,9 +295,8 @@ class DataStore(object):
         del measurements['variable']
         measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
         measurements_names.columns = ['MeasurementName']
-        measurements_names.rename_axis('id').to_sql(con=self.db_conn, if_exists='append' name="MeasurementName")
+        measurements_names.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementName")
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
-        measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append' name="MeasurementType")
-        measurements.reset_index().rename_axis('id')
-        measurements.to_sql(con=self.db_conn, if_exists='append' name="Measurement", chunksize=1000000)
+        measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
+        measurements.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=1000000, index=False)
