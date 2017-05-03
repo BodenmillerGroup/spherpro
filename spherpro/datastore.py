@@ -296,12 +296,15 @@ class DataStore(object):
         cells.to_sql(con=self.db_conn, if_exists='append', name="Cell", index=False)
 
 
-    def _generate_measurement(self):
+    def _generate_measurement(self, chunksize=1000000):
         """
         Generates the Measurement, MeasurementType and MeasurementName
         tables and writes them to the database.
         The Measurement Table can contain an extremely high ammount of rows
         and can therefore be quite slow
+
+        Args:
+            chunksize: the ammount of rows written concurrently to the DB
         """
         stackgroup = '('
         for stack in [i for i in self.stacks]:
@@ -325,4 +328,4 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
-        measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=10000, index=False)
+        measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
