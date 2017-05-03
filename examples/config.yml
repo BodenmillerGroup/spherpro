@@ -31,8 +31,10 @@ stack_relations:
   ref_col: 'RefStack' # Default: 'RefStack'
   sep: ',' # Default: ','
 cpoutput:
-  cells_csv:
+  measurement_csv:
     path: 'RescaledCells.csv'
+  cells_csv:
+    path: 'Cells.csv'
   relation_csv:
     path: 'Object relationships.csv'
   images_csv:

@@ -137,6 +137,11 @@ class DataStore(object):
         reads the measurement data as stated in the config
         and saves it in the datastore
         """
+        sep = self.conf['cpoutput']['measurement_csv'].get('sep', ',')
+        self._measurement_csv = pd.read_csv(
+            join(self.conf['cp_dir'],self.conf['cpoutput']['measurement_csv']['path']),
+            sep=sep
+        )
         sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
         self._cells_csv = pd.read_csv(
             join(self.conf['cp_dir'],self.conf['cpoutput']['cells_csv']['path']),
@@ -180,6 +185,7 @@ class DataStore(object):
         self._generate_Modifications()
         self._generate_planes()
         self._generate_images()
+        self._generate_cells()
         self._generate_measurement()
 
     ##########################################
@@ -194,6 +200,7 @@ class DataStore(object):
         stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
 
         data = pd.DataFrame(self._stack_relation_csv[stack_col])
+        data = data.append({stack_col:'NoStack'}, ignore_index=True)
         data.columns = ['StackName']
         data = data.set_index("StackName")
 
@@ -269,8 +276,24 @@ class DataStore(object):
 
         planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
 
+
     def _generate_images(self):
-        raise NotImplemented
+        """
+        Generates the Image
+        table and writes it to the database.
+        """
+        image = pd.DataFrame(self._images_csv['ImageNumber'])
+        image.to_sql(con=self.db_conn, if_exists='append', name="Image", index=False)
+
+
+    def _generate_cells(self):
+        """
+        Generates the Cell
+        table and writes it to the database.
+        """
+        cells = pd.DataFrame(self._cells_csv['ImageNumber'])
+        cells['CellNumber'] = self._cells_csv['ObjectNumber']
+        cells.to_sql(con=self.db_conn, if_exists='append', name="Cell", index=False)
 
 
     def _generate_measurement(self):
@@ -287,16 +310,19 @@ class DataStore(object):
             else:
                 stackgroup = stackgroup + '|' + stack
         stackgroup = stackgroup + ')'
-        measurements = self._cells_csv
+        measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(lambda x: lib.find_measurementmeta(stackgroup,x))
         meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
         measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
+        measurements['CellNumber'] = measurements['ObjectNumber']
         del measurements['variable']
+        del measurements['ObjectNumber']
+        del measurements['Number_Object_Number']
         measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
         measurements_names.columns = ['MeasurementName']
         measurements_names.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementName")
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
-        measurements.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=1000000, index=False)
+        measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=10000, index=False)
