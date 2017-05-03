@@ -30,7 +30,6 @@ class DataStore(object):
         self.roi_meta = None
         self.channel_meta = None
         self.sphere_meta = None
-        self.measurement_data = None
 
         self.connectors = {
             'sqlite': db.connect_sqlite,
@@ -78,7 +77,6 @@ class DataStore(object):
         # self._readWellMeasurements()
         # self._read_cut_meta()
         # self._read_roi_meta()
-        self._read_measurement_data()
         self._read_stack_meta()
 
     ##########################################
@@ -329,3 +327,5 @@ class DataStore(object):
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
         measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
+        # remove measurement csv to avoid using memory
+        del self._measurement_csv
