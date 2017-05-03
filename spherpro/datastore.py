@@ -36,6 +36,12 @@ class DataStore(object):
             'mysql': db.connect_mysql
         }
 
+    #########################################################################
+    #########################################################################
+    #                      Import or Resume functions:                      #
+    #########################################################################
+    #########################################################################
+
     def read_config(self, configpath):
         """
         finds the measurement meta information from a given string
@@ -329,3 +335,20 @@ class DataStore(object):
         measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
         # remove measurement csv to avoid using memory
         del self._measurement_csv
+
+
+    #########################################################################
+    #########################################################################
+    #                           getter functions:                           #
+    #########################################################################
+    #########################################################################
+
+    def get_measurement_meta(self):
+        """get_measurement_types
+        Returns a pandas DataFrame containing Measurement information.
+
+        Returns:
+            DataFrame containing:
+            MeasurementName | MeasurementType | StackName
+        """
+        raise NotImplemented
