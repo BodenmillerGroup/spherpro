@@ -332,7 +332,8 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
         measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
-        measurements.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
+        m = measurements.sort_values(['ImageNumber', 'CellNumber', 'StackName', 'MeasurementType', 'MeasurementName', 'PlaneID'])
+        m.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
         # remove measurement csv to avoid using memory
         del self._measurement_csv
 
