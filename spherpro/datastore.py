@@ -339,6 +339,16 @@ class DataStore(object):
         # remove measurement csv to avoid using memory
         del self._measurement_csv
 
+    #########################################################################
+    #########################################################################
+    #                           filter functions:                           #
+    #########################################################################
+    #########################################################################
+
+    #def
+
+
+
 
     #########################################################################
     #########################################################################
@@ -346,14 +356,51 @@ class DataStore(object):
     #########################################################################
     #########################################################################
 
-    def get_image_meta(self):
+    def get_image_meta(self,
+        image_number = False):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
+        Integers or strings lead to a normal WHERE clause:
+        ...
+        WHERE ImageNumber = 1 AND
+        ...
+        If you specify an array as a filter, the WHERE clause in the query will
+        look like this:
+        ...
+        WHERE ImageNumber IN (1,2,3,4) AND
+        ...
+        If you dont specify a value, the WHERE clause will be omitted.
+
+        Args:
+            int/array image_number: ImageNumber. If 'False', do not filter
 
         Returns:
             DataFrame
         """
-        raise NotImplementedError
+        query = 'SELECT * FROM Image'
+
+        clauses = []
+        #image_number
+        if type(image_number) is list:
+            clause_tmp = 'ImageNumber IN ('
+            clause_tmp = clause_tmp+','.join(map(str, image_number))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(image_number) is int:
+            clause_tmp = 'ImageNumber = '
+            clause_tmp = clause_tmp+str(image_number)
+            clauses.append(clause_tmp)
+
+        for part in clauses:
+            if query.split(' ')[-1] != 'Image':
+                query = query + ' AND'
+            else:
+                query = query + ' WHERE'
+            query = query + ' ' + part
+        query = query+';'
+
+        return pd.read_sql_query(query, con=self.db_conn)
+
 
 
     def get_measurement_meta(self, cached = True):
@@ -473,10 +520,12 @@ class DataStore(object):
             clause_tmp = clause_tmp+str(plane_id)+'"'
             clauses.append(clause_tmp)
 
-        query = 'SELECT * FROM Measurement WHERE'
+        query = 'SELECT * FROM Measurement'
         for part in clauses:
-            if query.split(' ')[-1] != 'WHERE':
+            if query.split(' ')[-1] != 'Measurement':
                 query = query + ' AND'
+            else:
+                query = query + ' WHERE'
             query = query + ' ' + part
         query = query+';'
 
