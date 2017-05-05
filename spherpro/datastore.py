@@ -459,6 +459,52 @@ class DataStore(object):
 
         return pd.read_sql_query(query, con=self.db_conn)
 
+    def get_stack_meta(self,
+        stack_name = False):
+        """get_stack_meta
+        Returns a pandas DataFrame containing image information.
+        Integers or strings lead to a normal WHERE clause:
+        ...
+        WHERE ImageNumber = 1 AND
+        ...
+        If you specify an array as a filter, the WHERE clause in the query will
+        look like this:
+        ...
+        WHERE ImageNumber IN (1,2,3,4) AND
+        ...
+        If you dont specify a value, the WHERE clause will be omitted.
+
+        Args:
+            int/array stack_name: ImageNumber. If 'False', do not filter
+
+        Returns:
+            DataFrame
+        """
+        query = 'SELECT Stack.*, DerivedStack.RefStackName FROM Stack'
+
+        clauses = []
+        #stack_name
+        if type(stack_name) is list:
+            clause_tmp = 'Stack.StackName IN ('
+            clause_tmp = clause_tmp+','.join(map(str, stack_name))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(stack_name) is int:
+            clause_tmp = 'Stack.StackName = '
+            clause_tmp = clause_tmp+str(stack_name)
+            clauses.append(clause_tmp)
+
+
+        for part in clauses:
+            if query.split(' ')[-1] != 'Cell':
+                query = query + ' AND'
+            else:
+                query = query + ' WHERE'
+            query = query + ' ' + part
+
+        query = query + ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
+
+        return pd.read_sql_query(query, con=self.db_conn)
 
 
     def get_measurement_meta(self, cached = True):
