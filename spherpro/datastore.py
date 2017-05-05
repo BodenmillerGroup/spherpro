@@ -401,6 +401,64 @@ class DataStore(object):
 
         return pd.read_sql_query(query, con=self.db_conn)
 
+    def get_cell_meta(self,
+        image_number = False,
+        cell_number = False):
+        """get_measurement_types
+        Returns a pandas DataFrame containing image information.
+        Integers or strings lead to a normal WHERE clause:
+        ...
+        WHERE ImageNumber = 1 AND
+        ...
+        If you specify an array as a filter, the WHERE clause in the query will
+        look like this:
+        ...
+        WHERE ImageNumber IN (1,2,3,4) AND
+        ...
+        If you dont specify a value, the WHERE clause will be omitted.
+
+        Args:
+            int/array image_number: ImageNumber. If 'False', do not filter
+            int/array cell_number: CellNumber. If 'False', do not filter
+
+        Returns:
+            DataFrame
+        """
+        query = 'SELECT * FROM Cell'
+
+        clauses = []
+        #image_number
+        if type(image_number) is list:
+            clause_tmp = 'ImageNumber IN ('
+            clause_tmp = clause_tmp+','.join(map(str, image_number))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(image_number) is int:
+            clause_tmp = 'ImageNumber = '
+            clause_tmp = clause_tmp+str(image_number)
+            clauses.append(clause_tmp)
+
+        #cell_number
+        if type(cell_number) is list:
+            clause_tmp = 'CellNumber IN ('
+            clause_tmp = clause_tmp+','.join(map(str, cell_number))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(cell_number) is int:
+            clause_tmp = 'CellNumber = '
+            clause_tmp = clause_tmp+str(cell_number)
+            clauses.append(clause_tmp)
+
+        for part in clauses:
+            if query.split(' ')[-1] != 'Cell':
+                query = query + ' AND'
+            else:
+                query = query + ' WHERE'
+            query = query + ' ' + part
+        query = query+';'
+
+        return pd.read_sql_query(query, con=self.db_conn)
+
 
 
     def get_measurement_meta(self, cached = True):
