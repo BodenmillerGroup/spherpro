@@ -84,6 +84,7 @@ class DataStore(object):
         # self._read_cut_meta()
         # self._read_roi_meta()
         self._read_stack_meta()
+        self.db_conn = self.connectors[self.conf['backend']](self.conf)
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -353,3 +354,109 @@ class DataStore(object):
             MeasurementName | MeasurementType | StackName
         """
         raise NotImplemented
+
+    def get_measurements(self,
+        image_number = False,
+        cell_number = False,
+        measurement_type = False,
+        measurement_name = False,
+        stack_name = False,
+        plane_id = False
+    ):
+        """get_measurement_types
+        Returns a pandas DataFrame containing Measurements according to the
+        specified filters.
+        Integers or strings lead to a normal WHERE clause:
+        ...
+        WHERE ImageNumber = 1 AND
+        ...
+        If you specify an array as a filter, the WHERE clause in the query will
+        look like this:
+        ...
+        WHERE ImageNumber IN (1,2,3,4) AND
+        ...
+        If you dont specify a value, the WHERE clause will be omitted.
+
+        Args:
+            int/array image_number: ImageNumber. If 'False', do not filter
+            int/array cell_number: CellNumber. If 'False', do not filter
+            str/array measurement_type: MeasurementType. If 'False', do not filter
+            str/array measurement_name: MeasurementName. If 'False', do not filter
+            str/array stack_name: StackName. If 'False', do not filter
+            str/array plane_id: PlaneID. If 'False', do not filter
+
+        Returns:
+            DataFrame containing:
+            MeasurementName | MeasurementType | StackName
+        """
+
+        clauses = []
+        #image_number
+        if type(image_number) is list:
+            clause_tmp = 'ImageNumber IN ('
+            clause_tmp = clause_tmp+','.join(map(str, image_number))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(image_number) is int:
+            clause_tmp = 'ImageNumber = '
+            clause_tmp = clause_tmp+str(image_number)
+            clauses.append(clause_tmp)
+        #cell_number
+        if type(cell_number) is list:
+            clause_tmp = 'CellNumber IN ('
+            clause_tmp = clause_tmp+','.join(map(str, cell_number))
+            clause_tmp = clause_tmp+')'
+            clauses.append(clause_tmp)
+        elif type(cell_number) is int:
+            clause_tmp = 'CellNumber = '
+            clause_tmp = clause_tmp+str(cell_number)
+            clauses.append(clause_tmp)
+        #measurement_type
+        if type(measurement_type) is list:
+            clause_tmp = 'MeasurementType IN ("'
+            clause_tmp = clause_tmp+'","'.join(map(str, measurement_type))
+            clause_tmp = clause_tmp+'")'
+            clauses.append(clause_tmp)
+        elif type(measurement_type) is str:
+            clause_tmp = 'MeasurementType = "'
+            clause_tmp = clause_tmp+str(measurement_type)+'"'
+            clauses.append(clause_tmp)
+        #measurement_name
+        if type(measurement_name) is list:
+            clause_tmp = 'MeasurementName IN ("'
+            clause_tmp = clause_tmp+'","'.join(map(str, measurement_name))
+            clause_tmp = clause_tmp+'")'
+            clauses.append(clause_tmp)
+        elif type(measurement_name) is str:
+            clause_tmp = 'MeasurementName = "'
+            clause_tmp = clause_tmp+str(measurement_name)+'"'
+            clauses.append(clause_tmp)
+        #stack_name
+        if type(stack_name) is list:
+            clause_tmp = 'StackName IN ("'
+            clause_tmp = clause_tmp+'","'.join(map(str, stack_name))
+            clause_tmp = clause_tmp+'")'
+            clauses.append(clause_tmp)
+        elif type(stack_name) is str:
+            clause_tmp = 'StackName = "'
+            clause_tmp = clause_tmp+str(stack_name)+'"'
+            clauses.append(clause_tmp)
+        #plane_id
+        if type(plane_id) is list:
+            clause_tmp = 'PlaneID IN ("'
+            clause_tmp = clause_tmp+'","'.join(map(str, plane_id))
+            clause_tmp = clause_tmp+'")'
+            clauses.append(clause_tmp)
+        elif type(plane_id) is str:
+            clause_tmp = 'PlaneID = "'
+            clause_tmp = clause_tmp+str(plane_id)+'"'
+            clauses.append(clause_tmp)
+
+        query = 'SELECT * FROM Measurement WHERE'
+        for part in clauses:
+            if query.split(' ')[-1] != 'WHERE':
+                query = query + ' AND'
+            query = query + ' ' + part
+        query = query+';'
+
+        return pd.read_sql_query(query, con=self.db_conn)
