@@ -346,6 +346,16 @@ class DataStore(object):
     #########################################################################
     #########################################################################
 
+    def get_image_meta(self):
+        """get_measurement_types
+        Returns a pandas DataFrame containing image information.
+
+        Returns:
+            DataFrame
+        """
+        raise NotImplementedError
+
+
     def get_measurement_meta(self, cached = True):
         """get_measurement_types
         Returns a pandas DataFrame containing Measurement information.
