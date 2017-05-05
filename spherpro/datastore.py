@@ -30,6 +30,7 @@ class DataStore(object):
         self.roi_meta = None
         self.channel_meta = None
         self.sphere_meta = None
+        self.measurement_meta_cache = None
 
         self.connectors = {
             'sqlite': db.connect_sqlite,
@@ -345,15 +346,25 @@ class DataStore(object):
     #########################################################################
     #########################################################################
 
-    def get_measurement_meta(self):
+    def get_measurement_meta(self, cached = True):
         """get_measurement_types
         Returns a pandas DataFrame containing Measurement information.
+        Slow, it is recommended to use the cached value
+
+        Args:
+            cached: If True, then use the cached Value. If False, always execute
+                query.
 
         Returns:
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-        raise NotImplemented
+        query = "select distinct MeasurementName, MeasurementType, StackName From Measurement;"
+        if (cached and self.measurement_meta_cache is not None):
+            return self.measurement_meta_cache
+        else:
+            self.measurement_meta_cache = pd.read_sql_query(query, con=self.db_conn)
+            return self.measurement_meta_cache
 
     def get_measurements(self,
         image_number = False,
