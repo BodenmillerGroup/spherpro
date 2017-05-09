@@ -1,6 +1,23 @@
 import pandas as pd
 import re
 
+def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
+    """calculate_real_dist_rim
+    Calculates the real distance to rim from the real sphere radius, the radius
+    of the cut and the measured distance to rim.
+
+    Args:
+        dist: Float stating the measured distance to rim
+        radius_cut: Float stating the radius of the segment
+        radius_sphere: float stating the real radius of the sphere
+
+    Returns:
+        Float real distance to rim
+    """
+    real_dist = radius_sphere - np.sqrt(radius_sphere**2 - 2*radius_cut*dist + dist**2)
+    return real_dist
+
+
 def find_measurementmeta(stackpattern, x,
                   no_stack_str = "NoStack"):
     """
