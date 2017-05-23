@@ -634,3 +634,6 @@ class DataStore(object):
         query = query+';'
 
         return pd.read_sql_query(query, con=self.db_conn)
+
+    def get_(self, arg):
+        pass
