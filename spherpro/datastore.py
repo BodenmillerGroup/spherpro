@@ -148,11 +148,6 @@ class DataStore(object):
             join(self.conf['cp_dir'],self.conf['cpoutput']['measurement_csv']['path']),
             sep=sep
         )
-        sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
-        self._cells_csv = pd.read_csv(
-            join(self.conf['cp_dir'],self.conf['cpoutput']['cells_csv']['path']),
-            sep=sep
-        )
         sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
         self._images_csv = pd.read_csv(
             join(self.conf['cp_dir'], self.conf['cpoutput']['images_csv']['path']),
@@ -187,75 +182,127 @@ class DataStore(object):
         writes the tables to the database
         """
         self.db_conn = self.connectors[self.conf['backend']](self.conf)
-        self._generate_Stack()
-        self._generate_Modifications()
-        self._generate_planes()
-        self._generate_images()
-        self._generate_cells()
-        self._generate_measurement()
+        self._write_stack_table()
+        self._write_modification_tables()
+        self._write_planes_table()
+        self._write_image_table()
+        self._write_cells()
+        self._write_measurement_table()
 
     ##########################################
     #        Database Table Generation:      #
     ##########################################
 
-    def _generate_Stack(self):
+    def _write_stack_table(self):
         """
         Writes the Stack table to the databse
         """
+        data = self._generate_stack()
+        data.to_sql(con=self.db_conn, if_exists='append',
+                                  name="Stack", index=False)
 
+    def _generate_stack(self):
+        """
+        Generates the data for the Stack table
+        """
         stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-
         data = pd.DataFrame(self._stack_relation_csv[stack_col])
         data = data.append({stack_col:'NoStack'}, ignore_index=True)
         data.columns = ['StackName']
-        data = data.set_index("StackName")
 
-        data.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Stack", index=False)
+        return data
 
-    def _generate_Modifications(self):
+    def _write_modification_tables(self):
         """
         Creates the StackModifications, StackRelations, Modifications,
         RefStack and DerivedStack tables and writes them to the database
         """
 
+        modifications = self._generate_modifications()
+        modifications.to_sql(con=self.db_conn, if_exists='append',
+                             name="Modification", index=False)
+
+        stackmodification = self._generate_stackmodification()
+
+        stackmodification.to_sql(con=self.db_conn, if_exists='append', name="StackModification", index=False)
+
+        RefStack = self._generate_refstack()
+        RefStack.to_sql(con=self.db_conn, if_exists='append', name="RefStack", index=False)
+
+        DerivedStack = self._generate_derivedstack()
+        DerivedStack.to_sql(con=self.db_conn, if_exists='append', name="DerivedStack", index=False)
+
+    def _generate_modifications(self):
+        """
+        Generates the modification table
+        """
+        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
+        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
+        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
+        
+        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
+        Modifications = pd.DataFrame(stackrel[modname_col])
+        Modifications['tmp'] = stackrel[modpre_col]
+        Modifications.columns = ['ModificationName','ModificationPrefix']
+        return Modifications
+
+    def _generate_stackmodification(self):
+        """
+        generates the stackmodification table
+        """
+        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
+        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
+        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
+        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
+        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
+        StackModification = pd.DataFrame(stackrel[stack_col])
+        StackModification['ModificationName'] = stackrel[modname_col]
+        StackModification['ParentStackName'] = stackrel[parent_col]
+        StackModification.columns = ['ChildName','ModificationName','ParentName']
+        return StackModification
+
+    def _generate_refstack(self):
+        """
+        Generates the refstack table
+        """
         parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
         modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
         modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
         stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
         ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
 
-        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
-        Modifications = pd.DataFrame(stackrel[modname_col])
-        Modifications['tmp'] = stackrel[modpre_col]
-        Modifications.columns = ['ModificationName','ModificationPrefix']
-        Modifications = Modifications.set_index('ModificationName')
-        Modifications.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Modification", index=False)
-
-        StackModification = pd.DataFrame(stackrel[stack_col])
-        StackModification['ModificationName'] = stackrel[modname_col]
-        StackModification['ParentStackName'] = stackrel[parent_col]
-        StackModification.columns = ['ChildName','ModificationName','ParentName']
-        StackModification = StackModification.set_index(['ChildName','ModificationName','ParentName'])
-        StackModification.reset_index().to_sql(con=self.db_conn, if_exists='append', name="StackModification", index=False)
-
         ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
         RefStack = pd.DataFrame(ref_stack[stack_col])
         RefStack.columns = ['StackName']
-        RefStack = RefStack.set_index('StackName')
-        RefStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="RefStack", index=False)
+        return RefStack
 
-
+    def _generate_derivedstack(self):
+        """
+        Genes the DerivedStack 
+        """
+        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
+        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
+        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
+        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
+        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        
         derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
         DerivedStack = pd.DataFrame(derived_stack[stack_col])
         DerivedStack['RefStackName'] = derived_stack[ref_col]
         DerivedStack.columns = ['StackName', 'RefStackName']
-        DerivedStack = DerivedStack.set_index('StackName')
-        DerivedStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="DerivedStack", index=False)
 
-    def _generate_planes(self):
+        return DerivedStack
+
+    def _write_planes_table(self):
         """
         generates the PlaneMeta Table and writes it to the database.
         """
+        planes = self._generate_planes()
+
+        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+
+    def _generate_planes(self):
 
         stack_col = self.conf['stack_dir'].get('stack_col', 'StackName')
         id_col = self.conf['stack_dir'].get('id_col', 'index')
@@ -275,34 +322,48 @@ class DataStore(object):
                 type_col:'Type'
             }, inplace = True)
             planes = planes.append(self.stacks[stack])
-        planes = planes.reset_index().rename_axis('id')
+        planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
         planes['PlaneID'] = planes['PlaneID'].apply(lambda x: 'c'+str(int(x)))
 
-        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+        return planes
 
 
-    def _generate_images(self):
+    def _write_image_table(self):
         """
         Generates the Image
         table and writes it to the database.
         """
-        image = pd.DataFrame(self._images_csv['ImageNumber'])
+        image = self._generate_image()
         image.to_sql(con=self.db_conn, if_exists='append', name="Image", index=False)
 
+    def _generate_image(self):
+        """
+        Generates the Image
+        table.
+        """
+        image = pd.DataFrame(self._images_csv['ImageNumber'])
+        return image
+
+    def _write_cells(self):
+        """
+        Generates and save the cell table
+        """
+        cells = self._generate_cells()
+        cells.to_sql(con=self.db_conn, if_exists='append', name='Cell',
+                     index=False)
 
     def _generate_cells(self):
         """
-        Generates the Cell
-        table and writes it to the database.
+        Genertes the cell table
         """
-        cells = pd.DataFrame(self._cells_csv['ImageNumber'])
-        cells['CellNumber'] = self._cells_csv['ObjectNumber']
-        cells.to_sql(con=self.db_conn, if_exists='append', name="Cell", index=False)
+        cells = pd.DataFrame(self._measurement_csv['ImageNumber'])
+        cells['CellNumber'] = self._measurement_csv['ObjectNumber']
+        return cells
+ 
 
-
-    def _generate_measurement(self, chunksize=1000000):
+    def _write_measurement_table(self, chunksize=1000000):
         """
         Generates the Measurement, MeasurementType and MeasurementName
         tables and writes them to the database.
@@ -312,6 +373,18 @@ class DataStore(object):
         Args:
             chunksize: the ammount of rows written concurrently to the DB
         """
+        
+        measurements, measurements_names, measurements_types = \
+        self._generate_measurements()
+        measurements.to_sql(con=self.db_conn, if_exists='append',
+                            name="Measurement", chunksize=chunksize, index=False)
+        measurements_names.to_sql(con=self.db_conn, if_exists='append',
+                                  name="MeasurementName")
+        measurements_types.to_sql(con=self.db_conn, if_exists='append',
+                                     name="MeasurementType")
+        del self._measurement_csv
+
+    def _generate_measurements(self):
         stackgroup = '('
         for stack in [i for i in self.stacks]:
             if stackgroup == '(':
@@ -330,15 +403,13 @@ class DataStore(object):
         del measurements['Number_Object_Number']
         measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
         measurements_names.columns = ['MeasurementName']
-        measurements_names.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementName")
+        measurements_names = measurements_names.rename_axis('id')
         measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
         measurements_types.columns = ['MeasurementType']
-        measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
-        m = measurements.sort_values(['ImageNumber', 'CellNumber', 'StackName', 'MeasurementType', 'MeasurementName', 'PlaneID'])
-        m.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
-        # remove measurement csv to avoid using memory
-        del self._measurement_csv
-
+        measurements_types = measurements_types.rename_axis('id')
+        measurements = measurements.sort_values(['ImageNumber', 'CellNumber', 'StackName', 'MeasurementType', 'MeasurementName', 'PlaneID'])
+        
+        return measurements, measurements_names, measurements_types
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
@@ -637,3 +708,4 @@ class DataStore(object):
 
     def get_(self, arg):
         pass
+
