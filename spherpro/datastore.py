@@ -10,6 +10,23 @@ import spherpro.library as lib
 import spherpro.db as db
 
 
+KEY_IMAGENUMBER = 'ImageNumber'
+KEY_MEASUREMENTTYPE = 'MeasurementType'
+KEY_MEASUREMENTNAME = 'MeasurementName'
+KEY_STACKNAME = 'StackName'
+KEY_PLANEID = 'PlaneID'
+
+TABLE_MEASUREMENT = 'Measurement'
+
+DICT_DB_KEYS = {
+    'image_number': KEY_IMAGENUMBER,
+    'cell_number': KEY_IMAGENUMBER,
+    'measurement_type': KEY_MEASUREMENTTYPE,
+    'measurement_name': KEY_MEASUREMENTNAME,
+    'stack_name': KEY_STACKNAME,
+    'plane_id': KEY_PLANEID,
+}
+
 class DataStore(object):
     """DataStore
     The DataStore class is intended to be used as a storage for spheroid IMC
@@ -551,6 +568,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
+        # TODO: rewrite using the new helper functions
         query = 'SELECT Stack.*, DerivedStack.RefStackName FROM Stack'
 
         clauses = []
@@ -599,12 +617,13 @@ class DataStore(object):
             return self.measurement_meta_cache
 
     def get_measurements(self,
-        image_number = False,
-        cell_number = False,
-        measurement_type = False,
-        measurement_name = False,
-        stack_name = False,
-        plane_id = False
+        image_number=None,
+        cell_number=None,
+        measurement_type=None,
+        measurement_name=None,
+        stack_name=None,
+        plane_id=None,
+        columns=None
     ):
         """get_measurement_types
         Returns a pandas DataFrame containing Measurements according to the
@@ -621,12 +640,12 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'False', do not filter
-            int/array cell_number: CellNumber. If 'False', do not filter
-            str/array measurement_type: MeasurementType. If 'False', do not filter
-            str/array measurement_name: MeasurementName. If 'False', do not filter
-            str/array stack_name: StackName. If 'False', do not filter
-            str/array plane_id: PlaneID. If 'False', do not filter
+            int/array image_number: ImageNumber. If NONE, do not filter
+            int/array cell_number: CellNumber. If NONE, do not filter
+            str/array measurement_type: MeasurementType. If NONE, do not filter
+            str/array measurement_name: MeasurementName. If NONE, do not filter
+            str/array stack_name: StackName. If NONE, do not filter
+            str/array plane_id: PlaneID. If NONE, do not filter
 
         Returns:
             DataFrame containing:
@@ -634,76 +653,13 @@ class DataStore(object):
         """
 
         clauses = []
-        #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-        #cell_number
-        if type(cell_number) is list:
-            clause_tmp = 'CellNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, cell_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(cell_number) is int:
-            clause_tmp = 'CellNumber = '
-            clause_tmp = clause_tmp+str(cell_number)
-            clauses.append(clause_tmp)
-        #measurement_type
-        if type(measurement_type) is list:
-            clause_tmp = 'MeasurementType IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, measurement_type))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(measurement_type) is str:
-            clause_tmp = 'MeasurementType = "'
-            clause_tmp = clause_tmp+str(measurement_type)+'"'
-            clauses.append(clause_tmp)
-        #measurement_name
-        if type(measurement_name) is list:
-            clause_tmp = 'MeasurementName IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, measurement_name))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(measurement_name) is str:
-            clause_tmp = 'MeasurementName = "'
-            clause_tmp = clause_tmp+str(measurement_name)+'"'
-            clauses.append(clause_tmp)
-        #stack_name
-        if type(stack_name) is list:
-            clause_tmp = 'StackName IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, stack_name))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(stack_name) is str:
-            clause_tmp = 'StackName = "'
-            clause_tmp = clause_tmp+str(stack_name)+'"'
-            clauses.append(clause_tmp)
-        #plane_id
-        if type(plane_id) is list:
-            clause_tmp = 'PlaneID IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, plane_id))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(plane_id) is str:
-            clause_tmp = 'PlaneID = "'
-            clause_tmp = clause_tmp+str(plane_id)+'"'
-            clauses.append(clause_tmp)
+        
+        args = locals()
+        key_dict = lib.filter_and_rename_dict(args, DICT_DB_KEYS) 
+        clauses = lib.construct_in_clause_list(key_dict)
 
-        query = 'SELECT * FROM Measurement'
-        for part in clauses:
-            if query.split(' ')[-1] != 'Measurement':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
+        query = lib.construct_sql_query(TABLE_MEASUREMENT, columns=columns, clauses=clauses)
+       
         return pd.read_sql_query(query, con=self.db_conn)
 
     def get_(self, arg):

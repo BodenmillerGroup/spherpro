@@ -55,3 +55,44 @@ def find_measurementmeta(stackpattern, x,
         plane = ''
 
     return pd.Series([x, mtype, name, stack, plane])
+
+def construct_in_clause_list(key_dict):
+    querylist = [k + ' IN ("'+ '","'.join(
+        map(str, values)) + '")'
+                 for k, values in key_dict.items()]
+    return querylist
+
+def construct_sql_query(table, columns=None, clauses=None):
+    """
+    Constructs an sql query with possibilty for selection clauses
+
+    Args:
+        table: the table name
+        columns: the selected columns, default: all
+        clauses: a dict with columns to potentially use for filtering
+                default: no filter
+    Return:
+        the constructed query
+    """
+    if columns is None:
+        columns = ['*']
+    query = ' '.join(['SELECT', ', '.join(columns),
+                      'FROM', table])
+    if len(clauses) > 0:
+            query += ' WHERE '
+            query += ' AND '.join(clauses)
+
+    query += ';'
+    return query
+
+def filter_and_rename_dict(indict, filterdict):
+    """
+    Renames the  keys of the input  dict using the filterdict.
+    Keys not present in the filterdict will be removed.
+    """
+    outdict = {filterdict[k]: v for k, v in indict.items()
+               if ((v is not None) and (k in filterdict.keys()))}
+
+    return outdict
+    
+    
