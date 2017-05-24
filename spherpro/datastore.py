@@ -87,6 +87,9 @@ class DataStore(object):
         self._read_stack_meta()
         self.db_conn = self.connectors[self.conf['backend']](self.conf)
 
+    def drop_all(self):
+        db.drop_all(self.db_conn)
+
     ##########################################
     #   Helper functions used by readData:   #
     ##########################################
