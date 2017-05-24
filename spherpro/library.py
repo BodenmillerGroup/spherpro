@@ -57,6 +57,21 @@ def find_measurementmeta(stackpattern, x,
     return pd.Series([x, mtype, name, stack, plane])
 
 def construct_in_clause_list(key_dict):
+    """
+    Construnct a list of IN clauses.
+    Args:
+        key_dict: a dictionary where key is the database column key and value
+            is the values to filter for.
+    Return:
+        a list of constructed clauses
+
+    Example:
+        >>> import pprint
+        >>> out = construct_in_clause_list({'A': [1], 'B': ['c','d']})
+        >>> sorted(out)
+        ['A IN ("1")', 'B IN ("c","d")']
+
+    """
     querylist = [k + ' IN ("'+ '","'.join(
         map(str, values)) + '")'
                  for k, values in key_dict.items()]
@@ -73,12 +88,22 @@ def construct_sql_query(table, columns=None, clauses=None):
                 default: no filter
     Return:
         the constructed query
+    
+    Example:
+        >>> construct_sql_query('Table')
+        'SELECT * FROM Table;'
+        >>> construct_sql_query('Table', columns=['ColA', 'ColB'])
+        'SELECT ColA, ColB FROM Table;'
+        >>> construct_sql_query('Table', columns=['ColA', 'ColB'],\
+                clauses=['B in ("c", "d")'])
+        'SELECT ColA, ColB FROM Table WHERE B in ("c", "d");'
+
     """
     if columns is None:
         columns = ['*']
     query = ' '.join(['SELECT', ', '.join(columns),
                       'FROM', table])
-    if len(clauses) > 0:
+    if clauses is not None:
             query += ' WHERE '
             query += ' AND '.join(clauses)
 
@@ -89,6 +114,13 @@ def filter_and_rename_dict(indict, filterdict):
     """
     Renames the  keys of the input  dict using the filterdict.
     Keys not present in the filterdict will be removed.
+
+    Example:
+        >>> import pprint
+        >>> outdict =filter_and_rename_dict({'a': 1, 'b':[2,2]}, {'a': 'c', 'b': 'd', 'e': 'f'})
+        >>> pprint.pprint(outdict)
+        {'c': 1, 'd': [2, 2]}
+
     """
     outdict = {filterdict[k]: v for k, v in indict.items()
                if ((v is not None) and (k in filterdict.keys()))}
