@@ -11,6 +11,7 @@ import spherpro.db as db
 import spherpro.configuration as conf
 
 KEY_IMAGENUMBER = 'ImageNumber'
+KEY_CELLNUMBER = 'CellNumber'
 KEY_MEASUREMENTTYPE = 'MeasurementType'
 KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_STACKNAME = 'StackName'
@@ -19,10 +20,11 @@ KEY_PLANEID = 'PlaneID'
 
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
+TABLE_CELL = 'Cell'
 
 DICT_DB_KEYS = {
     'image_number': KEY_IMAGENUMBER,
-    'cell_number': KEY_IMAGENUMBER,
+    'cell_number': KEY_CELLNUMBER,
     'measurement_type': KEY_MEASUREMENTTYPE,
     'measurement_name': KEY_MEASUREMENTNAME,
     'stack_name': KEY_STACKNAME,
@@ -475,21 +477,14 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-
-        if image_number is None:
-            clauses = None
-        else:
-            clauses = lib.construct_in_clause_list({KEY_IMAGENUMBER:
-                                                    image_number})
         
-        query = lib.construct_sql_query(TABLE_IMAGE, clauses=clauses)
-        #image_number
-        
-        return pd.read_sql_query(query, con=self.db_conn)
+        args = locals()
+        args.pop('self')
+        return self.get_table_data(TABLE_IMAGE,  **args)
 
     def get_cell_meta(self,
-        image_number = False,
-        cell_number = False):
+        image_number = None,
+        cell_number = None):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -510,43 +505,13 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        query = 'SELECT * FROM Cell'
-
-        clauses = []
-        #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-
-        #cell_number
-        if type(cell_number) is list:
-            clause_tmp = 'CellNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, cell_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(cell_number) is int:
-            clause_tmp = 'CellNumber = '
-            clause_tmp = clause_tmp+str(cell_number)
-            clauses.append(clause_tmp)
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Cell':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
-        return pd.read_sql_query(query, con=self.db_conn)
+        
+        args = locals()
+        args.pop('self')
+        return self.get_table_data(TABLE_CELL,  **args)
 
     def get_stack_meta(self,
-        stack_name = False):
+        stack_name = None):
         """get_stack_meta
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -566,31 +531,21 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        # TODO: rewrite using the new helper functions
+        # TODO: This function had an obvious bug before. However the query
+        # still does not work. Please explain.
         query = 'SELECT Stack.*, DerivedStack.RefStackName FROM Stack'
 
-        clauses = []
+        if stack_name is None:
+            clause_dict = None
+        else:
+            clause_dict = {'StackName': stack_name}
+
         #stack_name
-        if type(stack_name) is list:
-            clause_tmp = 'Stack.StackName IN ('
-            clause_tmp = clause_tmp+','.join(map(str, stack_name))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(stack_name) is int:
-            clause_tmp = 'Stack.StackName = '
-            clause_tmp = clause_tmp+str(stack_name)
-            clauses.append(clause_tmp)
-
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Cell':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-
-        query = query + ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
-
+        self._sqlgenerate_simple_query('Stack', columns=['Stack.*',
+                                                'DerivedStack.RefStackName'],
+                                       clause_dict=clause_dict)
+        query += ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
+        print(query)
         return pd.read_sql_query(query, con=self.db_conn)
 
 
@@ -622,7 +577,7 @@ class DataStore(object):
         stack_name=None,
         plane_id=None,
         columns=None
-    ):
+        ):
         """get_measurement_types
         Returns a pandas DataFrame containing Measurements according to the
         specified filters.
@@ -649,17 +604,59 @@ class DataStore(object):
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-
-        clauses = []
         
         args = locals()
-        key_dict = lib.filter_and_rename_dict(args, DICT_DB_KEYS) 
-        clauses = lib.construct_in_clause_list(key_dict)
-
-        query = lib.construct_sql_query(TABLE_MEASUREMENT, columns=columns, clauses=clauses)
-       
-        return pd.read_sql_query(query, con=self.db_conn)
-
+        args.pop('self')
+        return self.get_table_data(TABLE_MEASUREMENT,  **args)
+        
     def get_(self, arg):
         pass
-print('test')
+
+    def get_table_data(self, table, columns=None, clause_dict=None, connection=None, **kwargs):
+        """
+        General wrapper that allows the retrieval of data  from the database
+
+        Allows to generate queries from the format
+        Select COLUMNS from TABLE WHERE COLUMN1 in VALUES1 AND COLUMN2 in
+        VALUES2
+
+        Args:
+            table: the name of the table
+            columns: the columns name, default all ('*')
+            clause_dict: A dict of the form:
+                {COLUMN_NAME1: LIST_OF_VALUES1, COLUMN_NAME2: ...}
+            connection: the Database connection, default: self.db_conn
+            **kwargs: The kwargs will be searched for  arguments with names
+            contained in 'DICT_DB_KEYS' - valid registed names. The clause_dict
+            will be updated with these additional entries.
+
+        Returns:
+            The queried table.
+        """  
+        query = self._sqlgenerate_simple_query(table, columns=columns,
+                                       clause_dict=clause_dict,
+                                       **kwargs)
+        
+        if connection is None:
+            connection = self.db_conn
+
+        return pd.read_sql_query(query, con=connection)
+
+    def _sqlgenerate_simple_query(self, table, columns=None, clause_dict=None,
+                                  connection=None, **kwargs):
+        """
+        Helper function to generate simple queries
+        Consult helf from "get_table_data" for details
+        """
+        if clause_dict is None:
+            clause_dict = {}
+
+        key_dict = lib.filter_and_rename_dict(kwargs, DICT_DB_KEYS)
+        clause_dict.update(key_dict)
+        clauses = lib.construct_in_clause_list(clause_dict)
+        query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
+        return query
+
+
+
+
