@@ -103,7 +103,7 @@ def construct_sql_query(table, columns=None, clauses=None):
         columns = ['*']
     query = ' '.join(['SELECT', ', '.join(columns),
                       'FROM', table])
-    if clauses is not None:
+    if (clauses is not None) and clauses:
             query += ' WHERE '
             query += ' AND '.join(clauses)
 
