@@ -16,7 +16,9 @@ KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_STACKNAME = 'StackName'
 KEY_PLANEID = 'PlaneID'
 
+
 TABLE_MEASUREMENT = 'Measurement'
+TABLE_IMAGE = 'Image'
 
 DICT_DB_KEYS = {
     'image_number': KEY_IMAGENUMBER,
@@ -453,7 +455,7 @@ class DataStore(object):
     #########################################################################
 
     def get_image_meta(self,
-        image_number = False):
+        image_number = None):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -468,33 +470,21 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'False', do not filter
+            int/array image_number: ImageNumber. If 'None', do not filter
 
         Returns:
             DataFrame
         """
-        query = 'SELECT * FROM Image'
 
-        clauses = []
+        if image_number is None:
+            clauses = None
+        else:
+            clauses = lib.construct_in_clause_list({KEY_IMAGENUMBER:
+                                                    image_number})
+        
+        query = lib.construct_sql_query(TABLE_IMAGE, clauses=clauses)
         #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Image':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
+        
         return pd.read_sql_query(query, con=self.db_conn)
 
     def get_cell_meta(self,
