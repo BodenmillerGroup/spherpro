@@ -8,7 +8,7 @@ import re
 import spherpro as spp
 import spherpro.library as lib
 import spherpro.db as db
-
+import spherpro.configuration as conf
 
 KEY_IMAGENUMBER = 'ImageNumber'
 KEY_MEASUREMENTTYPE = 'MeasurementType'
@@ -26,6 +26,7 @@ DICT_DB_KEYS = {
     'stack_name': KEY_STACKNAME,
     'plane_id': KEY_PLANEID,
 }
+
 
 class DataStore(object):
     """DataStore
@@ -50,8 +51,8 @@ class DataStore(object):
         self.measurement_meta_cache = None
 
         self.connectors = {
-            'sqlite': db.connect_sqlite,
-            'mysql': db.connect_mysql
+            conf.CON_SQLITE: db.connect_sqlite,
+            conf.CON_MYSQL: db.connect_mysql
         }
 
     #########################################################################
@@ -70,11 +71,7 @@ class DataStore(object):
         Raises:
             YAMLError
         """
-        with open(configpath, 'r') as stream:
-            try:
-                self.conf = yaml.load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
+        self.conf = conf.read_configuration(configpath)
 
     def import_data(self):
         """read_data
@@ -102,7 +99,7 @@ class DataStore(object):
         # self._read_cut_meta()
         # self._read_roi_meta()
         self._read_stack_meta()
-        self.db_conn = self.connectors[self.conf['backend']](self.conf)
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
     ##########################################
     #   Helper functions used by readData:   #
@@ -113,11 +110,12 @@ class DataStore(object):
         reads the experiment layout as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['layout_csv'].get('sep', ',')
+        sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
         self.experiment_layout = pd.read_csv(
-            self.conf['layout_csv']['path'], sep=sep
+            self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
         ).set_index(
-            [self.conf['layout_csv']['plate_col'], self.conf['layout_csv']['condition_col']]
+            [self.conf[conf.LAYOUT_CSV][conf.PLATE],
+             self.conf[conf.LAYOUT_CSV][conf.CONDITION]]
         )
 
     def _read_barcode_key(self):
@@ -125,11 +123,11 @@ class DataStore(object):
         reads the barcode key as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['barcode_csv'].get('sep', ',')
+        sep = self.conf[conf.BARCODE_CSV][conf.SEP]
         self.barcode_key = pd.read_csv(
-            self.conf['barcode_csv']['path'], sep=sep
+            self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
         ).set_index(
-            self.conf['barcode_csv']['well_col']
+            self.conf[conf.BARCODE_CSV][conf.WELL_COL]
         )
 
     def _read_well_measurements(self):
@@ -160,19 +158,22 @@ class DataStore(object):
         reads the measurement data as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['cpoutput']['measurement_csv'].get('sep', ',')
+        sep = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV][conf.SEP]
         self._measurement_csv = pd.read_csv(
-            join(self.conf['cp_dir'],self.conf['cpoutput']['measurement_csv']['path']),
+            join(self.conf[conf.CP_DIR],
+                 self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV][conf.PATH]),
             sep=sep
         )
-        sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
+        sep = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SEP]
         self._images_csv = pd.read_csv(
-            join(self.conf['cp_dir'], self.conf['cpoutput']['images_csv']['path']),
+            join(self.conf[conf.CP_DIR],
+                 self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.PATH]),
             sep=sep
         )
-        sep = self.conf['cpoutput']['relation_csv'].get('sep', ',')
+        sep = self.conf[conf.CPOUTPUT][conf.RELATION_CSV][conf.SEP]
         self._relation_csv = pd.read_csv(
-            join(self.conf['cp_dir'], self.conf['cpoutput']['relation_csv']['path']),
+            join(self.conf[conf.CP_DIR],
+                 self.conf[conf.CPOUTPUT][conf.RELATION_CSV][conf.PATH]),
             sep=sep
         )
 
@@ -181,16 +182,16 @@ class DataStore(object):
         reads the stack meta as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['stack_dir'].get('sep', ',')
-        dir = self.conf['stack_dir']['path']
+        sep = self.conf[conf.STACK_DIR][conf.SEP]
+        stack_dir = self.conf[conf.STACK_DIR][conf.PATH]
         match = re.compile("(.*)\.csv")
-        stack_files = [f for f in listdir(dir) if isfile(join(dir, f))]
-        stack_data = [pd.read_csv(join(dir,n), sep) for n in stack_files]
+        stack_files = [f for f in listdir(stack_dir) if isfile(join(stack_dir, f))]
+        stack_data = [pd.read_csv(join(stack_dir,n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
-        sep = self.conf['stack_relations'].get('sep', ',')
+        sep = self.conf[conf.STACK_RELATIONS][conf.SEP]
         self._stack_relation_csv = pd.read_csv(
-            self.conf['stack_relations']['path'],
+            self.conf[conf.STACK_RELATIONS][conf.PATH],
             sep=sep
         )
 
@@ -198,7 +199,7 @@ class DataStore(object):
         """
         writes the tables to the database
         """
-        self.db_conn = self.connectors[self.conf['backend']](self.conf)
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self._write_stack_table()
         self._write_modification_tables()
         self._write_planes_table()
@@ -222,7 +223,7 @@ class DataStore(object):
         """
         Generates the data for the Stack table
         """
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         data = pd.DataFrame(self._stack_relation_csv[stack_col])
         data = data.append({stack_col:'NoStack'}, ignore_index=True)
         data.columns = ['StackName']
@@ -241,22 +242,24 @@ class DataStore(object):
 
         stackmodification = self._generate_stackmodification()
 
-        stackmodification.to_sql(con=self.db_conn, if_exists='append', name="StackModification", index=False)
+        stackmodification.to_sql(con=self.db_conn, if_exists='append',
+                                 name="StackModification", index=False)
 
         RefStack = self._generate_refstack()
-        RefStack.to_sql(con=self.db_conn, if_exists='append', name="RefStack", index=False)
+        RefStack.to_sql(con=self.db_conn, if_exists='append',
+                        name="RefStack", index=False)
 
         DerivedStack = self._generate_derivedstack()
-        DerivedStack.to_sql(con=self.db_conn, if_exists='append', name="DerivedStack", index=False)
+        DerivedStack.to_sql(con=self.db_conn, if_exists='append',
+                            name="DerivedStack", index=False)
 
     def _generate_modifications(self):
         """
         Generates the modification table
         """
-        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
-        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
-        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
-        
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
         Modifications = pd.DataFrame(stackrel[modname_col])
         Modifications['tmp'] = stackrel[modpre_col]
@@ -267,11 +270,12 @@ class DataStore(object):
         """
         generates the stackmodification table
         """
-        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
-        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
-        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        
         stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
         StackModification = pd.DataFrame(stackrel[stack_col])
         StackModification['ModificationName'] = stackrel[modname_col]
@@ -283,11 +287,11 @@ class DataStore(object):
         """
         Generates the refstack table
         """
-        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
-        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
-        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
 
         ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
         RefStack = pd.DataFrame(ref_stack[stack_col])
@@ -298,11 +302,11 @@ class DataStore(object):
         """
         Genes the DerivedStack 
         """
-        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
-        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
-        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         
         derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
         DerivedStack = pd.DataFrame(derived_stack[stack_col])
@@ -321,10 +325,10 @@ class DataStore(object):
 
     def _generate_planes(self):
 
-        stack_col = self.conf['stack_dir'].get('stack_col', 'StackName')
-        id_col = self.conf['stack_dir'].get('id_col', 'index')
-        name_col = self.conf['stack_dir'].get('name_col', 'name')
-        type_col = self.conf['stack_dir'].get('type_col', 'channel_type')
+        stack_col = self.conf[conf.STACK_DIR][conf.STACK]
+        id_col = self.conf[conf.STACK_DIR][conf.ID]
+        name_col = self.conf[conf.STACK_DIR][conf.NAME]
+        type_col = self.conf[conf.STACK_DIR][conf.TYPE]
         planes = pd.DataFrame(columns=[
             'PlaneID',
             'RefStackName',
@@ -378,7 +382,6 @@ class DataStore(object):
         cells = pd.DataFrame(self._measurement_csv['ImageNumber'])
         cells['CellNumber'] = self._measurement_csv['ObjectNumber']
         return cells
- 
 
     def _write_measurement_table(self, chunksize=1000000):
         """
@@ -410,9 +413,14 @@ class DataStore(object):
                 stackgroup = stackgroup + '|' + stack
         stackgroup = stackgroup + ')'
         measurements = self._measurement_csv
-        meta = pd.Series(measurements.columns.unique()).apply(lambda x: lib.find_measurementmeta(stackgroup,x))
-        meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
-        measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
+        meta = pd.Series(measurements.columns.unique()).apply(
+            lambda x: lib.find_measurementmeta(stackgroup,x))
+        meta.columns = ['variable', 'MeasurementType', 'MeasurementName',
+                        'StackName', 'PlaneID']
+        measurements = pd.melt(measurements,
+                               id_vars=['ImageNumber',
+                                        'ObjectNumber','Number_Object_Number'],
+                               var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
         measurements['CellNumber'] = measurements['ObjectNumber']
         del measurements['variable']
@@ -664,4 +672,4 @@ class DataStore(object):
 
     def get_(self, arg):
         pass
-
+print('test')
