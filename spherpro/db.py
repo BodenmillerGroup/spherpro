@@ -7,6 +7,28 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, ForeignKey, Float
 Base = declarative_base()
 
+# Define the table and column names to be used
+# These need to match the definitions bellow
+
+KEY_IMAGENUMBER = 'ImageNumber'
+KEY_CELLNUMBER = 'CellNumber'
+KEY_MEASUREMENTTYPE = 'MeasurementType'
+KEY_MEASUREMENTNAME = 'MeasurementName'
+KEY_STACKNAME = 'StackName'
+KEY_PLANEID = 'PlaneID'
+KEY_PANNEL_ID = 'PannelID'
+KEY_CHANNEL_NAME = 'ChannelName'
+KEY_DISPLAY_NAME = 'DisplayName'
+KEY_CHANNEL_TYPE = 'ChannelType'
+KEY_REFSTACKNAME = 'RefStackName'
+
+TABLE_MEASUREMENT = 'Measurement'
+TABLE_IMAGE = 'Image'
+TABLE_CELL = 'Cell'
+TABLE_PANNELS = 'Pannels'
+TABLE_MODIFICATION = 'Modification'
+TABLE_MEASUREMENT_NAME = 'MeasurementName'
+TABLE_MEASUREMENT_TYPE = 'MeasurementType'
 
 def connect_sqlite(conf):
     """
@@ -91,13 +113,24 @@ class DerivedStack(Base):
     StackName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     RefStackName = Column(String(200), ForeignKey(RefStack.StackName), primary_key=True)
 
+class Pannels(Base):
+    """
+    Describes one or multiple pannels
+    """
+    __tablename__ = 'Pannels'
+    PannelID = Column(String(200), primary_key=True)
+    ChannelName = Column(String(200), primary_key=True)
+    DisplayName = Column(String(200))
+    ChannelType = Column(String(200))
+
 class PlaneMeta(Base):
     """docstring for PlaneMeta."""
     __tablename__ = 'PlaneMeta'
     RefStackName = Column(String(200), ForeignKey(RefStack.StackName), primary_key=True)
     PlaneID = Column(String(200), primary_key=True)
-    Name = Column(String(222))
-    Type = Column(String(222))
+    ChannelType = Column(String(222), ForeignKey(Pannels.ChannelType))
+    ChannelName = Column(String(200), ForeignKey(Pannels.ChannelName))
+    PannelID = Column(String(200), ForeignKey(Pannels.PannelID))
 
 class Modification(Base):
     """docstring for Modification."""
@@ -111,3 +144,4 @@ class StackModification(Base):
     ModificationName = Column(String(200), ForeignKey(Modification.ModificationName), primary_key=True)
     ParentName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     ChildName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
+

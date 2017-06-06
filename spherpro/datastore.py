@@ -10,25 +10,13 @@ import spherpro.library as lib
 import spherpro.db as db
 import spherpro.configuration as conf
 
-KEY_IMAGENUMBER = 'ImageNumber'
-KEY_CELLNUMBER = 'CellNumber'
-KEY_MEASUREMENTTYPE = 'MeasurementType'
-KEY_MEASUREMENTNAME = 'MeasurementName'
-KEY_STACKNAME = 'StackName'
-KEY_PLANEID = 'PlaneID'
-
-
-TABLE_MEASUREMENT = 'Measurement'
-TABLE_IMAGE = 'Image'
-TABLE_CELL = 'Cell'
-
 DICT_DB_KEYS = {
-    'image_number': KEY_IMAGENUMBER,
-    'cell_number': KEY_CELLNUMBER,
-    'measurement_type': KEY_MEASUREMENTTYPE,
-    'measurement_name': KEY_MEASUREMENTNAME,
-    'stack_name': KEY_STACKNAME,
-    'plane_id': KEY_PLANEID,
+    'image_number': db.KEY_IMAGENUMBER,
+    'cell_number': db.KEY_CELLNUMBER,
+    'measurement_type': db.KEY_MEASUREMENTTYPE,
+    'measurement_name': db.KEY_MEASUREMENTNAME,
+    'stack_name': db.KEY_STACKNAME,
+    'plane_id': db.KEY_PLANEID,
 }
 
 
@@ -186,18 +174,21 @@ class DataStore(object):
         reads the stack meta as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf[conf.STACK_DIR][conf.SEP]
         stack_dir = self.conf[conf.STACK_DIR][conf.PATH]
+        sep = self.conf[conf.STACK_DIR][conf.SEP]
         match = re.compile("(.*)\.csv")
         stack_files = [f for f in listdir(stack_dir) if isfile(join(stack_dir, f))]
         stack_data = [pd.read_csv(join(stack_dir,n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
-        sep = self.conf[conf.STACK_RELATIONS][conf.SEP]
-        self._stack_relation_csv = pd.read_csv(
-            self.conf[conf.STACK_RELATIONS][conf.PATH],
-            sep=sep
-        )
+        self._stack_relation_csv = lib.read_csv_from_config(self.conf[conf.STACK_RELATIONS])
+
+    def _read_pannel(self):
+        """
+        Reads the pannel as stated in the config and saves it in the datastore.
+        """
+        self._pannel_csv = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
+        
 
     def _populate_db(self):
         """
@@ -230,7 +221,7 @@ class DataStore(object):
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         data = pd.DataFrame(self._stack_relation_csv[stack_col])
         data = data.append({stack_col:'NoStack'}, ignore_index=True)
-        data.columns = ['StackName']
+        data.columns = [db.KEY_STACKNAME]
 
         return data
 
@@ -299,7 +290,7 @@ class DataStore(object):
 
         ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
         RefStack = pd.DataFrame(ref_stack[stack_col])
-        RefStack.columns = ['StackName']
+        RefStack.columns = [db.KEY_STACKNAME]
         return RefStack
 
     def _generate_derivedstack(self):
@@ -314,10 +305,33 @@ class DataStore(object):
         
         derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
         DerivedStack = pd.DataFrame(derived_stack[stack_col])
-        DerivedStack['RefStackName'] = derived_stack[ref_col]
-        DerivedStack.columns = ['StackName', 'RefStackName']
+        DerivedStack[db.KEY_REFSTACKNAME] = derived_stack[ref_col]
+        DerivedStack.columns = [db.KEY_STACKNAME, db.KEY_REFSTACKNAME]
 
         return DerivedStack
+
+    def _generate_pannel(self):
+        """
+        Generates the pannel
+        """
+
+        cols = [self.conf[conf.PANNEL_CSV][k] for k in [conf.CHANNEL_NAME,
+                                                        conf.DISPLAY_NAME]]
+        pannel = self._pannel_csv[cols]
+        pannel[conf.PANNEL_ID] = 1
+        pannel[conf.CHANNEL_TYPE] = CHANNEL_TYPE_DEFAULT
+        pannel = pannel.columns.rename(columns={
+            conf.PANNEL_ID: db.KEY_PANNEL_ID,
+            conf.CHANNEL_TYPE: db.KEY_CHANNEL_TYPE,
+            conf.DISPLAY_NAME: db.KEY_DISPLAY_NAME,
+            conf.CHANNEL_NAME: db.KEY_CHANNEL_NAME})
+        return pannel
+
+    def _write_pannel_table(self):
+        pannel = self._generate_pannel()
+
+        pannel.to_sql(con=self.db_conn, if_exists='append',
+                      name=db.TABLE_PANNELS, index=False)
 
     def _write_planes_table(self):
         """
@@ -334,23 +348,23 @@ class DataStore(object):
         name_col = self.conf[conf.STACK_DIR][conf.NAME]
         type_col = self.conf[conf.STACK_DIR][conf.TYPE]
         planes = pd.DataFrame(columns=[
-            'PlaneID',
-            'RefStackName',
-            'Name',
-            'Type'
+            db.KEY_PLANEID,
+            db.KEY_REFSTACKNAME,
+            db.KEY_CHANNEL_NAME,
+            db.KEY_CHANNEL_TYPE
         ])
         for stack in self.stacks:
             self.stacks[stack].rename(columns={
-                id_col:'PlaneID',
-                stack_col:'RefStackName',
-                name_col:'Name',
-                type_col:'Type'
+                id_col:db.KEY_PLANEID,
+                stack_col:db.KEY_REFSTACKNAME,
+                name_col: db.KEY_CHANNEL_NAME,
+                type_col: db.KEY_CHANNEL_TYPE
             }, inplace = True)
             planes = planes.append(self.stacks[stack])
         planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
-        planes['PlaneID'] = planes['PlaneID'].apply(lambda x: 'c'+str(int(x)))
+        planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
 
         return planes
 
@@ -361,14 +375,14 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        image.to_sql(con=self.db_conn, if_exists='append', name="Image", index=False)
+        image.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_IMAGE, index=False)
 
     def _generate_image(self):
         """
         Generates the Image
         table.
         """
-        image = pd.DataFrame(self._images_csv['ImageNumber'])
+        image = pd.DataFrame(self._images_csv[db.KEY_IMAGENUMBER])
         return image
 
     def _write_cells(self):
@@ -376,15 +390,15 @@ class DataStore(object):
         Generates and save the cell table
         """
         cells = self._generate_cells()
-        cells.to_sql(con=self.db_conn, if_exists='append', name='Cell',
+        cells.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_CELL,
                      index=False)
 
     def _generate_cells(self):
         """
         Genertes the cell table
         """
-        cells = pd.DataFrame(self._measurement_csv['ImageNumber'])
-        cells['CellNumber'] = self._measurement_csv['ObjectNumber']
+        cells = pd.DataFrame(self._measurement_csv[db.KEY_IMAGENUMBER])
+        cells[db.KEY_CELLNUMBER] = self._measurement_csv['ObjectNumber']
         return cells
 
     def _write_measurement_table(self, chunksize=1000000):
@@ -401,11 +415,11 @@ class DataStore(object):
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
         measurements.to_sql(con=self.db_conn, if_exists='append',
-                            name="Measurement", chunksize=chunksize, index=False)
+                            name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
         measurements_names.to_sql(con=self.db_conn, if_exists='append',
-                                  name="MeasurementName")
+                                  name=db.TABLE_MEASUREMENT_NAME)
         measurements_types.to_sql(con=self.db_conn, if_exists='append',
-                                     name="MeasurementType")
+                                     name=db.TABLE_MEASUREMENT_TYPE)
         del self._measurement_csv
 
     def _generate_measurements(self):
@@ -419,24 +433,24 @@ class DataStore(object):
         measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(
             lambda x: lib.find_measurementmeta(stackgroup,x))
-        meta.columns = ['variable', 'MeasurementType', 'MeasurementName',
-                        'StackName', 'PlaneID']
+        meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
+                        db.KEY_STACKNAME, db.KEY_PLANEID]
         measurements = pd.melt(measurements,
-                               id_vars=['ImageNumber',
+                               id_vars=[db.KEY_IMAGENUMBER,
                                         'ObjectNumber','Number_Object_Number'],
                                var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements['CellNumber'] = measurements['ObjectNumber']
+        measurements[db.KEY_CELLNUMBER] = measurements['ObjectNumber']
         del measurements['variable']
         del measurements['ObjectNumber']
         del measurements['Number_Object_Number']
-        measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
-        measurements_names.columns = ['MeasurementName']
+        measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
+        measurements_names.columns = [db.KEY_MEASUREMENTNAME]
         measurements_names = measurements_names.rename_axis('id')
-        measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
-        measurements_types.columns = ['MeasurementType']
+        measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
+        measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
         measurements_types = measurements_types.rename_axis('id')
-        measurements = measurements.sort_values(['ImageNumber', 'CellNumber', 'StackName', 'MeasurementType', 'MeasurementName', 'PlaneID'])
+        measurements = measurements.sort_values([db.KEY_IMAGENUMBER, db.KEY_CELLNUMBER, db.KEY_STACKNAME, db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME, db.KEY_PLANEID])
         
         return measurements, measurements_names, measurements_types
     #########################################################################
@@ -480,7 +494,7 @@ class DataStore(object):
         
         args = locals()
         args.pop('self')
-        return self.get_table_data(TABLE_IMAGE,  **args)
+        return self.get_table_data(db.TABLE_IMAGE,  **args)
 
     def get_cell_meta(self,
         image_number = None,
@@ -508,7 +522,7 @@ class DataStore(object):
         
         args = locals()
         args.pop('self')
-        return self.get_table_data(TABLE_CELL,  **args)
+        return self.get_table_data(db.TABLE_CELL,  **args)
 
     def get_stack_meta(self,
         stack_name = None):
@@ -538,7 +552,7 @@ class DataStore(object):
         if stack_name is None:
             clause_dict = None
         else:
-            clause_dict = {'StackName': stack_name}
+            clause_dict = {db.KEY_STACKNAME: stack_name}
 
         #stack_name
         self._sqlgenerate_simple_query('Stack', columns=['Stack.*',
@@ -607,7 +621,7 @@ class DataStore(object):
         
         args = locals()
         args.pop('self')
-        return self.get_table_data(TABLE_MEASUREMENT,  **args)
+        return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
         
     def get_(self, arg):
         pass

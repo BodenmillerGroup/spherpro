@@ -35,7 +35,12 @@ MEASUREMENT_CSV = 'measurement_csv'
 IMAGES_CSV = 'images_csv'
 RELATION_CSV = 'relation_csv'
 CP_DIR = 'cp_dir'
-
+PANNEL_CSV = 'pannel_csv'
+CHANNEL_NAME = 'channel_name'
+DISPLAY_NAME = 'display_name'
+PANNEL_ID = 'pannel_id'
+CHANNEL_TYPE = 'channel_type'
+CHANNEL_TYPE_DEFAULT = 'IMC'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -82,6 +87,12 @@ default_dict = {
         IMAGES_CSV: {
             SEP: ','
         }
+    },
+    PANNEL_CSV: {
+        SEP: ',',
+        CHANNEL_NAME: 'metal',
+        DISPLAY_NAME: 'name',
+        CHANNEL_TYPE_DEFAULT: 'IMC'
     }
 }
 

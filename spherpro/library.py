@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-
+import spherpro.configuration as conf
 def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
     """calculate_real_dist_rim
     Calculates the real distance to rim from the real sphere radius, the radius
@@ -66,7 +66,6 @@ def construct_in_clause_list(key_dict):
         a list of constructed clauses
 
     Example:
-        >>> import pprint
         >>> out = construct_in_clause_list({'A': [1], 'B': ['c','d']})
         >>> sorted(out)
         ['A IN ("1")', 'B IN ("c","d")']
@@ -126,5 +125,12 @@ def filter_and_rename_dict(indict, filterdict):
                if ((v is not None) and (k in filterdict.keys()))}
 
     return outdict
-    
-    
+
+def read_csv_from_config(configdict):
+    """
+    Read the CSV from a configuration entry.
+    """
+    path = configdict[conf.PATH]
+    sep = configdict[conf.SEP]
+    dat = pd.read_csv(path, sep=sep)
+    return dat

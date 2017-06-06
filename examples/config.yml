@@ -63,3 +63,6 @@ barcode_csv:
 # Pannel Info:
 pannel_csv:
   path: '/home/mleutenegger/Git/SpheroidSignaling/20170216_p32_s3_ac1/20170216_panel.csv'
+  channel_name: 'metal'
+  display_name: 'name'
+  
