@@ -41,7 +41,7 @@ class DataStore(object):
         self.channel_meta = None
         self.sphere_meta = None
         self.measurement_meta_cache = None
-
+        self._pannel = None
         self.connectors = {
             conf.CON_SQLITE: db.connect_sqlite,
             conf.CON_MYSQL: db.connect_mysql
@@ -185,9 +185,9 @@ class DataStore(object):
 
     def _read_pannel(self):
         """
-        Reads the pannel as stated in the config and saves it in the datastore.
+        Reads the pannel as stated in the config.
         """
-        self._pannel_csv = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
+        self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
         
 
     def _populate_db(self):
@@ -310,28 +310,6 @@ class DataStore(object):
 
         return DerivedStack
 
-    def _generate_pannel(self):
-        """
-        Generates the pannel
-        """
-
-        cols = [self.conf[conf.PANNEL_CSV][k] for k in [conf.CHANNEL_NAME,
-                                                        conf.DISPLAY_NAME]]
-        pannel = self._pannel_csv[cols]
-        pannel[conf.PANNEL_ID] = 1
-        pannel[conf.CHANNEL_TYPE] = CHANNEL_TYPE_DEFAULT
-        pannel = pannel.columns.rename(columns={
-            conf.PANNEL_ID: db.KEY_PANNEL_ID,
-            conf.CHANNEL_TYPE: db.KEY_CHANNEL_TYPE,
-            conf.DISPLAY_NAME: db.KEY_DISPLAY_NAME,
-            conf.CHANNEL_NAME: db.KEY_CHANNEL_NAME})
-        return pannel
-
-    def _write_pannel_table(self):
-        pannel = self._generate_pannel()
-
-        pannel.to_sql(con=self.db_conn, if_exists='append',
-                      name=db.TABLE_PANNELS, index=False)
 
     def _write_planes_table(self):
         """
@@ -670,7 +648,10 @@ class DataStore(object):
         clauses = lib.construct_in_clause_list(clause_dict)
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
-
-
-
-
+    
+    #Properties:
+    @property
+    def pannel(self):
+        if self._pannel is None:
+            self._read_pannel()
+        return self._pannel

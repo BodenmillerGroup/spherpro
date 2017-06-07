@@ -16,7 +16,6 @@ KEY_MEASUREMENTTYPE = 'MeasurementType'
 KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_STACKNAME = 'StackName'
 KEY_PLANEID = 'PlaneID'
-KEY_PANNEL_ID = 'PannelID'
 KEY_CHANNEL_NAME = 'ChannelName'
 KEY_DISPLAY_NAME = 'DisplayName'
 KEY_CHANNEL_TYPE = 'ChannelType'
@@ -25,7 +24,6 @@ KEY_REFSTACKNAME = 'RefStackName'
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
 TABLE_CELL = 'Cell'
-TABLE_PANNELS = 'Pannels'
 TABLE_MODIFICATION = 'Modification'
 TABLE_MEASUREMENT_NAME = 'MeasurementName'
 TABLE_MEASUREMENT_TYPE = 'MeasurementType'
@@ -113,30 +111,20 @@ class DerivedStack(Base):
     StackName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     RefStackName = Column(String(200), ForeignKey(RefStack.StackName), primary_key=True)
 
-class Pannels(Base):
-    """
-    Describes one or multiple pannels
-    """
-    __tablename__ = 'Pannels'
-    PannelID = Column(String(200), primary_key=True)
-    ChannelName = Column(String(200), primary_key=True)
-    DisplayName = Column(String(200))
-    ChannelType = Column(String(200))
 
 class PlaneMeta(Base):
     """docstring for PlaneMeta."""
     __tablename__ = 'PlaneMeta'
     RefStackName = Column(String(200), ForeignKey(RefStack.StackName), primary_key=True)
     PlaneID = Column(String(200), primary_key=True)
-    ChannelType = Column(String(222), ForeignKey(Pannels.ChannelType))
-    ChannelName = Column(String(200), ForeignKey(Pannels.ChannelName))
-    PannelID = Column(String(200), ForeignKey(Pannels.PannelID))
+    ChannelType = Column(String(200))
+    ChannelName = Column(String(200))
 
 class Modification(Base):
     """docstring for Modification."""
     __tablename__ = 'Modification'
     ModificationName = Column(String(200), primary_key=True)
-    ModificationPrefix = Column(String(222))
+    ModificationPrefix = Column(String(200))
 
 class StackModification(Base):
     """docstring for StackModification."""
