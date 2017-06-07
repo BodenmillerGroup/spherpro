@@ -3,6 +3,7 @@ import numpy as np
 import yaml
 from os import listdir
 from os.path import isfile, join
+import os
 import re
 
 import spherpro as spp
@@ -12,11 +13,12 @@ import spherpro.configuration as conf
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
-    'cell_number': db.KEY_CELLNUMBER,
+    'object_number': db.KEY_OBJECTNUMBER,
     'measurement_type': db.KEY_MEASUREMENTTYPE,
     'measurement_name': db.KEY_MEASUREMENTNAME,
     'stack_name': db.KEY_STACKNAME,
     'plane_id': db.KEY_PLANEID,
+    'object_id': db.KEY_OBJECTID
 }
 
 
@@ -150,24 +152,23 @@ class DataStore(object):
         reads the measurement data as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV][conf.SEP]
-        self._measurement_csv = pd.read_csv(
-            join(self.conf[conf.CP_DIR],
-                 self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV][conf.PATH]),
-            sep=sep
-        )
-        sep = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SEP]
-        self._images_csv = pd.read_csv(
-            join(self.conf[conf.CP_DIR],
-                 self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.PATH]),
-            sep=sep
-        )
-        sep = self.conf[conf.CPOUTPUT][conf.RELATION_CSV][conf.SEP]
-        self._relation_csv = pd.read_csv(
-            join(self.conf[conf.CP_DIR],
-                 self.conf[conf.CPOUTPUT][conf.RELATION_CSV][conf.PATH]),
-            sep=sep
-        )
+        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
+        sep = conf_meas[conf.SEP]
+        cpdir = self.conf[conf.CP_DIR]
+        filetype = conf_meas[conf.FILETYPE]
+        objids = conf_meas[conf.OBJECTS]
+        cellmeas ={objid: pd.read_csv(os.path.join(cpdir, objid+filetype),
+                                      sep=sep) for objid in objids}
+        cellmeas = pd.concat(cellmeas, names=[db.KEY_OBJECTID, 'idx'] )
+        cellmeas = cellmeas.reset_index(level=db.KEY_OBJECTID, drop=False)
+        self._measurement_csv = cellmeas
+        self._images_csv = lib.read_csv_from_config(
+            self.conf[conf.CPOUTPUT][conf.IMAGES_CSV],
+            base_dir=cpdir)
+        self._relation_csv = lib.read_csv_from_config(
+            self.conf[conf.CPOUTPUT][conf.RELATION_CSV],
+            base_dir=cpdir)
+
 
     def _read_stack_meta(self):
         """
@@ -199,7 +200,7 @@ class DataStore(object):
         self._write_modification_tables()
         self._write_planes_table()
         self._write_image_table()
-        self._write_cells()
+        self._write_objects()
         self._write_measurement_table()
 
     ##########################################
@@ -363,21 +364,22 @@ class DataStore(object):
         image = pd.DataFrame(self._images_csv[db.KEY_IMAGENUMBER])
         return image
 
-    def _write_cells(self):
+    def _write_objects(self):
         """
         Generates and save the cell table
         """
-        cells = self._generate_cells()
-        cells.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_CELL,
+        objects = self._generate_objects()
+        objects.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_OBJECT,
                      index=False)
 
-    def _generate_cells(self):
+    def _generate_objects(self):
         """
         Genertes the cell table
         """
-        cells = pd.DataFrame(self._measurement_csv[db.KEY_IMAGENUMBER])
-        cells[db.KEY_CELLNUMBER] = self._measurement_csv['ObjectNumber']
-        return cells
+        objects = pd.DataFrame(self._measurement_csv[[db.KEY_OBJECTNUMBER,
+                                                      db.KEY_OBJECTID,
+                                                      db.KEY_IMAGENUMBER]])
+        return objects
 
     def _write_measurement_table(self, chunksize=1000000):
         """
@@ -415,12 +417,11 @@ class DataStore(object):
                         db.KEY_STACKNAME, db.KEY_PLANEID]
         measurements = pd.melt(measurements,
                                id_vars=[db.KEY_IMAGENUMBER,
-                                        'ObjectNumber','Number_Object_Number'],
+                                        db.KEY_OBJECTNUMBER,'Number_Object_Number',
+                                       db.KEY_OBJECTID],
                                var_name='variable', value_name='value')
         measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements[db.KEY_CELLNUMBER] = measurements['ObjectNumber']
         del measurements['variable']
-        del measurements['ObjectNumber']
         del measurements['Number_Object_Number']
         measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
         measurements_names.columns = [db.KEY_MEASUREMENTNAME]
@@ -428,9 +429,11 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
         measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
         measurements_types = measurements_types.rename_axis('id')
-        measurements = measurements.sort_values([db.KEY_IMAGENUMBER, db.KEY_CELLNUMBER, db.KEY_STACKNAME, db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME, db.KEY_PLANEID])
+        measurements = measurements.sort_values([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_STACKNAME, db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME, db.KEY_PLANEID])
         
         return measurements, measurements_names, measurements_types
+
+
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
@@ -476,7 +479,8 @@ class DataStore(object):
 
     def get_cell_meta(self,
         image_number = None,
-        cell_number = None):
+        object_number = None,
+                     object_id = None):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -492,7 +496,7 @@ class DataStore(object):
 
         Args:
             int/array image_number: ImageNumber. If 'False', do not filter
-            int/array cell_number: CellNumber. If 'False', do not filter
+            int/array object_number: CellNumber. If 'False', do not filter
 
         Returns:
             DataFrame
@@ -500,7 +504,7 @@ class DataStore(object):
         
         args = locals()
         args.pop('self')
-        return self.get_table_data(db.TABLE_CELL,  **args)
+        return self.get_table_data(db.TABLE_OBJECT,  **args)
 
     def get_stack_meta(self,
         stack_name = None):
@@ -563,7 +567,8 @@ class DataStore(object):
 
     def get_measurements(self,
         image_number=None,
-        cell_number=None,
+        object_number=None,
+        oject_id=None,
         measurement_type=None,
         measurement_name=None,
         stack_name=None,
@@ -586,7 +591,7 @@ class DataStore(object):
 
         Args:
             int/array image_number: ImageNumber. If NONE, do not filter
-            int/array cell_number: CellNumber. If NONE, do not filter
+            int/array object_number: CellNumber. If NONE, do not filter
             str/array measurement_type: MeasurementType. If NONE, do not filter
             str/array measurement_name: MeasurementName. If NONE, do not filter
             str/array stack_name: StackName. If NONE, do not filter

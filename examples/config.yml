@@ -32,9 +32,7 @@ stack_relations:
   sep: ',' # Default: ','
 cpoutput:
   measurement_csv:
-    path: 'RescaledCells.csv'
-  cells_csv:
-    path: 'Cells.csv'
+    objects: ['cells']
   relation_csv:
     path: 'Object relationships.csv'
   images_csv:

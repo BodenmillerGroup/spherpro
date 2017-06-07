@@ -41,6 +41,8 @@ DISPLAY_NAME = 'display_name'
 PANNEL_ID = 'pannel_id'
 CHANNEL_TYPE = 'channel_type'
 CHANNEL_TYPE_DEFAULT = 'IMC'
+OBJECTS = 'objects'
+FILETYPE = 'filetype'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -79,7 +81,8 @@ default_dict = {
 
     CPOUTPUT: {
         MEASUREMENT_CSV: {
-            SEP: ','
+            SEP: ',',
+            FILETYPE: '.csv'
         },
         RELATION_CSV: {
             SEP: ','

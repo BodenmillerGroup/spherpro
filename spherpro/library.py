@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import re
 import spherpro.configuration as conf
 def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
@@ -126,11 +127,13 @@ def filter_and_rename_dict(indict, filterdict):
 
     return outdict
 
-def read_csv_from_config(configdict):
+def read_csv_from_config(configdict, base_dir=None):
     """
     Read the CSV from a configuration entry.
     """
     path = configdict[conf.PATH]
     sep = configdict[conf.SEP]
+    if base_dir is not None:
+        path = os.path.join(base_dir, path)
     dat = pd.read_csv(path, sep=sep)
     return dat

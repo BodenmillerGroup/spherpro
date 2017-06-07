@@ -11,7 +11,7 @@ Base = declarative_base()
 # These need to match the definitions bellow
 
 KEY_IMAGENUMBER = 'ImageNumber'
-KEY_CELLNUMBER = 'CellNumber'
+KEY_OBJECTNUMBER = 'ObjectNumber'
 KEY_MEASUREMENTTYPE = 'MeasurementType'
 KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_STACKNAME = 'StackName'
@@ -20,10 +20,11 @@ KEY_CHANNEL_NAME = 'ChannelName'
 KEY_DISPLAY_NAME = 'DisplayName'
 KEY_CHANNEL_TYPE = 'ChannelType'
 KEY_REFSTACKNAME = 'RefStackName'
+KEY_OBJECTID = 'ObjectID'
 
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
-TABLE_CELL = 'Cell'
+TABLE_OBJECT = 'Objects'
 TABLE_MODIFICATION = 'Modification'
 TABLE_MEASUREMENT_NAME = 'MeasurementName'
 TABLE_MEASUREMENT_TYPE = 'MeasurementType'
@@ -36,7 +37,7 @@ def connect_sqlite(conf):
         conf: the config dictionnary from a Datastore object.
 
     Returns:
-        SQLite3 connector
+        SQLite3 conne:ctor
     """
     db=conf['sqlite']['db']
     conn = 'sqlite:///%s' % (db)
@@ -55,14 +56,14 @@ def connect_mysql(conf):
     Returns:
         MySQL connector
     """
-    host=conf['mysql']['host']
-    port=conf['mysql'].get('port', '3306')
-    user=conf['mysql']['user']
-    password=conf['mysql']['pass']
-    db=conf['mysql']['db']
+    host = conf['mysql']['host']
+    port = conf['mysql'].get('port', '3306')
+    user = conf['mysql']['user']
+    password = conf['mysql']['pass']
+    db = conf['mysql']['db']
     conn = 'mysql+pymysql://%s:%s@%s:%s/%s' % (user, password, host, port, db)
     engine = create_engine(conn)
-    Base.metadata.create_all(engine)
+    #Base.metadata.create_all(engine)
     return engine
 
 
@@ -77,11 +78,12 @@ class Image(Base):
     __tablename__ = 'Image'
     ImageNumber = Column(Integer, primary_key=True)
 
-class Cell(Base):
-    """docstring for Cell."""
-    __tablename__ = 'Cell'
-    CellNumber = Column(Integer, primary_key=True)
+class Objects(Base):
+    """docstring for Objects."""
+    __tablename__ = 'Objects'
+    ObjectNumber = Column(Integer, primary_key=True)
     ImageNumber = Column(Integer, ForeignKey(Image.ImageNumber), primary_key=True)
+    ObjectID = Column(String(200), primary_key=True)
 
 class Stack(Base):
     """docstring for Stack."""
@@ -92,7 +94,9 @@ class Measurement(Base):
     """docstring for Measurement."""
     __tablename__ = 'Measurement'
     ImageNumber = Column(Integer, ForeignKey(Image.ImageNumber), primary_key=True)
-    CellNumber = Column(Integer, ForeignKey(Cell.CellNumber), primary_key=True)
+    ObjectNumber = Column(Integer, ForeignKey(Objects.ObjectNumber), primary_key=True)
+    ObjectID =  Column(String(200), ForeignKey(Objects.ObjectID),
+                       primary_key=True)
     StackName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     MeasurementType =  Column(String(200), primary_key=True)
     MeasurementName =  Column(String(200), primary_key=True)
