@@ -203,6 +203,7 @@ class DataStore(object):
         self._write_objects_table()
         self._write_measurement_table()
         self._write_masks_table()
+        self._write_object_relations_table()
 
     ##########################################
     #        Database Table Generation:      #
