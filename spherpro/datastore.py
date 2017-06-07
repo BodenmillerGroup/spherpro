@@ -383,7 +383,7 @@ class DataStore(object):
                                                       db.KEY_IMAGENUMBER]])
         return objects
 
-    def _write_measurement_table(self, chunksize=1000000):
+    def _write_measurement_table(self, chunksize=100000):
         """
         Generates the Measurement, MeasurementType and MeasurementName
         tables and writes them to the database.
@@ -399,9 +399,11 @@ class DataStore(object):
         measurements.to_sql(con=self.db_conn, if_exists='replace',
                             name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
         measurements_names.to_sql(con=self.db_conn, if_exists='replace',
-                                  name=db.TABLE_MEASUREMENT_NAME)
+                                  name=db.TABLE_MEASUREMENT_NAME,
+                                 index=False)
         measurements_types.to_sql(con=self.db_conn, if_exists='replace',
-                                     name=db.TABLE_MEASUREMENT_TYPE)
+                                     name=db.TABLE_MEASUREMENT_TYPE,
+                                  index=False)
         del self._measurement_csv
 
     def _generate_measurements(self):
@@ -471,13 +473,13 @@ class DataStore(object):
             (conf.RELATIONSHIP, db.KEY_RELATIONSHIP)]}
         dat_relations = self._relation_csv[list(col_map.keys())]
         dat_relations = (dat_relations.rename(columns=col_map)
-                         .reset_index(drop=True))
+                         )
         return dat_relations
     
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
         relations.to_sql(con=self.db_conn, if_exists='replace',
-                         name=db.TABLE_OBJECT_RELATIONS)
+                         name=db.TABLE_OBJECT_RELATIONS, index=False)
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
