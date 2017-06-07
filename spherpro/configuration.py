@@ -43,6 +43,7 @@ CHANNEL_TYPE = 'channel_type'
 CHANNEL_TYPE_DEFAULT = 'IMC'
 OBJECTS = 'objects'
 FILETYPE = 'filetype'
+MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -88,6 +89,7 @@ default_dict = {
             SEP: ','
         },
         IMAGES_CSV: {
+            MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ','
         }
     },

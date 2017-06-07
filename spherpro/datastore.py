@@ -429,11 +429,33 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
         measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
         measurements_types = measurements_types.rename_axis('id')
-        measurements = measurements.sort_values([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_STACKNAME, db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME, db.KEY_PLANEID])
+        measurements = measurements.sort_values([db.KEY_IMAGENUMBER,
+                                                 db.KEY_OBJECTNUMBER,
+                                                 db.KEY_STACKNAME,
+                                                 db.KEY_MEASUREMENTTYPE,
+                                                 db.KEY_MEASUREMENTNAME,
+                                                 db.KEY_PLANEID])
         
         return measurements, measurements_names, measurements_types
 
+    def _generate_masks(self):
+        cpconf = self.conf[conf.CPOUTPUT]
+        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        dat_mask = {obj:
+                    self._images_csv[
+                        [db.KEY_IMAGENUMBER, prefix+obj]
+                    ].rename(columns={prefix+obj: db.KEY_FILENAME})
+         for obj in objects}
+        dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
+        dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
+        dat_mask = dat_mask.reset_index(drop=True)
+        return dat_mask
 
+    def _write_masks(self):
+        masks = self._generate_masks()
+        masks.to_sql(con=self.db_conn, if_exists='append',
+                                     name=db.TABLE_MASKS)
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #

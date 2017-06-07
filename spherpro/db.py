@@ -21,6 +21,7 @@ KEY_DISPLAY_NAME = 'DisplayName'
 KEY_CHANNEL_TYPE = 'ChannelType'
 KEY_REFSTACKNAME = 'RefStackName'
 KEY_OBJECTID = 'ObjectID'
+KEY_FILENAME = 'FileName'
 
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
@@ -28,6 +29,7 @@ TABLE_OBJECT = 'Objects'
 TABLE_MODIFICATION = 'Modification'
 TABLE_MEASUREMENT_NAME = 'MeasurementName'
 TABLE_MEASUREMENT_TYPE = 'MeasurementType'
+TABLE_MASKS = 'Masks'
 
 def connect_sqlite(conf):
     """
@@ -90,6 +92,15 @@ class Stack(Base):
     __tablename__ = 'Stack'
     StackName = Column(String(200), primary_key=True)
 
+class Masks(Base):
+    """ a table describing the masks."""
+    __tablename__ = 'Masks'
+    ImageNumber = Column(Integer, ForeignKey(Image.ImageNumber), primary_key=True)
+    ObjectID = Column(String(200), ForeignKey(Objects.ObjectID),
+                       primary_key=True)
+    FileName = Column(String(200))
+
+
 class Measurement(Base):
     """docstring for Measurement."""
     __tablename__ = 'Measurement'
@@ -133,7 +144,8 @@ class Modification(Base):
 class StackModification(Base):
     """docstring for StackModification."""
     __tablename__ = 'StackModification'
-    ModificationName = Column(String(200), ForeignKey(Modification.ModificationName), primary_key=True)
+    ModificationName = Column(String(200),
+                              ForeignKey(Modification.ModificationName), primary_key=True)
     ParentName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     ChildName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
 
