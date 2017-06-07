@@ -44,6 +44,13 @@ CHANNEL_TYPE_DEFAULT = 'IMC'
 OBJECTS = 'objects'
 FILETYPE = 'filetype'
 MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
+RELATIONSHIP = 'relationship'
+OBJECTID_FROM = 'first_object_id_col' 
+OBJECTID_TO = 'second_object_id_col'
+OBJECTNUMBER_FROM = 'first_object_number_col'
+OBJECTNUMBER_TO = 'second_object_number_col'
+IMAGENUMBER_FROM = 'first_image_number_col'
+IMAGENUMBER_TO = 'second_image_number_col'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -86,7 +93,14 @@ default_dict = {
             FILETYPE: '.csv'
         },
         RELATION_CSV: {
-            SEP: ','
+            SEP: ',',
+            OBJECTID_FROM: 'First Object Name',
+            OBJECTID_TO: 'Second Object Name',
+            OBJECTNUMBER_FROM: 'First Object Number',
+            OBJECTNUMBER_TO: 'Second Object Number',
+            IMAGENUMBER_FROM: 'First Image Number',
+            IMAGENUMBER_TO: 'Second Image Number',
+            RELATIONSHIP: 'Relationship'
         },
         IMAGES_CSV: {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',

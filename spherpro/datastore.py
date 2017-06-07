@@ -200,8 +200,9 @@ class DataStore(object):
         self._write_modification_tables()
         self._write_planes_table()
         self._write_image_table()
-        self._write_objects()
+        self._write_objects_table()
         self._write_measurement_table()
+        self._write_masks_table()
 
     ##########################################
     #        Database Table Generation:      #
@@ -364,7 +365,7 @@ class DataStore(object):
         image = pd.DataFrame(self._images_csv[db.KEY_IMAGENUMBER])
         return image
 
-    def _write_objects(self):
+    def _write_objects_table(self):
         """
         Generates and save the cell table
         """
@@ -452,10 +453,30 @@ class DataStore(object):
         dat_mask = dat_mask.reset_index(drop=True)
         return dat_mask
 
-    def _write_masks(self):
+    def _write_masks_table(self):
         masks = self._generate_masks()
         masks.to_sql(con=self.db_conn, if_exists='append',
                                      name=db.TABLE_MASKS)
+
+    def _generate_object_relations(self):
+        conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
+        col_map = {conf_rel[c]: target for c, target in [
+            (conf.OBJECTID_FROM, db.KEY_OBJECTID_FROM),
+            (conf.OBJECTID_TO, db.KEY_OBJECTID_TO),
+            (conf.OBJECTNUMBER_FROM, db.KEY_OBJECTNUMBER_FROM),
+            (conf.OBJECTNUMBER_TO, db.KEY_OBJECTNUMBER_TO),
+            (conf.IMAGENUMBER_FROM, db.KEY_IMAGENUMBER_FROM),
+            (conf.IMAGENUMBER_TO, db.KEY_IMAGENUMBER_TO),
+            (conf.RELATIONSHIP, db.KEY_RELATIONSHIP)]}
+        dat_relations = self._relation_csv[list(col_map.keys())]
+        dat_relations = (dat_relations.rename(columns=col_map)
+                         .reset_index(drop=True))
+        return dat_relations
+    
+    def _write_object_relations_table(self):
+        relations = self._generate_object_relations()
+        relations.to_sql(con=self.db_conn, if_exists='append',
+                         name=db.TABLE_OBJECT_RELATIONS)
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #

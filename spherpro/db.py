@@ -4,7 +4,7 @@ import pymysql
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Boolean
 Base = declarative_base()
 
 # Define the table and column names to be used
@@ -22,6 +22,13 @@ KEY_CHANNEL_TYPE = 'ChannelType'
 KEY_REFSTACKNAME = 'RefStackName'
 KEY_OBJECTID = 'ObjectID'
 KEY_FILENAME = 'FileName'
+KEY_IMAGENUMBER_FROM = 'ImageNumberFrom'
+KEY_IMAGENUMBER_TO = 'ImageNumberTo'
+KEY_OBJECTNUMBER_FROM = 'ObjectNumberFrom'
+KEY_OBJECTNUMBER_TO = 'ObjectIDTo'
+KEY_OBJECTID_FROM = 'ObjectIDFrom'
+KEY_OBJECTID_TO = 'ObjectIDTo'
+KEY_RELATIONSHIP = 'Relationship'
 
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
@@ -30,6 +37,8 @@ TABLE_MODIFICATION = 'Modification'
 TABLE_MEASUREMENT_NAME = 'MeasurementName'
 TABLE_MEASUREMENT_TYPE = 'MeasurementType'
 TABLE_MASKS = 'Masks'
+TABLE_FILTERS = 'Filters'
+TABLE_OBJECT_RELATIONS = 'ObjectRelations'
 
 def connect_sqlite(conf):
     """
@@ -126,7 +135,6 @@ class DerivedStack(Base):
     StackName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     RefStackName = Column(String(200), ForeignKey(RefStack.StackName), primary_key=True)
 
-
 class PlaneMeta(Base):
     """docstring for PlaneMeta."""
     __tablename__ = 'PlaneMeta'
@@ -149,3 +157,29 @@ class StackModification(Base):
     ParentName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
     ChildName = Column(String(200), ForeignKey(Stack.StackName), primary_key=True)
 
+class Filters(Base):
+    __tablename__ = TABLE_FILTERS
+    FilterName = Column(String(200), primary_key=True)
+    FilterValue = Column(Boolean(), primary_key=True)
+    ImageNumber = Column(Integer, ForeignKey(Image.ImageNumber),
+                         primary_key=False)
+    ObjectNumber = Column(Integer, ForeignKey(Objects.ObjectNumber),
+                          primary_key=False)
+    ObjectID =  Column(String(200), ForeignKey(Objects.ObjectID),
+                       primary_key=False)
+
+class ObjectRelations(Base):
+    __tablename__ = TABLE_OBJECT_RELATIONS
+    ImageNumberFrom = Column(Integer, ForeignKey(Image.ImageNumber),
+                         primary_key=True)
+    ObjectNumberFrom = Column(Integer, ForeignKey(Objects.ObjectNumber),
+                          primary_key=True)
+    ObjectIDFrom = Column(String(200), ForeignKey(Objects.ObjectID),
+                       primary_key=True)
+    ImageNumberTo = Column(Integer, ForeignKey(Image.ImageNumber),
+                         primary_key=False)
+    ObjectNumberTo = Column(Integer, ForeignKey(Objects.ObjectNumber),
+                          primary_key=False)
+    ObjectIDTo = Column(String(200), ForeignKey(Objects.ObjectID),
+                       primary_key=False)
+    Relationship = Column(String(200), primary_key=False)
