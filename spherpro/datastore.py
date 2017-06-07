@@ -214,7 +214,7 @@ class DataStore(object):
         Writes the Stack table to the databse
         """
         data = self._generate_stack()
-        data.to_sql(con=self.db_conn, if_exists='append',
+        data.to_sql(con=self.db_conn, if_exists='replace',
                                   name="Stack", index=False)
 
     def _generate_stack(self):
@@ -235,20 +235,20 @@ class DataStore(object):
         """
 
         modifications = self._generate_modifications()
-        modifications.to_sql(con=self.db_conn, if_exists='append',
+        modifications.to_sql(con=self.db_conn, if_exists='replace',
                              name="Modification", index=False)
 
         stackmodification = self._generate_stackmodification()
 
-        stackmodification.to_sql(con=self.db_conn, if_exists='append',
+        stackmodification.to_sql(con=self.db_conn, if_exists='replace',
                                  name="StackModification", index=False)
 
         RefStack = self._generate_refstack()
-        RefStack.to_sql(con=self.db_conn, if_exists='append',
+        RefStack.to_sql(con=self.db_conn, if_exists='replace',
                         name="RefStack", index=False)
 
         DerivedStack = self._generate_derivedstack()
-        DerivedStack.to_sql(con=self.db_conn, if_exists='append',
+        DerivedStack.to_sql(con=self.db_conn, if_exists='replace',
                             name="DerivedStack", index=False)
 
     def _generate_modifications(self):
@@ -320,7 +320,7 @@ class DataStore(object):
         """
         planes = self._generate_planes()
 
-        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+        planes.to_sql(con=self.db_conn, if_exists='replace', name="PlaneMeta", index=False)
 
     def _generate_planes(self):
 
@@ -356,7 +356,7 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        image.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_IMAGE, index=False)
+        image.to_sql(con=self.db_conn, if_exists='replace', name=db.TABLE_IMAGE, index=False)
 
     def _generate_image(self):
         """
@@ -371,7 +371,7 @@ class DataStore(object):
         Generates and save the cell table
         """
         objects = self._generate_objects()
-        objects.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_OBJECT,
+        objects.to_sql(con=self.db_conn, if_exists='replace', name=db.TABLE_OBJECT,
                      index=False)
 
     def _generate_objects(self):
@@ -396,11 +396,11 @@ class DataStore(object):
         
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        measurements.to_sql(con=self.db_conn, if_exists='append',
+        measurements.to_sql(con=self.db_conn, if_exists='replace',
                             name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
-        measurements_names.to_sql(con=self.db_conn, if_exists='append',
+        measurements_names.to_sql(con=self.db_conn, if_exists='replace',
                                   name=db.TABLE_MEASUREMENT_NAME)
-        measurements_types.to_sql(con=self.db_conn, if_exists='append',
+        measurements_types.to_sql(con=self.db_conn, if_exists='replace',
                                      name=db.TABLE_MEASUREMENT_TYPE)
         del self._measurement_csv
 
@@ -456,7 +456,7 @@ class DataStore(object):
 
     def _write_masks_table(self):
         masks = self._generate_masks()
-        masks.to_sql(con=self.db_conn, if_exists='append',
+        masks.to_sql(con=self.db_conn, if_exists='replace',
                                      name=db.TABLE_MASKS)
 
     def _generate_object_relations(self):
@@ -476,7 +476,7 @@ class DataStore(object):
     
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        relations.to_sql(con=self.db_conn, if_exists='append',
+        relations.to_sql(con=self.db_conn, if_exists='replace',
                          name=db.TABLE_OBJECT_RELATIONS)
     #########################################################################
     #########################################################################
