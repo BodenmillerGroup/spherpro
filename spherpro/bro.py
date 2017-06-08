@@ -2,7 +2,20 @@ import pandas as pd
 import numpy as np
 import re
 
-import spherpro as spp
+import spherpro as sp
+import spherpro.datastore as datastore
+
+def get_bro(fn_config):
+    """
+    Convenience function to get a bro with a datastore initialized
+    with a config file
+    """
+    store = datastore.DataStore()
+    store.read_config(fn_config)
+    store.resume_data()
+    bro = Bro(store)
+    return bro
+
 
 class Bro(object):
     """docstring for Bro."""

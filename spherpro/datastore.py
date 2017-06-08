@@ -93,6 +93,7 @@ class DataStore(object):
         # self._read_cut_meta()
         # self._read_roi_meta()
         self._read_stack_meta()
+        self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
     ##########################################
@@ -706,3 +707,4 @@ class DataStore(object):
         if self._pannel is None:
             self._read_pannel()
         return self._pannel
+
