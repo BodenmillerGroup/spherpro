@@ -420,16 +420,9 @@ class DataStore(object):
         del self._measurement_csv
 
     def _generate_measurements(self):
-        stackgroup = '('
-        for stack in [i for i in self.stacks]:
-            if stackgroup == '(':
-                stackgroup = stackgroup + stack
-            else:
-                stackgroup = stackgroup + '|' + stack
-        stackgroup = stackgroup + ')'
         measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(
-            lambda x: lib.find_measurementmeta(stackgroup,x))
+            lambda x: lib.find_measurementmeta(self._stacks, x))
         meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
                         db.KEY_STACKNAME, db.KEY_PLANEID]
         measurements = pd.melt(measurements,
@@ -735,3 +728,10 @@ class DataStore(object):
             self._pannel[col_channel], self._pannel[col_name]
         )}
         return name_dict
+
+    @property
+    def _stacks(self):
+        stacks = list(
+            self._stack_relation_csv[self.conf[conf.STACK_RELATIONS][conf.STACK]])
+        stacks += [s for s in [st for st in self.stacks]]
+        return set(stacks)

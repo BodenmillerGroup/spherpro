@@ -19,24 +19,27 @@ def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
     return real_dist
 
 
-def find_measurementmeta(stackpattern, x,
-                  no_stack_str = "NoStack"):
+def find_measurementmeta(stack_name, col_name,
+                  no_stack_str=None):
     """
     finds the measurement meta information from a given string
 
     Args:
-        stackpattern: a string containing a capture group for all known stacks.
-            exp: '(DistStack|BinStack|FullStack)'
-        x: the variable string returned by Cellprofiler.
+        stack_name: an iterable  containing a name for all known stacks.
+            exp: [DistStack, BinStackr, FullStack]
+        columns: a list of column names.
 
     Returns:
         Returns pandas.Series, with the following strings
         in this order:
         x | measurement type | measurement name | stack name | plane id
     """
+    if no_stack_str is None:
+        no_stack_str = "NoStack"
+    stackpattern = '('+'|'.join(stack_name)+')'
     pre_pattern = '^([^_]*)_(.*)'
     post_pattern = '(.*)_'+stackpattern+'_(c\d+)'
-    match = re.search(pre_pattern,x)
+    match = re.search(pre_pattern, col_name)
     if match != None:
         match = match.groups()
         mtype = match[0]
@@ -55,7 +58,7 @@ def find_measurementmeta(stackpattern, x,
         stack = no_stack_str
         plane = ''
 
-    return pd.Series([x, mtype, name, stack, plane])
+    return pd.Series([col_name, mtype, name, stack, plane])
 
 def construct_in_clause_list(key_dict):
     """
