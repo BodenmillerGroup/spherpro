@@ -274,45 +274,57 @@ class DataStore(object):
         modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
-        
-        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
-        StackModification = pd.DataFrame(stackrel[stack_col])
-        StackModification['ModificationName'] = stackrel[modname_col]
-        StackModification['ParentStackName'] = stackrel[parent_col]
-        StackModification.columns = ['ChildName','ModificationName','ParentName']
+        key_map = {parent_col: db.KEY_PARENTNAME,
+                   modname_col: db.KEY_MODIFICATIONNAME,
+                   stack_col: db.KEY_STACKNAME,
+                   ref_col: db.KEY_CHILDNAME}
+        StackModification = (self._stack_relation_csv
+                    .loc[self._stack_relation_csv[parent_col]!='0',
+                         list(key_map.keys())]
+                    .rename(columns=key_map))
         return StackModification
 
     def _generate_refstack(self):
         """
         Generates the refstack table
         """
-        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
-        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        key_map = {stack_col: db.KEY_REFSTACKNAME}
+        
+        ref_stack =  (self._stack_relation_csv
+                         .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
+                         .rename(columns= key_map)
+                         )
+        scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
+        scale_names = [scale_col + n for n in
+                       ref_stack[db.KEY_REFSTACKNAME]]
+        dat_img = self._images_csv.loc[:, scale_names]
+        dat_img = dat_img.fillna(1)
+        scales = dat_img.iloc[0,:]
+        # assert that scales are equal in all images
+        assert np.all(dat_img.eq(scales, axis=1))
+        ref_stack[db.KEY_SCALE] = scales.values
+        return ref_stack
 
-        ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
-        RefStack = pd.DataFrame(ref_stack[stack_col])
-        RefStack.columns = [db.KEY_STACKNAME]
-        return RefStack
 
     def _generate_derivedstack(self):
         """
         Genes the DerivedStack 
         """
-        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
-        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        key_map = {stack_col: db.KEY_STACKNAME,
+                   ref_col: db.KEY_REFSTACKNAME}
         
-        derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
-        DerivedStack = pd.DataFrame(derived_stack[stack_col])
-        DerivedStack[db.KEY_REFSTACKNAME] = derived_stack[ref_col]
-        DerivedStack.columns = [db.KEY_STACKNAME, db.KEY_REFSTACKNAME]
-
-        return DerivedStack
+        derived_stack =  (self._stack_relation_csv
+                          .loc[:, list(key_map.keys())]
+                         .rename(columns= key_map)
+                         )
+        fil = derived_stack[db.KEY_REFSTACKNAME] == '0'
+        derived_stack.loc[fil, db.KEY_REFSTACKNAME] = derived_stack.loc[fil,
+                                                                        db.KEY_STACKNAME]
+        return derived_stack
 
 
     def _write_planes_table(self):
@@ -686,6 +698,12 @@ class DataStore(object):
 
         return pd.read_sql_query(query, con=connection)
 
+    # def get_plane_ids(channel_names, stack_names):
+        # """
+        # Retreive the plane id from channel names and stack.
+        # """
+        # 'SELECT * FROM {} INNER JOIN '.format(db.TABLE_PLANES,db.
+
     def _sqlgenerate_simple_query(self, table, columns=None, clause_dict=None,
                                   connection=None, **kwargs):
         """
@@ -708,3 +726,12 @@ class DataStore(object):
             self._read_pannel()
         return self._pannel
 
+    @property
+    def _name_dict(self):
+        conf_pannel = self.conf[conf.PANNEL_CSV]
+        col_channel =  conf_pannel[conf.CHANNEL_NAME]
+        col_name = conf_pannel[conf.DISPLAY_NAME]
+        name_dict = {metal: name for metal, name in zip(
+            self._pannel[col_channel], self._pannel[col_name]
+        )}
+        return name_dict

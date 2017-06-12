@@ -5,10 +5,17 @@ import re
 import spherpro as sp
 import spherpro.datastore as datastore
 
+
+CHANNEL_DISTSPHERE = 'dist-sphere'
+
 def get_bro(fn_config):
     """
     Convenience function to get a bro with a datastore initialized
     with a config file
+    Args:
+        fn_confio: path to the config file
+    Returns:
+        A true bro
     """
     store = datastore.DataStore()
     store.read_config(fn_config)
@@ -21,7 +28,8 @@ class Bro(object):
     """docstring for Bro."""
 
     def __init__(self, DataStore):
-        self.DataStore = DataStore
+        self.data = DataStore
+        self.filters = Filters(self)
 
     #########################################################################
     #########################################################################
@@ -66,3 +74,13 @@ class Bro(object):
 
     def draw_scatterplot(arg):
         raise NotImplementedError
+    
+"""
+Define Filters
+"""
+class Filters(object):
+    def __init__(self, bro):
+        self.bro = bro
+
+    def add_issphere(minfrac=0.01, min_vsother=0.5):
+        bro.data.db_conn

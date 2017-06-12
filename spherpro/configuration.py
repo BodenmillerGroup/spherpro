@@ -36,8 +36,8 @@ IMAGES_CSV = 'images_csv'
 RELATION_CSV = 'relation_csv'
 CP_DIR = 'cp_dir'
 PANNEL_CSV = 'pannel_csv'
-CHANNEL_NAME = 'channel_name'
-DISPLAY_NAME = 'display_name'
+CHANNEL_NAME = 'channel_name_col'
+DISPLAY_NAME = 'display_name_col'
 PANNEL_ID = 'pannel_id'
 CHANNEL_TYPE = 'channel_type'
 CHANNEL_TYPE_DEFAULT = 'IMC'
@@ -51,6 +51,9 @@ OBJECTNUMBER_FROM = 'first_object_number_col'
 OBJECTNUMBER_TO = 'second_object_number_col'
 IMAGENUMBER_FROM = 'first_image_number_col'
 IMAGENUMBER_TO = 'second_image_number_col'
+IMAGENUMBER = 'image_number_col'
+SCALING_PREFIX = 'scaling_prefix'
+OBJECTNUMBER = 'object_number_col'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -60,6 +63,8 @@ CON_MYSQL = 'mysql'
 Default settings
 """
 default_dict = {
+    IMAGENUMBER: 'ImageNumber',
+    OBJECTNUMBER: 'ObjectNumber',
 
     STACK_RELATIONS: {
         PARENT: 'Parent',
@@ -104,7 +109,8 @@ default_dict = {
         },
         IMAGES_CSV: {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
-            SEP: ','
+            SEP: ',',
+            SCALING_PREFIX: 'Scaling_'
         }
     },
     PANNEL_CSV: {
