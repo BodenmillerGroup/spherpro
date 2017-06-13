@@ -21,6 +21,10 @@ DICT_DB_KEYS = {
     'object_id': db.KEY_OBJECTID
 }
 
+OBJECTS_STACKNAME = 'ObjectStack'
+OBJECTS_CHANNELNAME = 'object'
+OBJECTS_PLANEID = 'c1'
+OBJECTS_CHANNELTYPE = 'object'
 
 class DataStore(object):
     """DataStore
@@ -182,7 +186,7 @@ class DataStore(object):
         stack_files = [f for f in listdir(stack_dir) if isfile(join(stack_dir, f))]
         stack_data = [pd.read_csv(join(stack_dir,n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
-        self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
+        self.stack_csvs = {stack: data for stack, data in zip(stack_files, stack_data)}
         self._stack_relation_csv = lib.read_csv_from_config(self.conf[conf.STACK_RELATIONS])
 
     def _read_pannel(self):
@@ -203,8 +207,8 @@ class DataStore(object):
         print('image')
         self._write_image_table()
         self._write_objects_table()
-        self._write_modification_tables()
-        self._write_stack_table()
+        self._write_stack_tables()
+        self._write_refplanes_table() 
         self._write_planes_table()
         self._write_measurement_table()
         self._write_object_relations_table()
@@ -213,26 +217,7 @@ class DataStore(object):
     #        Database Table Generation:      #
     ##########################################
 
-    def _write_stack_table(self):
-        """
-        Writes the Stack table to the databse
-        """
-        data = self._generate_stack()
-        data.to_sql(con=self.db_conn, if_exists='append',
-                                  name="Stack", index=False)
-
-    def _generate_stack(self):
-        """
-        Generates the data for the Stack table
-        """
-        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
-        data = pd.DataFrame(self._stack_relation_csv[stack_col])
-        data = data.append({stack_col:'NoStack'}, ignore_index=True)
-        data.columns = [db.KEY_STACKNAME]
-
-        return data
-
-    def _write_modification_tables(self):
+    def _write_stack_tables(self):
         """
         Creates the StackModifications, StackRelations, Modifications,
         RefStack and DerivedStack tables and writes them to the database
@@ -245,9 +230,9 @@ class DataStore(object):
         RefStack.to_sql(con=self.db_conn, if_exists='append',
                         name="RefStack", index=False)
 
-        DerivedStack = self._generate_derivedstack()
-        DerivedStack.to_sql(con=self.db_conn, if_exists='append',
-                            name="DerivedStack", index=False)
+        Stack = self._generate_stack()
+        Stack.to_sql(con=self.db_conn, if_exists='append',
+                            name=db.TABLE_STACK, index=False)
 
         stackmodification = self._generate_stackmodification()
 
@@ -307,10 +292,13 @@ class DataStore(object):
         # assert that scales are equal in all images
         assert np.all(dat_img.eq(scales, axis=1))
         ref_stack[db.KEY_SCALE] = scales.values
+        ref_stack = ref_stack.append(pd.DataFrame({
+            db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
+            db.KEY_SCALE: 1}, index=[1]),ignore_index=True)
         return ref_stack
 
 
-    def _generate_derivedstack(self):
+    def _generate_stack(self):
         """
         Genes the DerivedStack 
         """
@@ -319,51 +307,80 @@ class DataStore(object):
         key_map = {stack_col: db.KEY_STACKNAME,
                    ref_col: db.KEY_REFSTACKNAME}
         
-        derived_stack =  (self._stack_relation_csv
+        stack =  (self._stack_relation_csv
                           .loc[:, list(key_map.keys())]
                          .rename(columns= key_map)
                          )
-        fil = derived_stack[db.KEY_REFSTACKNAME] == '0'
-        derived_stack.loc[fil, db.KEY_REFSTACKNAME] = derived_stack.loc[fil,
-                                                                        db.KEY_STACKNAME]
-        return derived_stack
+        # Add the 'objects' stack
+        stack = stack.append({db.KEY_STACKNAME: OBJECTS_STACKNAME,
+                              db.KEY_REFSTACKNAME: OBJECTS_STACKNAME}, ignore_index=True)
 
+        fil = stack[db.KEY_REFSTACKNAME] == '0'
+        stack.loc[fil, db.KEY_REFSTACKNAME] = stack.loc[fil,
+                                                                        db.KEY_STACKNAME]
+        return stack
+
+
+    def _write_refplanes_table(self):
+        """
+        generates the PlaneMeta Table and writes it to the database.
+        """
+        planes = self._generate_refplanemeta()
+
+        planes.to_sql(con=self.db_conn, if_exists='append',
+                      name=db.TABLE_REFPLANEMETA, index=False)
 
     def _write_planes_table(self):
         """
         generates the PlaneMeta Table and writes it to the database.
         """
-        planes = self._generate_planes()
+        planes = self._generate_planemeta()
 
-        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+        planes.to_sql(con=self.db_conn, if_exists='append',
+                      name=db.TABLE_PLANEMETA, index=False)
 
-    def _generate_planes(self):
+    def _generate_refplanemeta(self):
 
         stack_col = self.conf[conf.STACK_DIR][conf.STACK]
         id_col = self.conf[conf.STACK_DIR][conf.ID]
         name_col = self.conf[conf.STACK_DIR][conf.NAME]
         type_col = self.conf[conf.STACK_DIR][conf.TYPE]
-        planes = pd.DataFrame(columns=[
+        planes = pd.DataFrame(
+
+            columns=[
             db.KEY_PLANEID,
             db.KEY_REFSTACKNAME,
             db.KEY_CHANNEL_NAME,
             db.KEY_CHANNEL_TYPE
         ])
-        for stack in self.stacks:
-            self.stacks[stack].rename(columns={
+        for stack in self.stack_csvs:
+            self.stack_csvs[stack].rename(columns={
                 id_col:db.KEY_PLANEID,
                 stack_col:db.KEY_REFSTACKNAME,
                 name_col: db.KEY_CHANNEL_NAME,
                 type_col: db.KEY_CHANNEL_TYPE
             }, inplace = True)
-            planes = planes.append(self.stacks[stack])
+            planes = planes.append(self.stack_csvs[stack])
         planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
         planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
+        
+        planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
+                       db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
+                       db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
+                       db.KEY_CHANNEL_TYPE: OBJECTS_CHANNELTYPE},
+                               ignore_index=True)
 
         return planes
 
+    def _generate_planemeta(self):
+        refplanes = self._generate_refplanemeta()
+        stack = self._generate_stack()
+        refplanes = refplanes.set_index(db.KEY_REFSTACKNAME)
+        planes = stack.join(refplanes, on=db.KEY_REFSTACKNAME)
+        planes = planes.loc[:,[db.KEY_STACKNAME, db.KEY_REFSTACKNAME, db.KEY_PLANEID]]
+        return planes
 
     def _write_image_table(self):
         """
@@ -424,7 +441,9 @@ class DataStore(object):
     def _generate_measurements(self):
         measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(
-            lambda x: lib.find_measurementmeta(self._stacks, x))
+            lambda x: lib.find_measurementmeta(self._stacks, x,
+                                               no_stack_str=OBJECTS_STACKNAME,
+                                              no_plane_string=OBJECTS_PLANEID))
         meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
                         db.KEY_STACKNAME, db.KEY_PLANEID]
         measurements = pd.melt(measurements,
@@ -749,5 +768,5 @@ class DataStore(object):
     def _stacks(self):
         stacks = list(
             self._stack_relation_csv[self.conf[conf.STACK_RELATIONS][conf.STACK]])
-        stacks += [s for s in [st for st in self.stacks]]
+        stacks += [s for s in [st for st in self.stack_csvs]]
         return set(stacks)

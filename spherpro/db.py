@@ -26,7 +26,7 @@ KEY_FILENAME = 'FileName'
 KEY_IMAGENUMBER_FROM = 'ImageNumberFrom'
 KEY_IMAGENUMBER_TO = 'ImageNumberTo'
 KEY_OBJECTNUMBER_FROM = 'ObjectNumberFrom'
-KEY_OBJECTNUMBER_TO = 'ObjectIDTo'
+KEY_OBJECTNUMBER_TO = 'ObjectNumberTo'
 KEY_OBJECTID_FROM = 'ObjectIDFrom'
 KEY_OBJECTID_TO = 'ObjectIDTo'
 KEY_RELATIONSHIP = 'Relationship'
@@ -46,10 +46,11 @@ TABLE_MEASUREMENT_TYPE = 'MeasurementType'
 TABLE_MASKS = 'Masks'
 TABLE_FILTERS = 'Filters'
 TABLE_OBJECT_RELATIONS = 'ObjectRelations'
-TABLE_PLANES = 'PlaneMeta'
 TABLE_REFSTACK = 'RefStack'
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_STACK = 'Stack'
+TABLE_PLANEMETA = 'PlaneMeta'
+TABLE_REFPLANEMETA = 'RefPlaneMeta'
 
 def connect_sqlite(conf):
     """
@@ -120,16 +121,15 @@ class Objects(Base):
         [ObjectID, ImageNumber],
         [Masks.ObjectID, Masks.ImageNumber]),{})
 
-
 class RefStack(Base):
     """docstring for RefStack."""
     __tablename__ = TABLE_REFSTACK
     RefStackName = Column(String(200), primary_key=True)
     Scale = Column(Float())
 
-class PlaneMeta(Base):
+class RefPlaneMeta(Base):
     """docstring for PlaneMeta."""
-    __tablename__ = TABLE_PLANES
+    __tablename__ = TABLE_REFPLANEMETA
     RefStackName = Column(String(200), primary_key=True)
     PlaneID = Column(String(200), primary_key=True)
     ChannelType = Column(String(200))
@@ -138,21 +138,26 @@ class PlaneMeta(Base):
         [RefStackName],
         [RefStack.RefStackName]),{})
 
-class DerivedStack(Base):
-    """docstring for DerivedStack."""
-    __tablename__ = TABLE_DERIVEDSTACK
-    StackName = Column(String(200), primary_key=True)
-    RefStackName = Column(String(200), primary_key=False)
-    __table_args__ =(ForeignKeyConstraint(
-        [RefStackName],[RefStack.RefStackName]),{})
-
 class Stack(Base):
     """docstring for Stack."""
     __tablename__ = TABLE_STACK
     StackName = Column(String(200), primary_key=True)
+    RefStackName = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
-        [StackName], [DerivedStack.StackName]), {})
+        [RefStackName], [RefStack.RefStackName]), {})
 
+class PlaneMeta(Base):
+    __tablename__ = TABLE_PLANEMETA
+    StackName = Column(String(200), primary_key=True)
+    PlaneID = Column(String(200), primary_key=True)
+    RefStackName = Column(String(200))
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [RefStackName, PlaneID],
+        [RefPlaneMeta.RefStackName, RefPlaneMeta.PlaneID]),
+        ForeignKeyConstraint(
+            [StackName], [Stack.StackName]),
+            {})
 
 class Modification(Base):
     """docstring for Modification."""
@@ -170,12 +175,13 @@ class StackModification(Base):
     __table_args__ = (
         ForeignKeyConstraint(
         [ParentName],
-        [DerivedStack.StackName]),
+        [Stack.StackName]),
         ForeignKeyConstraint(
         [ChildName],
-        [DerivedStack.StackName]),
+        [Stack.StackName]),
         ForeignKeyConstraint(
-            [ModificationName],[Modification.ModificationName]),{})
+            [ModificationName],[Modification.ModificationName]),
+        {})
 
 class Filters(Base):
     __tablename__ = TABLE_FILTERS
@@ -200,12 +206,12 @@ class ObjectRelations(Base):
     ObjectIDFrom = Column(String(200),
                        primary_key=True)
     ImageNumberTo = Column(Integer(),
-                         primary_key=False)
+                         primary_key=True)
     ObjectNumberTo = Column(Integer(),
-                          primary_key=False)
+                          primary_key=True)
     ObjectIDTo = Column(String(200),
-                       primary_key=False)
-    Relationship = Column(String(200), primary_key=False)
+                       primary_key=True)
+    Relationship = Column(String(200), primary_key=True)
     __table_args__ = (ForeignKeyConstraint(
         [ImageNumberFrom, ObjectNumberFrom, ObjectIDFrom],
         [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),
@@ -229,6 +235,7 @@ class Measurement(Base):
         [ObjectNumber, ImageNumber, ObjectID],
         [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]),
         ForeignKeyConstraint(
-            [StackName],
-         [Stack.StackName]),{})
+            [StackName, PlaneID],
+            [PlaneMeta.StackName, PlaneMeta.PlaneID])
+        ,{})
 
