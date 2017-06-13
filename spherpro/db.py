@@ -94,7 +94,6 @@ class Image(Base):
     """docstring for Image."""
     __tablename__ = 'Image'
     ImageNumber = Column(Integer, primary_key=True)
-    Scale = Column(Float)
 
 class Objects(Base):
     """docstring for Objects."""

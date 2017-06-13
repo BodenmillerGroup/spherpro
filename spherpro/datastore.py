@@ -197,6 +197,7 @@ class DataStore(object):
         writes the tables to the database
         """
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        db.initialize_database(self.db_conn)
         self._write_stack_table()
         self._write_modification_tables()
         self._write_planes_table()
@@ -712,6 +713,20 @@ class DataStore(object):
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
     
+    def _get_table_object(self, name):
+        return getattr(db, name)
+
+    def _get_column_from_table(table_obj, col_name):
+        return getattr(table_obj, col_name)
+
+    def _get_table_column(table_name, col_name):
+        tab = self._get_table_object(table_name)
+        col = self._get_column_from_table(col_name)
+        return col
+
+    
+
+
     #Properties:
     @property
     def pannel(self):
