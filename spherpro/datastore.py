@@ -736,16 +736,13 @@ class DataStore(object):
     def _get_table_object(self, name):
         return getattr(db, name)
 
-    def _get_column_from_table(table_obj, col_name):
+    def _get_column_from_table(self, table_obj, col_name):
         return getattr(table_obj, col_name)
 
-    def _get_table_column(table_name, col_name):
+    def _get_table_column(self, table_name, col_name):
         tab = self._get_table_object(table_name)
-        col = self._get_column_from_table(col_name)
+        col = self._get_column_from_table(tab, col_name)
         return col
-
-    
-
 
     #Properties:
     @property
