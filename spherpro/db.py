@@ -34,6 +34,8 @@ KEY_SCALE = 'Scale'
 KEY_CHILDNAME = 'ChildName'
 KEY_MODIFICATIONNAME = 'ModificationName'
 KEY_PARENTNAME = 'ParentName'
+KEY_VALUE = 'Value'
+
 
 TABLE_MEASUREMENT = 'Measurement'
 TABLE_IMAGE = 'Image'
@@ -47,6 +49,7 @@ TABLE_OBJECT_RELATIONS = 'ObjectRelations'
 TABLE_PLANES = 'PlaneMeta'
 TABLE_REFSTACK = 'RefStack'
 TABLE_DERIVEDSTACK = 'DerivedStack'
+TABLE_STACK = 'Stack'
 
 def connect_sqlite(conf):
     """
@@ -82,10 +85,11 @@ def connect_mysql(conf):
     db = conf['mysql']['db']
     conn = 'mysql+pymysql://%s:%s@%s:%s/%s' % (user, password, host, port, db)
     engine = create_engine(conn)
-    #Base.metadata.create_all(engine)
     return engine
 
-
+def initialize_database(engine):
+    Base.metadata.create_all(engine)
+    return engine
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################
@@ -93,24 +97,35 @@ def connect_mysql(conf):
 class Image(Base):
     """docstring for Image."""
     __tablename__ = 'Image'
-    ImageNumber = Column(Integer, primary_key=True)
+    ImageNumber = Column(Integer(), primary_key=True)
+
+class Masks(Base):
+    """ a table describing the masks."""
+    __tablename__ = TABLE_MASKS
+    ObjectID = Column(String(200),
+                       primary_key=True)
+    ImageNumber = Column(Integer(),  primary_key=True)
+    FileName = Column(String(200))
 
 class Objects(Base):
     """docstring for Objects."""
     __tablename__ = 'Objects'
-    ObjectNumber = Column(Integer, primary_key=True)
-    ImageNumber = Column(Integer, primary_key=True)
+    ObjectNumber = Column(Integer(), primary_key=True)
+    ImageNumber = Column(Integer(), primary_key=True)
     ObjectID = Column(String(200), primary_key=True)
     __table_args__ = (ForeignKeyConstraint(
         [ImageNumber],
-        [Image.ImageNumber]),{})
+        [Image.ImageNumber]),
+        ForeignKeyConstraint(
+        [ObjectID, ImageNumber],
+        [Masks.ObjectID, Masks.ImageNumber]),{})
 
 
 class RefStack(Base):
     """docstring for RefStack."""
     __tablename__ = TABLE_REFSTACK
     RefStackName = Column(String(200), primary_key=True)
-    Scale = Column(Float)
+    Scale = Column(Float())
 
 class PlaneMeta(Base):
     """docstring for PlaneMeta."""
@@ -127,28 +142,17 @@ class DerivedStack(Base):
     """docstring for DerivedStack."""
     __tablename__ = TABLE_DERIVEDSTACK
     StackName = Column(String(200), primary_key=True)
-    RefStackName = Column(String(200), primary_key=True)
+    RefStackName = Column(String(200), primary_key=False)
     __table_args__ =(ForeignKeyConstraint(
         [RefStackName],[RefStack.RefStackName]),{})
 
-
 class Stack(Base):
     """docstring for Stack."""
-    __tablename__ = 'Stack'
+    __tablename__ = TABLE_STACK
     StackName = Column(String(200), primary_key=True)
     __table_args__ = (ForeignKeyConstraint(
         [StackName], [DerivedStack.StackName]), {})
 
-class Masks(Base):
-    """ a table describing the masks."""
-    __tablename__ = 'Masks'
-    ImageNumber = Column(Integer,  primary_key=True)
-    ObjectID = Column(String(200),
-                       primary_key=True)
-    FileName = Column(String(200))
-    __table_args__ = (ForeignKeyConstraint(
-        [ImageNumber, ObjectID],
-        [Objects.ImageNumber, Objects.ObjectID]),{})
 
 class Modification(Base):
     """docstring for Modification."""
@@ -171,35 +175,35 @@ class StackModification(Base):
         [ChildName],
         [DerivedStack.StackName]),
         ForeignKeyConstraint(
-            [ModificationName],[Modification.ModificationName]))
+            [ModificationName],[Modification.ModificationName]),{})
 
 class Filters(Base):
     __tablename__ = TABLE_FILTERS
     FilterName = Column(String(200), primary_key=True)
     FilterValue = Column(Boolean(), primary_key=True)
-    ImageNumber = Column(Integer,
+    ImageNumber = Column(Integer(),
                          primary_key=False)
-    ObjectNumber = Column(Integer,
+    ObjectNumber = Column(Integer(),
                           primary_key=False)
     ObjectID =  Column(String(200),
                        primary_key=False)
     __table_args__ = (ForeignKeyConstraint(
-        [ObjectNumber, ObjectID, ImageNumber],
-        [Objects.ObjectNumber, Objects.ObjectID, Objects.ImageNumber]), {})
+        [ObjectNumber, ImageNumber, ObjectID],
+        [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]), {})
 
 class ObjectRelations(Base):
     __tablename__ = TABLE_OBJECT_RELATIONS
-    ImageNumberFrom = Column(Integer, ForeignKey(Image.ImageNumber),
+    ImageNumberFrom = Column(Integer(),
                          primary_key=True)
-    ObjectNumberFrom = Column(Integer, ForeignKey(Objects.ObjectNumber),
+    ObjectNumberFrom = Column(Integer(),
                           primary_key=True)
-    ObjectIDFrom = Column(String(200), ForeignKey(Objects.ObjectID),
+    ObjectIDFrom = Column(String(200),
                        primary_key=True)
-    ImageNumberTo = Column(Integer, ForeignKey(Image.ImageNumber),
+    ImageNumberTo = Column(Integer(),
                          primary_key=False)
-    ObjectNumberTo = Column(Integer, ForeignKey(Objects.ObjectNumber),
+    ObjectNumberTo = Column(Integer(),
                           primary_key=False)
-    ObjectIDTo = Column(String(200), ForeignKey(Objects.ObjectID),
+    ObjectIDTo = Column(String(200),
                        primary_key=False)
     Relationship = Column(String(200), primary_key=False)
     __table_args__ = (ForeignKeyConstraint(
@@ -207,24 +211,24 @@ class ObjectRelations(Base):
         [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),
         ForeignKeyConstraint(
         [ImageNumberTo, ObjectNumberTo, ObjectIDTo],
-            [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]))
+            [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),{})
 
 class Measurement(Base):
     """docstring for Measurement."""
-    __tablename__ = 'Measurement'
-    ImageNumber = Column(Integer, primary_key=True)
-    ObjectNumber = Column(Integer,  primary_key=True)
+    __tablename__ = TABLE_MEASUREMENT
+    ImageNumber = Column(Integer(), primary_key=True)
+    ObjectNumber = Column(Integer(),  primary_key=True)
     ObjectID = Column(String(200),
                        primary_key=True)
     MeasurementType = Column(String(200), primary_key=True)
     MeasurementName = Column(String(200), primary_key=True)
     PlaneID = Column(String(200), primary_key=True)
     StackName = Column(String(200), primary_key=True)
-    Value = Column(Float)
+    Value = Column(Float())
     __table_args__ = (ForeignKeyConstraint(
-        [ImageNumber, ObjectNumber, ObjectID],
-        [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),
+        [ObjectNumber, ImageNumber, ObjectID],
+        [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]),
         ForeignKeyConstraint(
             [StackName],
-         [Stack.StackName]),
-        ForeignKeyConstraint([PlaneID],[PlaneMeta.PlaneID]))
+         [Stack.StackName]),{})
+

@@ -20,7 +20,7 @@ def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
 
 
 def find_measurementmeta(stack_name, col_name,
-                  no_stack_str=None):
+                  no_stack_str=None, no_plane_string=None):
     """
     finds the measurement meta information from a given string
 
@@ -34,8 +34,6 @@ def find_measurementmeta(stack_name, col_name,
         in this order:
         x | measurement type | measurement name | stack name | plane id
     """
-    if no_stack_str is None:
-        no_stack_str = "NoStack"
     stackpattern = '('+'|'.join(stack_name)+')'
     pre_pattern = '^([^_]*)_(.*)'
     post_pattern = '(.*)_'+stackpattern+'_(c\d+)'
@@ -56,7 +54,7 @@ def find_measurementmeta(stack_name, col_name,
     else:
         name = rside
         stack = no_stack_str
-        plane = ''
+        plane = no_plane_string
 
     return pd.Series([col_name, mtype, name, stack, plane])
 

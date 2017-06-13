@@ -198,13 +198,15 @@ class DataStore(object):
         """
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         db.initialize_database(self.db_conn)
-        self._write_stack_table()
-        self._write_modification_tables()
-        self._write_planes_table()
+        print('masks')
+        self._write_masks_table()
+        print('image')
         self._write_image_table()
         self._write_objects_table()
+        self._write_modification_tables()
+        self._write_stack_table()
+        self._write_planes_table()
         self._write_measurement_table()
-        self._write_masks_table()
         self._write_object_relations_table()
 
     ##########################################
@@ -216,7 +218,7 @@ class DataStore(object):
         Writes the Stack table to the databse
         """
         data = self._generate_stack()
-        data.to_sql(con=self.db_conn, if_exists='replace',
+        data.to_sql(con=self.db_conn, if_exists='append',
                                   name="Stack", index=False)
 
     def _generate_stack(self):
@@ -237,21 +239,22 @@ class DataStore(object):
         """
 
         modifications = self._generate_modifications()
-        modifications.to_sql(con=self.db_conn, if_exists='replace',
+        modifications.to_sql(con=self.db_conn, if_exists='append',
                              name="Modification", index=False)
-
-        stackmodification = self._generate_stackmodification()
-
-        stackmodification.to_sql(con=self.db_conn, if_exists='replace',
-                                 name="StackModification", index=False)
-
         RefStack = self._generate_refstack()
-        RefStack.to_sql(con=self.db_conn, if_exists='replace',
+        RefStack.to_sql(con=self.db_conn, if_exists='append',
                         name="RefStack", index=False)
 
         DerivedStack = self._generate_derivedstack()
-        DerivedStack.to_sql(con=self.db_conn, if_exists='replace',
+        DerivedStack.to_sql(con=self.db_conn, if_exists='append',
                             name="DerivedStack", index=False)
+
+        stackmodification = self._generate_stackmodification()
+
+        stackmodification.to_sql(con=self.db_conn, if_exists='append',
+                                 name="StackModification", index=False)
+
+
 
     def _generate_modifications(self):
         """
@@ -274,11 +277,9 @@ class DataStore(object):
         modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
         modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
-        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {parent_col: db.KEY_PARENTNAME,
                    modname_col: db.KEY_MODIFICATIONNAME,
-                   stack_col: db.KEY_STACKNAME,
-                   ref_col: db.KEY_CHILDNAME}
+                   stack_col: db.KEY_CHILDNAME}
         StackModification = (self._stack_relation_csv
                     .loc[self._stack_relation_csv[parent_col]!='0',
                          list(key_map.keys())]
@@ -334,7 +335,7 @@ class DataStore(object):
         """
         planes = self._generate_planes()
 
-        planes.to_sql(con=self.db_conn, if_exists='replace', name="PlaneMeta", index=False)
+        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
 
     def _generate_planes(self):
 
@@ -370,7 +371,7 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        image.to_sql(con=self.db_conn, if_exists='replace', name=db.TABLE_IMAGE, index=False)
+        image.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_IMAGE, index=False)
 
     def _generate_image(self):
         """
@@ -385,7 +386,7 @@ class DataStore(object):
         Generates and save the cell table
         """
         objects = self._generate_objects()
-        objects.to_sql(con=self.db_conn, if_exists='replace', name=db.TABLE_OBJECT,
+        objects.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_OBJECT,
                      index=False)
 
     def _generate_objects(self):
@@ -410,12 +411,12 @@ class DataStore(object):
         
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        measurements.to_sql(con=self.db_conn, if_exists='replace',
+        measurements.to_sql(con=self.db_conn, if_exists='append',
                             name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
-        measurements_names.to_sql(con=self.db_conn, if_exists='replace',
+        measurements_names.to_sql(con=self.db_conn, if_exists='append',
                                   name=db.TABLE_MEASUREMENT_NAME,
                                  index=False)
-        measurements_types.to_sql(con=self.db_conn, if_exists='replace',
+        measurements_types.to_sql(con=self.db_conn, if_exists='append',
                                      name=db.TABLE_MEASUREMENT_TYPE,
                                   index=False)
         del self._measurement_csv
@@ -465,8 +466,8 @@ class DataStore(object):
 
     def _write_masks_table(self):
         masks = self._generate_masks()
-        masks.to_sql(con=self.db_conn, if_exists='replace',
-                                     name=db.TABLE_MASKS)
+        masks.to_sql(con=self.db_conn, if_exists='append',
+                                     name=db.TABLE_MASKS, index=False)
 
     def _generate_object_relations(self):
         conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
@@ -485,7 +486,7 @@ class DataStore(object):
     
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        relations.to_sql(con=self.db_conn, if_exists='replace',
+        relations.to_sql(con=self.db_conn, if_exists='append',
                          name=db.TABLE_OBJECT_RELATIONS, index=False)
     #########################################################################
     #########################################################################
