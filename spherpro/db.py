@@ -11,46 +11,47 @@ Base = declarative_base()
 # Define the table and column names to be used
 # These need to match the definitions bellow
 
-KEY_IMAGENUMBER = 'ImageNumber'
-KEY_OBJECTNUMBER = 'ObjectNumber'
-KEY_MEASUREMENTTYPE = 'MeasurementType'
-KEY_MEASUREMENTNAME = 'MeasurementName'
-KEY_STACKNAME = 'StackName'
-KEY_PLANEID = 'PlaneID'
 KEY_CHANNEL_NAME = 'ChannelName'
-KEY_DISPLAY_NAME = 'DisplayName'
 KEY_CHANNEL_TYPE = 'ChannelType'
-KEY_REFSTACKNAME = 'RefStackName'
-KEY_OBJECTID = 'ObjectID'
+KEY_CHILDNAME = 'ChildName'
+KEY_DISPLAY_NAME = 'DisplayName'
 KEY_FILENAME = 'FileName'
+KEY_IMAGENUMBER = 'ImageNumber'
 KEY_IMAGENUMBER_FROM = 'ImageNumberFrom'
 KEY_IMAGENUMBER_TO = 'ImageNumberTo'
-KEY_OBJECTNUMBER_FROM = 'ObjectNumberFrom'
-KEY_OBJECTNUMBER_TO = 'ObjectNumberTo'
+KEY_MEASUREMENTNAME = 'MeasurementName'
+KEY_MEASUREMENTTYPE = 'MeasurementType'
+KEY_MODIFICATIONNAME = 'ModificationName'
+KEY_OBJECTID = 'ObjectID'
 KEY_OBJECTID_FROM = 'ObjectIDFrom'
 KEY_OBJECTID_TO = 'ObjectIDTo'
+KEY_OBJECTNUMBER = 'ObjectNumber'
+KEY_OBJECTNUMBER_FROM = 'ObjectNumberFrom'
+KEY_OBJECTNUMBER_TO = 'ObjectNumberTo'
+KEY_PARENTNAME = 'ParentName'
+KEY_PLANEID = 'PlaneID'
+KEY_REFSTACKNAME = 'RefStackName'
 KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
-KEY_CHILDNAME = 'ChildName'
-KEY_MODIFICATIONNAME = 'ModificationName'
-KEY_PARENTNAME = 'ParentName'
+KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
 
 
-TABLE_MEASUREMENT = 'Measurement'
+TABLE_DERIVEDSTACK = 'DerivedStack'
+TABLE_FILTERS = 'Filters'
 TABLE_IMAGE = 'Image'
-TABLE_OBJECT = 'Objects'
-TABLE_MODIFICATION = 'Modification'
+TABLE_MASKS = 'Masks'
+TABLE_MEASUREMENT = 'Measurement'
 TABLE_MEASUREMENT_NAME = 'MeasurementName'
 TABLE_MEASUREMENT_TYPE = 'MeasurementType'
-TABLE_MASKS = 'Masks'
-TABLE_FILTERS = 'Filters'
+TABLE_MODIFICATION = 'Modification'
+TABLE_OBJECT = 'Objects'
 TABLE_OBJECT_RELATIONS = 'ObjectRelations'
-TABLE_REFSTACK = 'RefStack'
-TABLE_DERIVEDSTACK = 'DerivedStack'
-TABLE_STACK = 'Stack'
 TABLE_PLANEMETA = 'PlaneMeta'
 TABLE_REFPLANEMETA = 'RefPlaneMeta'
+TABLE_REFSTACK = 'RefStack'
+TABLE_STACK = 'Stack'
+TABLE_STACKMODIFICATION = 'StackModification'
 
 def connect_sqlite(conf):
     """
@@ -97,7 +98,7 @@ def initialize_database(engine):
 
 class Image(Base):
     """docstring for Image."""
-    __tablename__ = 'Image'
+    __tablename__ = TABLE_IMAGE
     ImageNumber = Column(Integer(), primary_key=True)
 
 class Masks(Base):
@@ -110,7 +111,7 @@ class Masks(Base):
 
 class Objects(Base):
     """docstring for Objects."""
-    __tablename__ = 'Objects'
+    __tablename__ = TABLE_OBJECT
     ObjectNumber = Column(Integer(), primary_key=True)
     ImageNumber = Column(Integer(), primary_key=True)
     ObjectID = Column(String(200), primary_key=True)
@@ -161,13 +162,13 @@ class PlaneMeta(Base):
 
 class Modification(Base):
     """docstring for Modification."""
-    __tablename__ = 'Modification'
+    __tablename__ = TABLE_MODIFICATION
     ModificationName = Column(String(200), primary_key=True)
     ModificationPrefix = Column(String(200))
 
 class StackModification(Base):
     """docstring for StackModification."""
-    __tablename__ = 'StackModification'
+    __tablename__ = TABLE_STACKMODIFICATION
     ModificationName = Column(String(200),
                               primary_key=True)
     ParentName = Column(String(200), primary_key=True)
