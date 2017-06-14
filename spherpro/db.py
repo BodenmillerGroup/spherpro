@@ -92,6 +92,16 @@ def connect_mysql(conf):
 def initialize_database(engine):
     Base.metadata.create_all(engine)
     return engine
+
+def drop_all(conn):
+    """
+    drops all tables
+
+    Args:
+        conn: the connector.
+    """
+    Base.metadata.drop_all(conn)
+
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################

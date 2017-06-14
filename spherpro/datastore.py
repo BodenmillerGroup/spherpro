@@ -100,6 +100,9 @@ class DataStore(object):
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
+    def drop_all(self):
+        db.drop_all(self.db_conn)
+
     ##########################################
     #   Helper functions used by readData:   #
     ##########################################
