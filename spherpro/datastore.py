@@ -3,12 +3,28 @@ import numpy as np
 import yaml
 from os import listdir
 from os.path import isfile, join
+import os
 import re
 
 import spherpro as spp
 import spherpro.library as lib
 import spherpro.db as db
+import spherpro.configuration as conf
 
+DICT_DB_KEYS = {
+    'image_number': db.KEY_IMAGENUMBER,
+    'object_number': db.KEY_OBJECTNUMBER,
+    'measurement_type': db.KEY_MEASUREMENTTYPE,
+    'measurement_name': db.KEY_MEASUREMENTNAME,
+    'stack_name': db.KEY_STACKNAME,
+    'plane_id': db.KEY_PLANEID,
+    'object_id': db.KEY_OBJECTID
+}
+
+OBJECTS_STACKNAME = 'ObjectStack'
+OBJECTS_CHANNELNAME = 'object'
+OBJECTS_PLANEID = 'c1'
+OBJECTS_CHANNELTYPE = 'object'
 
 class DataStore(object):
     """DataStore
@@ -31,10 +47,10 @@ class DataStore(object):
         self.channel_meta = None
         self.sphere_meta = None
         self.measurement_meta_cache = None
-
+        self._pannel = None
         self.connectors = {
-            'sqlite': db.connect_sqlite,
-            'mysql': db.connect_mysql
+            conf.CON_SQLITE: db.connect_sqlite,
+            conf.CON_MYSQL: db.connect_mysql
         }
 
     #########################################################################
@@ -53,11 +69,7 @@ class DataStore(object):
         Raises:
             YAMLError
         """
-        with open(configpath, 'r') as stream:
-            try:
-                self.conf = yaml.load(stream)
-            except yaml.YAMLError as exc:
-                print(exc)
+        self.conf = conf.read_configuration(configpath)
 
     def import_data(self):
         """read_data
@@ -85,7 +97,8 @@ class DataStore(object):
         # self._read_cut_meta()
         # self._read_roi_meta()
         self._read_stack_meta()
-        self.db_conn = self.connectors[self.conf['backend']](self.conf)
+        self._read_pannel()
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
     def drop_all(self):
         db.drop_all(self.db_conn)
@@ -99,11 +112,12 @@ class DataStore(object):
         reads the experiment layout as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['layout_csv'].get('sep', ',')
+        sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
         self.experiment_layout = pd.read_csv(
-            self.conf['layout_csv']['path'], sep=sep
+            self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
         ).set_index(
-            [self.conf['layout_csv']['plate_col'], self.conf['layout_csv']['condition_col']]
+            [self.conf[conf.LAYOUT_CSV][conf.PLATE],
+             self.conf[conf.LAYOUT_CSV][conf.CONDITION]]
         )
 
     def _read_barcode_key(self):
@@ -111,11 +125,11 @@ class DataStore(object):
         reads the barcode key as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['barcode_csv'].get('sep', ',')
+        sep = self.conf[conf.BARCODE_CSV][conf.SEP]
         self.barcode_key = pd.read_csv(
-            self.conf['barcode_csv']['path'], sep=sep
+            self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
         ).set_index(
-            self.conf['barcode_csv']['well_col']
+            self.conf[conf.BARCODE_CSV][conf.WELL_COL]
         )
 
     def _read_well_measurements(self):
@@ -146,166 +160,265 @@ class DataStore(object):
         reads the measurement data as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['cpoutput']['measurement_csv'].get('sep', ',')
-        self._measurement_csv = pd.read_csv(
-            join(self.conf['cp_dir'],self.conf['cpoutput']['measurement_csv']['path']),
-            sep=sep
-        )
-        sep = self.conf['cpoutput']['cells_csv'].get('sep', ',')
-        self._cells_csv = pd.read_csv(
-            join(self.conf['cp_dir'],self.conf['cpoutput']['cells_csv']['path']),
-            sep=sep
-        )
-        sep = self.conf['cpoutput']['images_csv'].get('sep', ',')
-        self._images_csv = pd.read_csv(
-            join(self.conf['cp_dir'], self.conf['cpoutput']['images_csv']['path']),
-            sep=sep
-        )
-        sep = self.conf['cpoutput']['relation_csv'].get('sep', ',')
-        self._relation_csv = pd.read_csv(
-            join(self.conf['cp_dir'], self.conf['cpoutput']['relation_csv']['path']),
-            sep=sep
-        )
+        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
+        sep = conf_meas[conf.SEP]
+        cpdir = self.conf[conf.CP_DIR]
+        filetype = conf_meas[conf.FILETYPE]
+        objids = conf_meas[conf.OBJECTS]
+        cellmeas ={objid: pd.read_csv(os.path.join(cpdir, objid+filetype),
+                                      sep=sep) for objid in objids}
+        cellmeas = pd.concat(cellmeas, names=[db.KEY_OBJECTID, 'idx'] )
+        cellmeas = cellmeas.reset_index(level=db.KEY_OBJECTID, drop=False)
+        self._measurement_csv = cellmeas
+        self._images_csv = lib.read_csv_from_config(
+            self.conf[conf.CPOUTPUT][conf.IMAGES_CSV],
+            base_dir=cpdir)
+        self._relation_csv = lib.read_csv_from_config(
+            self.conf[conf.CPOUTPUT][conf.RELATION_CSV],
+            base_dir=cpdir)
+
 
     def _read_stack_meta(self):
         """
         reads the stack meta as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf['stack_dir'].get('sep', ',')
-        dir = self.conf['stack_dir']['path']
+        stack_dir = self.conf[conf.STACK_DIR][conf.PATH]
+        sep = self.conf[conf.STACK_DIR][conf.SEP]
         match = re.compile("(.*)\.csv")
-        stack_files = [f for f in listdir(dir) if isfile(join(dir, f))]
-        stack_data = [pd.read_csv(join(dir,n), sep) for n in stack_files]
+        stack_files = [f for f in listdir(stack_dir) if isfile(join(stack_dir, f))]
+        stack_data = [pd.read_csv(join(stack_dir,n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
-        self.stacks = {stack: data for stack, data in zip(stack_files, stack_data)}
-        sep = self.conf['stack_relations'].get('sep', ',')
-        self._stack_relation_csv = pd.read_csv(
-            self.conf['stack_relations']['path'],
-            sep=sep
-        )
+        self.stack_csvs = {stack: data for stack, data in zip(stack_files, stack_data)}
+        self._stack_relation_csv = lib.read_csv_from_config(self.conf[conf.STACK_RELATIONS])
+
+    def _read_pannel(self):
+        """
+        Reads the pannel as stated in the config.
+        """
+        self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
+        
 
     def _populate_db(self):
         """
         writes the tables to the database
         """
-        self.db_conn = self.connectors[self.conf['backend']](self.conf)
-        self._generate_Stack()
-        self._generate_Modifications()
-        self._generate_planes()
-        self._generate_images()
-        self._generate_cells()
-        self._generate_measurement()
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        db.initialize_database(self.db_conn)
+        print('masks')
+        self._write_masks_table()
+        print('image')
+        self._write_image_table()
+        self._write_objects_table()
+        self._write_stack_tables()
+        self._write_refplanes_table() 
+        self._write_planes_table()
+        self._write_measurement_table()
+        self._write_object_relations_table()
 
     ##########################################
     #        Database Table Generation:      #
     ##########################################
 
-    def _generate_Stack(self):
-        """
-        Writes the Stack table to the databse
-        """
-
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-
-        data = pd.DataFrame(self._stack_relation_csv[stack_col])
-        data = data.append({stack_col:'NoStack'}, ignore_index=True)
-        data.columns = ['StackName']
-        data = data.set_index("StackName")
-
-        data.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Stack", index=False)
-
-    def _generate_Modifications(self):
+    def _write_stack_tables(self):
         """
         Creates the StackModifications, StackRelations, Modifications,
         RefStack and DerivedStack tables and writes them to the database
         """
 
-        parent_col = self.conf['stack_relations'].get('parent_col', 'Parent')
-        modname_col = self.conf['stack_relations'].get('modname_col', 'ModificationName')
-        modpre_col = self.conf['stack_relations'].get('modpre_col', 'ModificationPrefix')
-        stack_col = self.conf['stack_relations'].get('stack_col', 'Stack')
-        ref_col = self.conf['stack_relations'].get('ref_col', 'RefStack')
+        modifications = self._generate_modifications()
+        modifications.to_sql(con=self.db_conn, if_exists='append',
+                             name="Modification", index=False)
+        RefStack = self._generate_refstack()
+        RefStack.to_sql(con=self.db_conn, if_exists='append',
+                        name="RefStack", index=False)
 
+        Stack = self._generate_stack()
+        Stack.to_sql(con=self.db_conn, if_exists='append',
+                            name=db.TABLE_STACK, index=False)
+
+        stackmodification = self._generate_stackmodification()
+
+        stackmodification.to_sql(con=self.db_conn, if_exists='append',
+                                 name="StackModification", index=False)
+
+
+
+    def _generate_modifications(self):
+        """
+        Generates the modification table
+        """
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
         Modifications = pd.DataFrame(stackrel[modname_col])
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
-        Modifications = Modifications.set_index('ModificationName')
-        Modifications.reset_index().to_sql(con=self.db_conn, if_exists='append', name="Modification", index=False)
+        return Modifications
 
-        StackModification = pd.DataFrame(stackrel[stack_col])
-        StackModification['ModificationName'] = stackrel[modname_col]
-        StackModification['ParentStackName'] = stackrel[parent_col]
-        StackModification.columns = ['ChildName','ModificationName','ParentName']
-        StackModification = StackModification.set_index(['ChildName','ModificationName','ParentName'])
-        StackModification.reset_index().to_sql(con=self.db_conn, if_exists='append', name="StackModification", index=False)
+    def _generate_stackmodification(self):
+        """
+        generates the stackmodification table
+        """
+        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
+        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        key_map = {parent_col: db.KEY_PARENTNAME,
+                   modname_col: db.KEY_MODIFICATIONNAME,
+                   stack_col: db.KEY_CHILDNAME}
+        StackModification = (self._stack_relation_csv
+                    .loc[self._stack_relation_csv[parent_col]!='0',
+                         list(key_map.keys())]
+                    .rename(columns=key_map))
+        return StackModification
 
-        ref_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]=='0']
-        RefStack = pd.DataFrame(ref_stack[stack_col])
-        RefStack.columns = ['StackName']
-        RefStack = RefStack.set_index('StackName')
-        RefStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="RefStack", index=False)
+    def _generate_refstack(self):
+        """
+        Generates the refstack table
+        """
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        key_map = {stack_col: db.KEY_REFSTACKNAME}
+        
+        ref_stack =  (self._stack_relation_csv
+                         .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
+                         .rename(columns= key_map)
+                         )
+        scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
+        scale_names = [scale_col + n for n in
+                       ref_stack[db.KEY_REFSTACKNAME]]
+        dat_img = self._images_csv.loc[:, scale_names]
+        dat_img = dat_img.fillna(1)
+        scales = dat_img.iloc[0,:]
+        # assert that scales are equal in all images
+        assert np.all(dat_img.eq(scales, axis=1))
+        ref_stack[db.KEY_SCALE] = scales.values
+        ref_stack = ref_stack.append(pd.DataFrame({
+            db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
+            db.KEY_SCALE: 1}, index=[1]),ignore_index=True)
+        return ref_stack
 
 
-        derived_stack = self._stack_relation_csv.loc[self._stack_relation_csv[ref_col]!='0']
-        DerivedStack = pd.DataFrame(derived_stack[stack_col])
-        DerivedStack['RefStackName'] = derived_stack[ref_col]
-        DerivedStack.columns = ['StackName', 'RefStackName']
-        DerivedStack = DerivedStack.set_index('StackName')
-        DerivedStack.reset_index().to_sql(con=self.db_conn, if_exists='append', name="DerivedStack", index=False)
+    def _generate_stack(self):
+        """
+        Genes the DerivedStack 
+        """
+        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        key_map = {stack_col: db.KEY_STACKNAME,
+                   ref_col: db.KEY_REFSTACKNAME}
+        
+        stack =  (self._stack_relation_csv
+                          .loc[:, list(key_map.keys())]
+                         .rename(columns= key_map)
+                         )
+        # Add the 'objects' stack
+        stack = stack.append({db.KEY_STACKNAME: OBJECTS_STACKNAME,
+                              db.KEY_REFSTACKNAME: OBJECTS_STACKNAME}, ignore_index=True)
 
-    def _generate_planes(self):
+        fil = stack[db.KEY_REFSTACKNAME] == '0'
+        stack.loc[fil, db.KEY_REFSTACKNAME] = stack.loc[fil,
+                                                                        db.KEY_STACKNAME]
+        return stack
+
+
+    def _write_refplanes_table(self):
         """
         generates the PlaneMeta Table and writes it to the database.
         """
+        planes = self._generate_refplanemeta()
 
-        stack_col = self.conf['stack_dir'].get('stack_col', 'StackName')
-        id_col = self.conf['stack_dir'].get('id_col', 'index')
-        name_col = self.conf['stack_dir'].get('name_col', 'name')
-        type_col = self.conf['stack_dir'].get('type_col', 'channel_type')
-        planes = pd.DataFrame(columns=[
-            'PlaneID',
-            'RefStackName',
-            'Name',
-            'Type'
+        planes.to_sql(con=self.db_conn, if_exists='append',
+                      name=db.TABLE_REFPLANEMETA, index=False)
+
+    def _write_planes_table(self):
+        """
+        generates the PlaneMeta Table and writes it to the database.
+        """
+        planes = self._generate_planemeta()
+
+        planes.to_sql(con=self.db_conn, if_exists='append',
+                      name=db.TABLE_PLANEMETA, index=False)
+
+    def _generate_refplanemeta(self):
+
+        stack_col = self.conf[conf.STACK_DIR][conf.STACK]
+        id_col = self.conf[conf.STACK_DIR][conf.ID]
+        name_col = self.conf[conf.STACK_DIR][conf.NAME]
+        type_col = self.conf[conf.STACK_DIR][conf.TYPE]
+        planes = pd.DataFrame(
+
+            columns=[
+            db.KEY_PLANEID,
+            db.KEY_REFSTACKNAME,
+            db.KEY_CHANNEL_NAME,
+            db.KEY_CHANNEL_TYPE
         ])
-        for stack in self.stacks:
-            self.stacks[stack].rename(columns={
-                id_col:'PlaneID',
-                stack_col:'RefStackName',
-                name_col:'Name',
-                type_col:'Type'
+        for stack in self.stack_csvs:
+            self.stack_csvs[stack].rename(columns={
+                id_col:db.KEY_PLANEID,
+                stack_col:db.KEY_REFSTACKNAME,
+                name_col: db.KEY_CHANNEL_NAME,
+                type_col: db.KEY_CHANNEL_TYPE
             }, inplace = True)
-            planes = planes.append(self.stacks[stack])
-        planes = planes.reset_index().rename_axis('id')
+            planes = planes.append(self.stack_csvs[stack])
+        planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
-        planes['PlaneID'] = planes['PlaneID'].apply(lambda x: 'c'+str(int(x)))
+        planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
+        
+        planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
+                       db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
+                       db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
+                       db.KEY_CHANNEL_TYPE: OBJECTS_CHANNELTYPE},
+                               ignore_index=True)
 
-        planes.to_sql(con=self.db_conn, if_exists='append', name="PlaneMeta", index=False)
+        return planes
 
+    def _generate_planemeta(self):
+        refplanes = self._generate_refplanemeta()
+        stack = self._generate_stack()
+        refplanes = refplanes.set_index(db.KEY_REFSTACKNAME)
+        planes = stack.join(refplanes, on=db.KEY_REFSTACKNAME)
+        planes = planes.loc[:,[db.KEY_STACKNAME, db.KEY_REFSTACKNAME, db.KEY_PLANEID]]
+        return planes
 
-    def _generate_images(self):
+    def _write_image_table(self):
         """
         Generates the Image
         table and writes it to the database.
         """
-        image = pd.DataFrame(self._images_csv['ImageNumber'])
-        image.to_sql(con=self.db_conn, if_exists='append', name="Image", index=False)
+        image = self._generate_image()
+        image.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_IMAGE, index=False)
 
-
-    def _generate_cells(self):
+    def _generate_image(self):
         """
-        Generates the Cell
-        table and writes it to the database.
+        Generates the Image
+        table.
         """
-        cells = pd.DataFrame(self._cells_csv['ImageNumber'])
-        cells['CellNumber'] = self._cells_csv['ObjectNumber']
-        cells.to_sql(con=self.db_conn, if_exists='append', name="Cell", index=False)
+        image = pd.DataFrame(self._images_csv[db.KEY_IMAGENUMBER])
+        return image
 
+    def _write_objects_table(self):
+        """
+        Generates and save the cell table
+        """
+        objects = self._generate_objects()
+        objects.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_OBJECT,
+                     index=False)
 
-    def _generate_measurement(self, chunksize=1000000):
+    def _generate_objects(self):
+        """
+        Genertes the cell table
+        """
+        objects = pd.DataFrame(self._measurement_csv[[db.KEY_OBJECTNUMBER,
+                                                      db.KEY_OBJECTID,
+                                                      db.KEY_IMAGENUMBER]])
+        return objects
+
+    def _write_measurement_table(self, chunksize=100000):
         """
         Generates the Measurement, MeasurementType and MeasurementName
         tables and writes them to the database.
@@ -315,33 +428,88 @@ class DataStore(object):
         Args:
             chunksize: the ammount of rows written concurrently to the DB
         """
-        stackgroup = '('
-        for stack in [i for i in self.stacks]:
-            if stackgroup == '(':
-                stackgroup = stackgroup + stack
-            else:
-                stackgroup = stackgroup + '|' + stack
-        stackgroup = stackgroup + ')'
-        measurements = self._measurement_csv
-        meta = pd.Series(measurements.columns.unique()).apply(lambda x: lib.find_measurementmeta(stackgroup,x))
-        meta.columns = ['variable', 'MeasurementType', 'MeasurementName', 'StackName', 'PlaneID']
-        measurements = pd.melt(measurements, id_vars=['ImageNumber', 'ObjectNumber','Number_Object_Number'],var_name='variable', value_name='value')
-        measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements['CellNumber'] = measurements['ObjectNumber']
-        del measurements['variable']
-        del measurements['ObjectNumber']
-        del measurements['Number_Object_Number']
-        measurements_names = pd.DataFrame(measurements['MeasurementName'].unique())
-        measurements_names.columns = ['MeasurementName']
-        measurements_names.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementName")
-        measurements_types = pd.DataFrame(measurements['MeasurementType'].unique())
-        measurements_types.columns = ['MeasurementType']
-        measurements_types.rename_axis('id').to_sql(con=self.db_conn, if_exists='append', name="MeasurementType")
-        m = measurements.sort_values(['ImageNumber', 'CellNumber', 'StackName', 'MeasurementType', 'MeasurementName', 'PlaneID'])
-        m.to_sql(con=self.db_conn, if_exists='append', name="Measurement", chunksize=chunksize, index=False)
-        # remove measurement csv to avoid using memory
+        
+        measurements, measurements_names, measurements_types = \
+        self._generate_measurements()
+        measurements.to_sql(con=self.db_conn, if_exists='append',
+                            name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
+        measurements_names.to_sql(con=self.db_conn, if_exists='append',
+                                  name=db.TABLE_MEASUREMENT_NAME,
+                                 index=False)
+        measurements_types.to_sql(con=self.db_conn, if_exists='append',
+                                     name=db.TABLE_MEASUREMENT_TYPE,
+                                  index=False)
         del self._measurement_csv
 
+    def _generate_measurements(self):
+        measurements = self._measurement_csv
+        meta = pd.Series(measurements.columns.unique()).apply(
+            lambda x: lib.find_measurementmeta(self._stacks, x,
+                                               no_stack_str=OBJECTS_STACKNAME,
+                                              no_plane_string=OBJECTS_PLANEID))
+        meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
+                        db.KEY_STACKNAME, db.KEY_PLANEID]
+        measurements = pd.melt(measurements,
+                               id_vars=[db.KEY_IMAGENUMBER,
+                                        db.KEY_OBJECTNUMBER,'Number_Object_Number',
+                                       db.KEY_OBJECTID],
+                               var_name='variable', value_name='value')
+        measurements = measurements.merge(meta, how='inner', on='variable')
+        del measurements['variable']
+        del measurements['Number_Object_Number']
+        measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
+        measurements_names.columns = [db.KEY_MEASUREMENTNAME]
+        measurements_names = measurements_names.rename_axis('id')
+        measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
+        measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
+        measurements_types = measurements_types.rename_axis('id')
+        measurements = measurements.sort_values([db.KEY_IMAGENUMBER,
+                                                 db.KEY_OBJECTNUMBER,
+                                                 db.KEY_STACKNAME,
+                                                 db.KEY_MEASUREMENTTYPE,
+                                                 db.KEY_MEASUREMENTNAME,
+                                                 db.KEY_PLANEID])
+        
+        return measurements, measurements_names, measurements_types
+
+    def _generate_masks(self):
+        cpconf = self.conf[conf.CPOUTPUT]
+        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        dat_mask = {obj:
+                    self._images_csv[
+                        [db.KEY_IMAGENUMBER, prefix+obj]
+                    ].rename(columns={prefix+obj: db.KEY_FILENAME})
+         for obj in objects}
+        dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
+        dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
+        dat_mask = dat_mask.reset_index(drop=True)
+        return dat_mask
+
+    def _write_masks_table(self):
+        masks = self._generate_masks()
+        masks.to_sql(con=self.db_conn, if_exists='append',
+                                     name=db.TABLE_MASKS, index=False)
+
+    def _generate_object_relations(self):
+        conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
+        col_map = {conf_rel[c]: target for c, target in [
+            (conf.OBJECTID_FROM, db.KEY_OBJECTID_FROM),
+            (conf.OBJECTID_TO, db.KEY_OBJECTID_TO),
+            (conf.OBJECTNUMBER_FROM, db.KEY_OBJECTNUMBER_FROM),
+            (conf.OBJECTNUMBER_TO, db.KEY_OBJECTNUMBER_TO),
+            (conf.IMAGENUMBER_FROM, db.KEY_IMAGENUMBER_FROM),
+            (conf.IMAGENUMBER_TO, db.KEY_IMAGENUMBER_TO),
+            (conf.RELATIONSHIP, db.KEY_RELATIONSHIP)]}
+        dat_relations = self._relation_csv[list(col_map.keys())]
+        dat_relations = (dat_relations.rename(columns=col_map)
+                         )
+        return dat_relations
+    
+    def _write_object_relations_table(self):
+        relations = self._generate_object_relations()
+        relations.to_sql(con=self.db_conn, if_exists='append',
+                         name=db.TABLE_OBJECT_RELATIONS, index=False)
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
@@ -360,7 +528,7 @@ class DataStore(object):
     #########################################################################
 
     def get_image_meta(self,
-        image_number = False):
+        image_number = None):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -375,38 +543,20 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'False', do not filter
+            int/array image_number: ImageNumber. If 'None', do not filter
 
         Returns:
             DataFrame
         """
-        query = 'SELECT * FROM Image'
-
-        clauses = []
-        #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Image':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
-        return pd.read_sql_query(query, con=self.db_conn)
+        
+        args = locals()
+        args.pop('self')
+        return self.get_table_data(db.TABLE_IMAGE,  **args)
 
     def get_cell_meta(self,
-        image_number = False,
-        cell_number = False):
+        image_number = None,
+        object_number = None,
+                     object_id = None):
         """get_measurement_types
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -422,48 +572,18 @@ class DataStore(object):
 
         Args:
             int/array image_number: ImageNumber. If 'False', do not filter
-            int/array cell_number: CellNumber. If 'False', do not filter
+            int/array object_number: CellNumber. If 'False', do not filter
 
         Returns:
             DataFrame
         """
-        query = 'SELECT * FROM Cell'
-
-        clauses = []
-        #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-
-        #cell_number
-        if type(cell_number) is list:
-            clause_tmp = 'CellNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, cell_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(cell_number) is int:
-            clause_tmp = 'CellNumber = '
-            clause_tmp = clause_tmp+str(cell_number)
-            clauses.append(clause_tmp)
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Cell':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
-        return pd.read_sql_query(query, con=self.db_conn)
+        
+        args = locals()
+        args.pop('self')
+        return self.get_table_data(db.TABLE_OBJECT,  **args)
 
     def get_stack_meta(self,
-        stack_name = False):
+        stack_name = None):
         """get_stack_meta
         Returns a pandas DataFrame containing image information.
         Integers or strings lead to a normal WHERE clause:
@@ -483,30 +603,21 @@ class DataStore(object):
         Returns:
             DataFrame
         """
+        # TODO: This function had an obvious bug before. However the query
+        # still does not work. Please explain.
         query = 'SELECT Stack.*, DerivedStack.RefStackName FROM Stack'
 
-        clauses = []
+        if stack_name is None:
+            clause_dict = None
+        else:
+            clause_dict = {db.KEY_STACKNAME: stack_name}
+
         #stack_name
-        if type(stack_name) is list:
-            clause_tmp = 'Stack.StackName IN ('
-            clause_tmp = clause_tmp+','.join(map(str, stack_name))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(stack_name) is int:
-            clause_tmp = 'Stack.StackName = '
-            clause_tmp = clause_tmp+str(stack_name)
-            clauses.append(clause_tmp)
-
-
-        for part in clauses:
-            if query.split(' ')[-1] != 'Cell':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-
-        query = query + ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
-
+        self._sqlgenerate_simple_query('Stack', columns=['Stack.*',
+                                                'DerivedStack.RefStackName'],
+                                       clause_dict=clause_dict)
+        query += ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
+        print(query)
         return pd.read_sql_query(query, con=self.db_conn)
 
 
@@ -531,13 +642,15 @@ class DataStore(object):
             return self.measurement_meta_cache
 
     def get_measurements(self,
-        image_number = False,
-        cell_number = False,
-        measurement_type = False,
-        measurement_name = False,
-        stack_name = False,
-        plane_id = False
-    ):
+        image_number=None,
+        object_number=None,
+        oject_id=None,
+        measurement_type=None,
+        measurement_name=None,
+        stack_name=None,
+        plane_id=None,
+        columns=None
+        ):
         """get_measurement_types
         Returns a pandas DataFrame containing Measurements according to the
         specified filters.
@@ -553,90 +666,107 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'False', do not filter
-            int/array cell_number: CellNumber. If 'False', do not filter
-            str/array measurement_type: MeasurementType. If 'False', do not filter
-            str/array measurement_name: MeasurementName. If 'False', do not filter
-            str/array stack_name: StackName. If 'False', do not filter
-            str/array plane_id: PlaneID. If 'False', do not filter
+            int/array image_number: ImageNumber. If NONE, do not filter
+            int/array object_number: CellNumber. If NONE, do not filter
+            str/array measurement_type: MeasurementType. If NONE, do not filter
+            str/array measurement_name: MeasurementName. If NONE, do not filter
+            str/array stack_name: StackName. If NONE, do not filter
+            str/array plane_id: PlaneID. If NONE, do not filter
 
         Returns:
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-
-        clauses = []
-        #image_number
-        if type(image_number) is list:
-            clause_tmp = 'ImageNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, image_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(image_number) is int:
-            clause_tmp = 'ImageNumber = '
-            clause_tmp = clause_tmp+str(image_number)
-            clauses.append(clause_tmp)
-        #cell_number
-        if type(cell_number) is list:
-            clause_tmp = 'CellNumber IN ('
-            clause_tmp = clause_tmp+','.join(map(str, cell_number))
-            clause_tmp = clause_tmp+')'
-            clauses.append(clause_tmp)
-        elif type(cell_number) is int:
-            clause_tmp = 'CellNumber = '
-            clause_tmp = clause_tmp+str(cell_number)
-            clauses.append(clause_tmp)
-        #measurement_type
-        if type(measurement_type) is list:
-            clause_tmp = 'MeasurementType IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, measurement_type))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(measurement_type) is str:
-            clause_tmp = 'MeasurementType = "'
-            clause_tmp = clause_tmp+str(measurement_type)+'"'
-            clauses.append(clause_tmp)
-        #measurement_name
-        if type(measurement_name) is list:
-            clause_tmp = 'MeasurementName IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, measurement_name))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(measurement_name) is str:
-            clause_tmp = 'MeasurementName = "'
-            clause_tmp = clause_tmp+str(measurement_name)+'"'
-            clauses.append(clause_tmp)
-        #stack_name
-        if type(stack_name) is list:
-            clause_tmp = 'StackName IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, stack_name))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(stack_name) is str:
-            clause_tmp = 'StackName = "'
-            clause_tmp = clause_tmp+str(stack_name)+'"'
-            clauses.append(clause_tmp)
-        #plane_id
-        if type(plane_id) is list:
-            clause_tmp = 'PlaneID IN ("'
-            clause_tmp = clause_tmp+'","'.join(map(str, plane_id))
-            clause_tmp = clause_tmp+'")'
-            clauses.append(clause_tmp)
-        elif type(plane_id) is str:
-            clause_tmp = 'PlaneID = "'
-            clause_tmp = clause_tmp+str(plane_id)+'"'
-            clauses.append(clause_tmp)
-
-        query = 'SELECT * FROM Measurement'
-        for part in clauses:
-            if query.split(' ')[-1] != 'Measurement':
-                query = query + ' AND'
-            else:
-                query = query + ' WHERE'
-            query = query + ' ' + part
-        query = query+';'
-
-        return pd.read_sql_query(query, con=self.db_conn)
-
+        
+        args = locals()
+        args.pop('self')
+        return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
+        
     def get_(self, arg):
         pass
+
+    def get_table_data(self, table, columns=None, clause_dict=None, connection=None, **kwargs):
+        """
+        General wrapper that allows the retrieval of data  from the database
+
+        Allows to generate queries from the format
+        Select COLUMNS from TABLE WHERE COLUMN1 in VALUES1 AND COLUMN2 in
+        VALUES2
+
+        Args:
+            table: the name of the table
+            columns: the columns name, default all ('*')
+            clause_dict: A dict of the form:
+                {COLUMN_NAME1: LIST_OF_VALUES1, COLUMN_NAME2: ...}
+            connection: the Database connection, default: self.db_conn
+            **kwargs: The kwargs will be searched for  arguments with names
+            contained in 'DICT_DB_KEYS' - valid registed names. The clause_dict
+            will be updated with these additional entries.
+
+        Returns:
+            The queried table.
+        """  
+        query = self._sqlgenerate_simple_query(table, columns=columns,
+                                       clause_dict=clause_dict,
+                                       **kwargs)
+        
+        if connection is None:
+            connection = self.db_conn
+
+        return pd.read_sql_query(query, con=connection)
+
+    # def get_plane_ids(channel_names, stack_names):
+        # """
+        # Retreive the plane id from channel names and stack.
+        # """
+        # 'SELECT * FROM {} INNER JOIN '.format(db.TABLE_PLANES,db.
+
+    def _sqlgenerate_simple_query(self, table, columns=None, clause_dict=None,
+                                  connection=None, **kwargs):
+        """
+        Helper function to generate simple queries
+        Consult helf from "get_table_data" for details
+        """
+        if clause_dict is None:
+            clause_dict = {}
+
+        key_dict = lib.filter_and_rename_dict(kwargs, DICT_DB_KEYS)
+        clause_dict.update(key_dict)
+        clauses = lib.construct_in_clause_list(clause_dict)
+        query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
+        return query
+    
+    def _get_table_object(self, name):
+        return getattr(db, name)
+
+    def _get_column_from_table(self, table_obj, col_name):
+        return getattr(table_obj, col_name)
+
+    def _get_table_column(self, table_name, col_name):
+        tab = self._get_table_object(table_name)
+        col = self._get_column_from_table(tab, col_name)
+        return col
+
+    #Properties:
+    @property
+    def pannel(self):
+        if self._pannel is None:
+            self._read_pannel()
+        return self._pannel
+
+    @property
+    def _name_dict(self):
+        conf_pannel = self.conf[conf.PANNEL_CSV]
+        col_channel =  conf_pannel[conf.CHANNEL_NAME]
+        col_name = conf_pannel[conf.DISPLAY_NAME]
+        name_dict = {metal: name for metal, name in zip(
+            self._pannel[col_channel], self._pannel[col_name]
+        )}
+        return name_dict
+
+    @property
+    def _stacks(self):
+        stacks = list(
+            self._stack_relation_csv[self.conf[conf.STACK_RELATIONS][conf.STACK]])
+        stacks += [s for s in [st for st in self.stack_csvs]]
+        return set(stacks)

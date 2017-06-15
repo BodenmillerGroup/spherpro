@@ -2,13 +2,34 @@ import pandas as pd
 import numpy as np
 import re
 
-import spherpro as spp
+import spherpro as sp
+import spherpro.datastore as datastore
+
+
+CHANNEL_DISTSPHERE = 'dist-sphere'
+
+def get_bro(fn_config):
+    """
+    Convenience function to get a bro with a datastore initialized
+    with a config file
+    Args:
+        fn_confio: path to the config file
+    Returns:
+        A true bro
+    """
+    store = datastore.DataStore()
+    store.read_config(fn_config)
+    store.resume_data()
+    bro = Bro(store)
+    return bro
+
 
 class Bro(object):
     """docstring for Bro."""
 
     def __init__(self, DataStore):
-        self.DataStore = DataStore
+        self.data = DataStore
+        self.filters = Filters(self)
 
     #########################################################################
     #########################################################################
@@ -53,3 +74,46 @@ class Bro(object):
 
     def draw_scatterplot(arg):
         raise NotImplementedError
+    
+"""
+Define Filters
+"""
+class Filters(object):
+    def __init__(self, bro):
+        self.bro = bro
+
+    def add_issphere(minfrac=0.01, min_vsother=0.5):
+        col_issphere = 'is-sphere'
+        col_isother = 'is-other'
+        col_measure = 'MeanIntensity'
+        col_stack = 'BinStack'
+        outcol_issphere = 'is-sphere'
+        outcol_isambiguous = 'is-ambiguous'
+        non_zero_offset = 1/100000
+        dat_filter = pd.read_sql(
+                (session
+                     .query(
+                                 db.Measurement.ImageNumber,
+                                 db.Measurement.ObjectID,
+                                 db.Measurement.ObjectNumber,
+                                 db.Measurement.Value,
+                                 db.PlaneMeta.ChannelName,
+                                 db.RefStack.Scale
+                                   )
+                     .filter(db.Measurement.MeasurementName==col_measure)
+                     .filter(db.Measurement.StackName==col_stack)
+                    .filter(db.PlaneMeta.ChannelName.in_([col_isother,col_issphere]))
+                    .join(db.PlaneMeta)
+                      .join(db.RefStack)
+                     ).statement,
+            store.db_conn)
+        dat_filter[db.KEY_VALUE] = (dat_filter[db.KEY_VALUE] * dat_filter[db.KEY_SCALE])
+        idx_cols = [c for c in dat_filter.columns
+                    if c not in [db.KEY_VALUE, db.KEY_CHANNEL_NAME]]
+        dat_filter = dat_filter.pivot_table(values=db.KEY_VALUE,
+                               columns=[db.KEY_CHANNEL_NAME])
+        pd.DataFrame({'is-sphere': (
+            (dat_filter[col_issphere]+non_zero_offset)/(
+                dat_filer[col_isother]+non_zero_offset) > minfrac)})
+            
+
