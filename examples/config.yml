@@ -65,6 +65,6 @@ pannel_csv:
   display_name: 'name'
   ilastik_name: 'ilastik'
   barcode_name: 'barcode'
-  clone_name: 'Antybody Clone'
+  clone_name: 'Antibody Clone'
   concentration_name: 'Final Concentration / Dilution'
   tube_name: 'Tube Number'

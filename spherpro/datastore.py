@@ -216,6 +216,7 @@ class DataStore(object):
         self._write_planes_table()
         self._write_measurement_table()
         self._write_object_relations_table()
+        self._write_pannel_table()
 
     ##########################################
     #        Database Table Generation:      #
@@ -511,6 +512,33 @@ class DataStore(object):
         relations = self._generate_object_relations()
         relations.to_sql(con=self.db_conn, if_exists='append',
                          name=db.TABLE_OBJECT_RELATIONS, index=False)
+
+    def _write_pannel_table(self):
+        pannel = self._generate_pannel_table()
+        pannel.to_sql(con=self.db_conn, if_exists='append',
+                         name=db.TABLE_PANNEL, index=False)
+    def _generate_pannel_table(self):
+
+        csv_pannel = self.pannel
+        conf_pannel = self.conf[conf.PANNEL_CSV]
+        col_map = {conf_pannel[c]: target for c, target in [
+            (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
+            (conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
+            (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
+            (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
+            (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
+            (conf.PANEL_CSV_CONCENTRATION_NAME, db.PANNEL_COL_CONCENTRATION),
+            (conf.PANEL_CSV_TARGET_NAME, db.PANNEL_KEY_TARGET),
+            (conf.PANEL_CSV_TUBE_NAME, db.PANNEL_COL_TUBENUMBER)]}
+        cols = [c for c in col_map]
+        csv_pannel.drop(list(set(csv_pannel.columns) - set(cols)), axis=1, inplace=True)
+        csv_pannel = csv_pannel.rename(columns=col_map)
+        #correct conc to Float
+        csv_pannel[db.PANNEL_COL_CONCENTRATION] = csv_pannel[db.PANNEL_COL_CONCENTRATION].apply(
+            lambda x: float(re.findall(r"[-+]?\d*\.\d+|\d+", x)[0])
+        )
+        return csv_pannel
+
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
