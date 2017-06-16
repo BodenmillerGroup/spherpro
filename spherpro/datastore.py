@@ -555,6 +555,21 @@ class DataStore(object):
     #                           getter functions:                           #
     #########################################################################
     #########################################################################
+    def get_metal_from_name(self, name):
+        """get_metal_from_name
+        Returns a tuple (metal, info) where info is the corresponding row in
+        in the Panel, containing additional info.
+
+        Args:
+            str name: the name of the target
+        Returns:
+            str metal: The metal name corresponding to the name or
+                name if no metal was found
+            dict info: a dict containing aditional info about the metal.
+                None if no metal was found.
+        """
+
+        self.
 
     def get_image_meta(self,
         image_number = None):
