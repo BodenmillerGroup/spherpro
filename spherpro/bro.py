@@ -81,6 +81,7 @@ Define Filters
 class Filters(object):
     def __init__(self, bro):
         self.bro = bro
+        self.session = self.bro.data.main_session
 
     def add_issphere(minfrac=0.01, min_vsother=0.5):
         col_issphere = 'is-sphere'
