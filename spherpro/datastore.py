@@ -101,6 +101,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
     def drop_all(self):
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         db.drop_all(self.db_conn)
 
     ##########################################
@@ -197,7 +198,7 @@ class DataStore(object):
         Reads the pannel as stated in the config.
         """
         self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
-        
+
 
     def _populate_db(self):
         """
@@ -211,7 +212,7 @@ class DataStore(object):
         self._write_image_table()
         self._write_objects_table()
         self._write_stack_tables()
-        self._write_refplanes_table() 
+        self._write_refplanes_table()
         self._write_planes_table()
         self._write_measurement_table()
         self._write_object_relations_table()
@@ -281,7 +282,7 @@ class DataStore(object):
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_REFSTACKNAME}
-        
+
         ref_stack =  (self._stack_relation_csv
                          .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
                          .rename(columns= key_map)
@@ -303,13 +304,13 @@ class DataStore(object):
 
     def _generate_stack(self):
         """
-        Genes the DerivedStack 
+        Genes the DerivedStack
         """
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_STACKNAME,
                    ref_col: db.KEY_REFSTACKNAME}
-        
+
         stack =  (self._stack_relation_csv
                           .loc[:, list(key_map.keys())]
                          .rename(columns= key_map)
@@ -368,7 +369,7 @@ class DataStore(object):
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
         planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
-        
+
         planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
                        db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
                        db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
@@ -428,7 +429,7 @@ class DataStore(object):
         Args:
             chunksize: the ammount of rows written concurrently to the DB
         """
-        
+
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
         measurements.to_sql(con=self.db_conn, if_exists='append',
@@ -469,7 +470,7 @@ class DataStore(object):
                                                  db.KEY_MEASUREMENTTYPE,
                                                  db.KEY_MEASUREMENTNAME,
                                                  db.KEY_PLANEID])
-        
+
         return measurements, measurements_names, measurements_types
 
     def _generate_masks(self):
@@ -505,7 +506,7 @@ class DataStore(object):
         dat_relations = (dat_relations.rename(columns=col_map)
                          )
         return dat_relations
-    
+
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
         relations.to_sql(con=self.db_conn, if_exists='append',
@@ -548,7 +549,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_IMAGE,  **args)
@@ -577,7 +578,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_OBJECT,  **args)
@@ -677,11 +678,11 @@ class DataStore(object):
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
-        
+
     def get_(self, arg):
         pass
 
@@ -705,11 +706,11 @@ class DataStore(object):
 
         Returns:
             The queried table.
-        """  
+        """
         query = self._sqlgenerate_simple_query(table, columns=columns,
                                        clause_dict=clause_dict,
                                        **kwargs)
-        
+
         if connection is None:
             connection = self.db_conn
 
@@ -735,7 +736,7 @@ class DataStore(object):
         clauses = lib.construct_in_clause_list(clause_dict)
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
-    
+
     def _get_table_object(self, name):
         return getattr(db, name)
 
