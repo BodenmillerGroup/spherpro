@@ -568,11 +568,37 @@ class DataStore(object):
         Returns:
             str metal: The metal name corresponding to the name or
                 name if no metal was found
-            dict info: a dict containing aditional info about the metal.
+            Pandas Dataframe info: a Dataframe containing aditional info about the metal.
                 None if no metal was found.
         """
 
-        self.
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Target==name).statement,self.db_conn)
+        if len(result) > 0:
+            return (result[db.PANNEL_KEY_METAL], result)
+        else:
+            return (name, None)
+
+    def get_name_from_metal(self, metal):
+        """get_name_from_metal
+        Returns a tuple (name, info) where info is the corresponding row in
+        in the Panel, containing additional info.
+
+        Args:
+            str metal: the name of the target
+        Returns:
+            str name: The target name corresponding to the metal or
+                metal if no metal was found
+            Pandas Dataframe info: a Dataframe containing aditional info about the Target.
+                None if no target was found.
+        """
+
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Metal==metal).statement,self.db_conn)
+        if len(result) > 0:
+            return (result[db.PANNEL_KEY_TARGET], result)
+        else:
+            return (metal, None)
 
     def get_image_meta(self,
         image_number = None):
