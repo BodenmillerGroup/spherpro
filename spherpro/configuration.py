@@ -117,7 +117,12 @@ default_dict = {
         SEP: ',',
         CHANNEL_NAME: 'metal',
         DISPLAY_NAME: 'name',
-        CHANNEL_TYPE_DEFAULT: 'IMC'
+        CHANNEL_TYPE_DEFAULT: 'IMC',
+        ILASTIK_NAME: 'ilastik',
+        BARCODE_NAME: 'barcode',
+        CLONE_NAME: 'Antybody Clone',
+        CONCENTRATION_NAME: 'Final Concentration / Dilution',
+        TUBE_NAME: 'Tube Number'
     }
 }
 

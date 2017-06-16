@@ -1,5 +1,5 @@
 
-crop_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/crop/'
+crop_dir: '/home/mleutenegger/Data/20170613_Biotin_p56/analysis_data/crop/'
 
 backend: 'mysql'
 sqlite:
@@ -14,7 +14,7 @@ mysql:
 
 
 # Cellprofiler output info:
-cp_dir: '/home/mleutenegger/Data/20170216_p32_s3_ac1/cpoutput/'
+cp_dir: '/home/mleutenegger/Data/20170613_Biotin_p56/analysis_data/cpoutput/'
 stack_dir:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
   id_col: 'index' # Default: 'index'
@@ -32,7 +32,7 @@ stack_relations:
   sep: ',' # Default: ','
 cpoutput:
   measurement_csv:
-    objects: ['cells']
+    objects: ['cell']
   relation_csv:
     path: 'Object relationships.csv'
   images_csv:
@@ -60,7 +60,11 @@ barcode_csv:
 
 # Pannel Info:
 pannel_csv:
-  path: '/home/mleutenegger/Git/SpheroidSignaling/20170216_p32_s3_ac1/20170216_panel.csv'
+  path: '/home/mleutenegger/Git/SpheroidSignaling/20170419_biotin_p56/20170530_Biotin_EGF_panel.csv'
   channel_name: 'metal'
   display_name: 'name'
-  
+  ilastik_name: 'ilastik'
+  barcode_name: 'barcode'
+  clone_name: 'Antybody Clone'
+  concentration_name: 'Final Concentration / Dilution'
+  tube_name: 'Tube Number'
