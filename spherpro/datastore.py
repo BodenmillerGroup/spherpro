@@ -10,6 +10,7 @@ import spherpro as spp
 import spherpro.library as lib
 import spherpro.db as db
 import spherpro.configuration as conf
+from sqlalchemy.orm import sessionmaker
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
@@ -48,6 +49,8 @@ class DataStore(object):
         self.sphere_meta = None
         self.measurement_meta_cache = None
         self._pannel = None
+        self._session = None
+        self._session_maker = None
         self.connectors = {
             conf.CON_SQLITE: db.connect_sqlite,
             conf.CON_MYSQL: db.connect_mysql
@@ -814,3 +817,22 @@ class DataStore(object):
             self._stack_relation_csv[self.conf[conf.STACK_RELATIONS][conf.STACK]])
         stacks += [s for s in [st for st in self.stack_csvs]]
         return set(stacks)
+
+    @property
+    def session_maker(self):
+        """
+        Returns the session maker object for the current database connection
+        """
+        if self._session_maker is None:
+            self._session_maker = sessionmaker(bind=self.db_conn)
+        return self._session_maker
+
+    @property
+    def main_session(self):
+        """
+        Returns the current database main session
+        to query the database in an orm way.
+        """
+        if self._session is None:
+            self._session = self.session_maker()
+        return self._session
