@@ -5,6 +5,7 @@ from os import listdir
 from os.path import isfile, join
 import os
 import re
+import warnings
 
 import spherpro as spp
 import spherpro.library as lib
@@ -200,7 +201,7 @@ class DataStore(object):
         Reads the pannel as stated in the config.
         """
         self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
-        
+
 
     def _populate_db(self):
         """
@@ -214,7 +215,7 @@ class DataStore(object):
         self._write_image_table()
         self._write_objects_table()
         self._write_stack_tables()
-        self._write_refplanes_table() 
+        self._write_refplanes_table()
         self._write_planes_table()
         self._write_measurement_table()
         self._write_object_relations_table()
@@ -284,7 +285,7 @@ class DataStore(object):
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_REFSTACKNAME}
-        
+
         ref_stack =  (self._stack_relation_csv
                          .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
                          .rename(columns= key_map)
@@ -306,13 +307,13 @@ class DataStore(object):
 
     def _generate_stack(self):
         """
-        Genes the DerivedStack 
+        Genes the DerivedStack
         """
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_STACKNAME,
                    ref_col: db.KEY_REFSTACKNAME}
-        
+
         stack =  (self._stack_relation_csv
                           .loc[:, list(key_map.keys())]
                          .rename(columns= key_map)
@@ -371,7 +372,7 @@ class DataStore(object):
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
         planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
-        
+
         planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
                        db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
                        db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
@@ -431,7 +432,7 @@ class DataStore(object):
         Args:
             chunksize: the ammount of rows written concurrently to the DB
         """
-        
+
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
         measurements.to_sql(con=self.db_conn, if_exists='append',
@@ -472,7 +473,7 @@ class DataStore(object):
                                                  db.KEY_MEASUREMENTTYPE,
                                                  db.KEY_MEASUREMENTNAME,
                                                  db.KEY_PLANEID])
-        
+
         return measurements, measurements_names, measurements_types
 
     def _generate_masks(self):
@@ -508,7 +509,7 @@ class DataStore(object):
         dat_relations = (dat_relations.rename(columns=col_map)
                          )
         return dat_relations
-    
+
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
         relations.to_sql(con=self.db_conn, if_exists='append',
@@ -521,7 +522,99 @@ class DataStore(object):
 
 
 
+    #########################################################################
+    #########################################################################
+    #                           setter functions:                           #
+    #########################################################################
+    #########################################################################
+    def add_measurements(self, measurements, overwrite=False,
+        col_image = db.KEY_IMAGENUMBER,
+        col_object_no = db.KEY_OBJECTNUMBER,
+        col_object_id = db.KEY_OBJECTID,
+        col_type = db.KEY_MEASUREMENTTYPE,
+        col_name = db.KEY_MEASUREMENTNAME,
+        col_plane = db.KEY_PLANEID,
+        col_stackname = db.KEY_STACKNAME,
+        col_value = db.KEY_VALUE
+    ):
+        """add_measurements
+        This function allows to store new measurements to the database.
+        If overwrite == False, it will only add new measurements, discard the
+        ones where a key already exist and warn you about any dropped
+        measurements.
+        If overwrite == True, it will overwrite existing measurements. use
+        with care!
 
+        Args:
+            Pandas.DataFrame measurements: the measurements to be written.
+            bool overwrite: should existing measurements be updated?
+        Returns:
+            Pandas.DataFrame containing the deleted tuples. These can be used
+                to restore the old ones.
+            Pandas.DataFrame containing the unstored rows
+        """
+        col_map = {c: target for c, target in [
+            (col_image, db.KEY_IMAGENUMBER),
+            (col_object_no, db.KEY_OBJECTNUMBER),
+            (col_object_id, db.KEY_OBJECTID),
+            (col_type, db.KEY_MEASUREMENTTYPE),
+            (col_name, db.KEY_MEASUREMENTNAME),
+            (col_plane, db.KEY_PLANEID),
+            (col_stackname, db.KEY_STACKNAME),
+            (col_value, db.KEY_VALUE)]}
+
+        measurements = measurements.rename(columns=col_map)
+
+        images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
+        objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
+        object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
+        measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
+        measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
+        plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
+        stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
+
+        query =  self.main_session.query(db.Measurement).filter(
+            db.Measurement.ImageNumber.in_(images),
+            db.Measurement.ObjectNumber.in_(objects),
+            db.Measurement.ObjectID.in_(object_id),
+            db.Measurement.MeasurementType.in_(measurement_type),
+            db.Measurement.MeasurementName.in_(measurement_name),
+            db.Measurement.PlaneID.in_(plane),
+            db.Measurement.StackName.in_(stack)
+        )
+        backup =  pd.read_sql(query.statement, self.db_conn)
+        # if replace=True:
+        # - delete all lines with index from measurements
+        # - save measurements to db using append
+        if overwrite:
+
+
+            query.delete(synchronize_session='fetch')
+            self.main_session.commit()
+            measurements.to_sql(con=self.db_conn, if_exists='append',
+                             name=db.TABLE_MEASUREMENT, index=False)
+
+            return backup, None
+
+        # if replace=False:
+        # - query using keys
+        # - remove present tuples from measurements and warn
+        # - save measurements to db using append
+        else:
+            current = backup.copy()
+            del current[db.KEY_VALUE]
+            storable = measurements[~measurements.isin(current)].dropna()
+
+            lm, ls = len(measurements), len(storable)
+            if lm != ls:
+                miss = lm - ls
+                warnings.warn('There were '+str(miss)+' columns that were not updated!', UserWarning)
+            storable.to_sql(con=self.db_conn, if_exists='append',
+                             name=db.TABLE_MEASUREMENT, index=False)
+
+            unstored = measurements[~measurements.isin(storable)].dropna()
+
+            return None, unstored
 
 
     #########################################################################
@@ -551,7 +644,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_IMAGE,  **args)
@@ -580,7 +673,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_OBJECT,  **args)
@@ -680,11 +773,11 @@ class DataStore(object):
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
-        
+
     def get_(self, arg):
         pass
 
@@ -708,11 +801,11 @@ class DataStore(object):
 
         Returns:
             The queried table.
-        """  
+        """
         query = self._sqlgenerate_simple_query(table, columns=columns,
                                        clause_dict=clause_dict,
                                        **kwargs)
-        
+
         if connection is None:
             connection = self.db_conn
 
@@ -738,7 +831,7 @@ class DataStore(object):
         clauses = lib.construct_in_clause_list(clause_dict)
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
-    
+
     def _get_table_object(self, name):
         return getattr(db, name)
 
