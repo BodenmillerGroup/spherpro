@@ -52,6 +52,7 @@ TABLE_REFPLANEMETA = 'RefPlaneMeta'
 TABLE_REFSTACK = 'RefStack'
 TABLE_STACK = 'Stack'
 TABLE_STACKMODIFICATION = 'StackModification'
+TABLE_IMAGEMEASUREMENT = 'ImageMeasurement'
 
 
 def connect_sqlite(conf):
@@ -252,6 +253,7 @@ class Measurement(Base):
         ,{})
 
 
+
 TABLE_PANNEL = 'Pannel'
 PANNEL_KEY_METAL = 'Metal'
 PANNEL_KEY_TARGET = 'Target'
@@ -271,3 +273,18 @@ class Pannel(Base):
     Ilastik = Column(Boolean())
     Barcode = Column(Boolean())
     TubeNumber = Column(Integer())
+    
+   
+class ImageMeasurement(Base):
+    """docstring for ImageMeasurement."""
+    __tablename__=TABLE_IMAGEMEASUREMENT
+    ImageNumber = Column(Integer(), primary_key=True)
+    ObjectID = Column(String(200),
+                       primary_key=True)
+    MeasurementName = Column(String(200), primary_key=True)
+    Value = Column(Float())
+    __table_args__ = (ForeignKeyConstraint(
+        [ImageNumber],
+        [Image.ImageNumber])
+        ,{})
+    
