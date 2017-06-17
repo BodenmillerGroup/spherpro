@@ -558,6 +558,14 @@ class DataStore(object):
     #                           getter functions:                           #
     #########################################################################
     #########################################################################
+    def get_panel(self):
+        """get_panel
+        convenience method to get the full Panel
+        """
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).statement,self.db_conn)
+        return  result
+
     def get_metal_from_name(self, name):
         """get_metal_from_name
         Returns a tuple (metal, info) where info is the corresponding row in
