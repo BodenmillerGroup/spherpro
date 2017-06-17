@@ -52,6 +52,7 @@ TABLE_REFPLANEMETA = 'RefPlaneMeta'
 TABLE_REFSTACK = 'RefStack'
 TABLE_STACK = 'Stack'
 TABLE_STACKMODIFICATION = 'StackModification'
+TABLE_IMAGEMEASUREMENT = 'ImageMeasurement'
 
 def connect_sqlite(conf):
     """
@@ -250,3 +251,15 @@ class Measurement(Base):
             [PlaneMeta.StackName, PlaneMeta.PlaneID])
         ,{})
 
+class ImageMeasurement(Base):
+    """docstring for ImageMeasurement."""
+    __tablename__=TABLE_IMAGEMEASUREMENT
+    ImageNumber = Column(Integer(), primary_key=True)
+    ObjectID = Column(String(200),
+                       primary_key=True)
+    MeasurementName = Column(String(200), primary_key=True)
+    Value = Column(Float())
+    __table_args__ = (ForeignKeyConstraint(
+        [ImageNumber],
+        [Image.ImageNumber])
+        ,{})
