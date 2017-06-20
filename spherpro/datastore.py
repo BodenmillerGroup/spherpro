@@ -527,7 +527,7 @@ class DataStore(object):
     #                           setter functions:                           #
     #########################################################################
     #########################################################################
-    def add_measurements(self, measurements, overwrite=False,
+    def add_measurements(self, measurements, replace=False,
         col_image = db.KEY_IMAGENUMBER,
         col_object_no = db.KEY_OBJECTNUMBER,
         col_object_id = db.KEY_OBJECTID,
@@ -547,7 +547,7 @@ class DataStore(object):
 
         Args:
             Pandas.DataFrame measurements: the measurements to be written.
-            bool overwrite: should existing measurements be updated?
+            bool replace: should existing measurements be updated?
         Returns:
             Pandas.DataFrame containing the deleted tuples. These can be used
                 to restore the old ones.
@@ -582,17 +582,41 @@ class DataStore(object):
             db.Measurement.PlaneID.in_(plane),
             db.Measurement.StackName.in_(stack)
         )
+
+        (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
+        return (bak, un)
+
+
+    def _add_generic_tuple(self, data, query, table, replace=False):
+        """add_generic_tuple
+        adds tuples from date to the database and returns non stored or
+        deleted values.
+
+        Args:
+            Pandas DataFrame data: dataframe containing the data. It is
+                required to name the columns according to the db schema
+            sqlalchemy query query: query object to retrieve existing tuples.
+                best option: query for all keys!
+            Sqlalchemy Table table: the table object to be added to
+            bool replace: if existing tuples should be replaced
+
+        Returns:
+            Pandas.DataFrame containing the deleted tuples. These can be used
+                to restore the old ones.
+            Pandas.DataFrame containing the unstored rows
+
+        """
         backup =  pd.read_sql(query.statement, self.db_conn)
         # if replace=True:
         # - delete all lines with index from measurements
         # - save measurements to db using append
-        if overwrite:
+        if replace:
 
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
-            measurements.to_sql(con=self.db_conn, if_exists='append',
-                             name=db.TABLE_MEASUREMENT, index=False)
+            data.to_sql(con=self.db_conn, if_exists='append',
+                             name=table.__tablename__, index=False)
 
             return backup, None
 
@@ -603,16 +627,16 @@ class DataStore(object):
         else:
             current = backup.copy()
             del current[db.KEY_VALUE]
-            storable = measurements[~measurements.isin(current)].dropna()
+            storable = data[~data.isin(current)].dropna()
 
-            lm, ls = len(measurements), len(storable)
+            lm, ls = len(data), len(storable)
             if lm != ls:
                 miss = lm - ls
                 warnings.warn('There were '+str(miss)+' columns that were not updated!', UserWarning)
             storable.to_sql(con=self.db_conn, if_exists='append',
-                             name=db.TABLE_MEASUREMENT, index=False)
+                             name=table.__tablename__, index=False)
 
-            unstored = measurements[~measurements.isin(storable)].dropna()
+            unstored = data[~data.isin(storable)].dropna()
 
             return None, unstored
 
