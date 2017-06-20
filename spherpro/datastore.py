@@ -5,6 +5,7 @@ from os import listdir
 from os.path import isfile, join
 import os
 import re
+import warnings
 
 import spherpro as spp
 import spherpro.library as lib
@@ -104,6 +105,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
 
     def drop_all(self):
+        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         db.drop_all(self.db_conn)
 
     ##########################################
@@ -200,7 +202,7 @@ class DataStore(object):
         Reads the pannel as stated in the config.
         """
         self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
-        
+
 
     def _populate_db(self):
         """
@@ -214,10 +216,11 @@ class DataStore(object):
         self._write_image_table()
         self._write_objects_table()
         self._write_stack_tables()
-        self._write_refplanes_table() 
+        self._write_refplanes_table()
         self._write_planes_table()
         self._write_measurement_table()
         self._write_object_relations_table()
+        self._write_pannel_table()
 
     ##########################################
     #        Database Table Generation:      #
@@ -284,7 +287,7 @@ class DataStore(object):
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_REFSTACKNAME}
-        
+
         ref_stack =  (self._stack_relation_csv
                          .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
                          .rename(columns= key_map)
@@ -306,13 +309,13 @@ class DataStore(object):
 
     def _generate_stack(self):
         """
-        Genes the DerivedStack 
+        Genes the DerivedStack
         """
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
         key_map = {stack_col: db.KEY_STACKNAME,
                    ref_col: db.KEY_REFSTACKNAME}
-        
+
         stack =  (self._stack_relation_csv
                           .loc[:, list(key_map.keys())]
                          .rename(columns= key_map)
@@ -371,7 +374,7 @@ class DataStore(object):
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
         planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
-        
+
         planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
                        db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
                        db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
@@ -431,7 +434,7 @@ class DataStore(object):
         Args:
             chunksize: the ammount of rows written concurrently to the DB
         """
-        
+
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
         measurements.to_sql(con=self.db_conn, if_exists='append',
@@ -472,7 +475,7 @@ class DataStore(object):
                                                  db.KEY_MEASUREMENTTYPE,
                                                  db.KEY_MEASUREMENTNAME,
                                                  db.KEY_PLANEID])
-        
+
         return measurements, measurements_names, measurements_types
 
     def _generate_masks(self):
@@ -508,11 +511,38 @@ class DataStore(object):
         dat_relations = (dat_relations.rename(columns=col_map)
                          )
         return dat_relations
-    
+
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
         relations.to_sql(con=self.db_conn, if_exists='append',
                          name=db.TABLE_OBJECT_RELATIONS, index=False)
+
+    def _write_pannel_table(self):
+        pannel = self._generate_pannel_table()
+        pannel.to_sql(con=self.db_conn, if_exists='append',
+                         name=db.TABLE_PANNEL, index=False)
+    def _generate_pannel_table(self):
+
+        csv_pannel = self.pannel
+        conf_pannel = self.conf[conf.PANNEL_CSV]
+        col_map = {conf_pannel[c]: target for c, target in [
+            (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
+            (conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
+            (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
+            (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
+            (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
+            (conf.PANEL_CSV_CONCENTRATION_NAME, db.PANNEL_COL_CONCENTRATION),
+            (conf.PANEL_CSV_TARGET_NAME, db.PANNEL_KEY_TARGET),
+            (conf.PANEL_CSV_TUBE_NAME, db.PANNEL_COL_TUBENUMBER)]}
+        cols = [c for c in col_map]
+        csv_pannel.drop(list(set(csv_pannel.columns) - set(cols)), axis=1, inplace=True)
+        csv_pannel = csv_pannel.rename(columns=col_map)
+        #correct conc to Float
+        csv_pannel[db.PANNEL_COL_CONCENTRATION] = csv_pannel[db.PANNEL_COL_CONCENTRATION].apply(
+            lambda x: float(re.findall(r"[-+]?\d*\.\d+|\d+", x)[0])
+        )
+        return csv_pannel
+
     #########################################################################
     #########################################################################
     #                       filter and dist functions:                      #
@@ -521,7 +551,123 @@ class DataStore(object):
 
 
 
+    #########################################################################
+    #########################################################################
+    #                           setter functions:                           #
+    #########################################################################
+    #########################################################################
+    def add_measurements(self, measurements, replace=False,
+        col_image = db.KEY_IMAGENUMBER,
+        col_object_no = db.KEY_OBJECTNUMBER,
+        col_object_id = db.KEY_OBJECTID,
+        col_type = db.KEY_MEASUREMENTTYPE,
+        col_name = db.KEY_MEASUREMENTNAME,
+        col_plane = db.KEY_PLANEID,
+        col_stackname = db.KEY_STACKNAME,
+        col_value = db.KEY_VALUE
+    ):
+        """add_measurements
+        This function allows to store new measurements to the database.
+        If overwrite == False, it will only add new measurements, discard the
+        ones where a key already exist and warn you about any dropped
+        measurements.
+        If overwrite == True, it will overwrite existing measurements. use
+        with care!
 
+        Args:
+            Pandas.DataFrame measurements: the measurements to be written.
+            bool replace: should existing measurements be updated?
+        Returns:
+            Pandas.DataFrame containing the deleted tuples. These can be used
+                to restore the old ones.
+            Pandas.DataFrame containing the unstored rows
+        """
+        col_map = {c: target for c, target in [
+            (col_image, db.KEY_IMAGENUMBER),
+            (col_object_no, db.KEY_OBJECTNUMBER),
+            (col_object_id, db.KEY_OBJECTID),
+            (col_type, db.KEY_MEASUREMENTTYPE),
+            (col_name, db.KEY_MEASUREMENTNAME),
+            (col_plane, db.KEY_PLANEID),
+            (col_stackname, db.KEY_STACKNAME),
+            (col_value, db.KEY_VALUE)]}
+
+        measurements = measurements.rename(columns=col_map)
+
+        images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
+        objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
+        object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
+        measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
+        measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
+        plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
+        stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
+
+        query =  self.main_session.query(db.Measurement).filter(
+            db.Measurement.ImageNumber.in_(images),
+            db.Measurement.ObjectNumber.in_(objects),
+            db.Measurement.ObjectID.in_(object_id),
+            db.Measurement.MeasurementType.in_(measurement_type),
+            db.Measurement.MeasurementName.in_(measurement_name),
+            db.Measurement.PlaneID.in_(plane),
+            db.Measurement.StackName.in_(stack)
+        )
+
+        (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
+        return (bak, un)
+
+
+    def _add_generic_tuple(self, data, query, table, replace=False):
+        """add_generic_tuple
+        adds tuples from date to the database and returns non stored or
+        deleted values.
+
+        Args:
+            Pandas DataFrame data: dataframe containing the data. It is
+                required to name the columns according to the db schema
+            sqlalchemy query query: query object to retrieve existing tuples.
+                best option: query for all keys!
+            Sqlalchemy Table table: the table object to be added to
+            bool replace: if existing tuples should be replaced
+
+        Returns:
+            Pandas.DataFrame containing the deleted tuples. These can be used
+                to restore the old ones.
+            Pandas.DataFrame containing the unstored rows
+
+        """
+        backup =  pd.read_sql(query.statement, self.db_conn)
+        # if replace=True:
+        # - delete all lines with index from measurements
+        # - save measurements to db using append
+        if replace:
+
+
+            query.delete(synchronize_session='fetch')
+            self.main_session.commit()
+            data.to_sql(con=self.db_conn, if_exists='append',
+                             name=table.__tablename__, index=False)
+
+            return backup, None
+
+        # if replace=False:
+        # - query using keys
+        # - remove present tuples from measurements and warn
+        # - save measurements to db using append
+        else:
+            current = backup.copy()
+            del current[db.KEY_VALUE]
+            storable = data[~data.isin(current)].dropna()
+
+            lm, ls = len(data), len(storable)
+            if lm != ls:
+                miss = lm - ls
+                warnings.warn('There were '+str(miss)+' columns that were not updated!', UserWarning)
+            storable.to_sql(con=self.db_conn, if_exists='append',
+                             name=table.__tablename__, index=False)
+
+            unstored = data[~data.isin(storable)].dropna()
+
+            return None, unstored
 
 
     #########################################################################
@@ -529,6 +675,55 @@ class DataStore(object):
     #                           getter functions:                           #
     #########################################################################
     #########################################################################
+    def get_panel(self):
+        """get_panel
+        convenience method to get the full Panel
+        """
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).statement,self.db_conn)
+        return  result
+
+    def get_metal_from_name(self, name):
+        """get_metal_from_name
+        Returns a tuple (metal, info) where info is the corresponding row in
+        in the Panel, containing additional info.
+
+        Args:
+            str name: the name of the target
+        Returns:
+            str metal: The metal name corresponding to the name or
+                name if no metal was found
+            Pandas Dataframe info: a Dataframe containing aditional info about the metal.
+                None if no metal was found.
+        """
+
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Target==name).statement,self.db_conn)
+        if len(result) > 0:
+            return (result[db.PANNEL_KEY_METAL], result)
+        else:
+            return (name, None)
+
+    def get_name_from_metal(self, metal):
+        """get_name_from_metal
+        Returns a tuple (name, info) where info is the corresponding row in
+        in the Panel, containing additional info.
+
+        Args:
+            str metal: the name of the target
+        Returns:
+            str name: The target name corresponding to the metal or
+                metal if no metal was found
+            Pandas Dataframe info: a Dataframe containing aditional info about the Target.
+                None if no target was found.
+        """
+
+        session = self.main_session
+        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Metal==metal).statement,self.db_conn)
+        if len(result) > 0:
+            return (result[db.PANNEL_KEY_TARGET], result)
+        else:
+            return (metal, None)
 
     def get_image_meta(self,
         image_number = None):
@@ -551,7 +746,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_IMAGE,  **args)
@@ -580,7 +775,7 @@ class DataStore(object):
         Returns:
             DataFrame
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_OBJECT,  **args)
@@ -680,11 +875,11 @@ class DataStore(object):
             DataFrame containing:
             MeasurementName | MeasurementType | StackName
         """
-        
+
         args = locals()
         args.pop('self')
         return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
-        
+
     def get_(self, arg):
         pass
 
@@ -708,11 +903,11 @@ class DataStore(object):
 
         Returns:
             The queried table.
-        """  
+        """
         query = self._sqlgenerate_simple_query(table, columns=columns,
                                        clause_dict=clause_dict,
                                        **kwargs)
-        
+
         if connection is None:
             connection = self.db_conn
 
@@ -738,7 +933,7 @@ class DataStore(object):
         clauses = lib.construct_in_clause_list(clause_dict)
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
-    
+
     def _get_table_object(self, name):
         return getattr(db, name)
 
