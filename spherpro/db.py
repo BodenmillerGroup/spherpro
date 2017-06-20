@@ -253,6 +253,19 @@ class Measurement(Base):
             [PlaneMeta.StackName, PlaneMeta.PlaneID])
         ,{})
 
+class MeasurementName(Base):
+    """
+    Convenience table
+    """
+    __tablename__ = TABLE_MEASUREMENT_NAME
+    MeasurementName = Column(String(200), primary_key=True)
+
+class MeasurementType(Base):
+    """
+    Convenience table
+    """
+    __tablename__ = TABLE_MEASUREMENT_TYPE
+    MeasurementType = Column(String(200), primary_key=True)
 
 
 TABLE_PANNEL = 'Pannel'
