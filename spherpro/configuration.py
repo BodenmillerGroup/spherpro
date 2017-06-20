@@ -12,6 +12,7 @@ defaults, required files, loading as well as validation functions.
 """
 List of keywords fields used in the configuration file
 """
+PANEL_CSV = 'pannel_csv'
 BACKEND = 'backend'
 BARCODE_CSV = 'barcode_csv'
 CONDITION = 'condition_col'
@@ -58,6 +59,15 @@ OBJECTNUMBER = 'object_number_col'
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
 
+
+PANEL_CSV_CHANNEL_NAME = 'channel_name',
+PANEL_CSV_DISPLAY_NAME = 'display_name',
+PANEL_CSV_ILASTIK_NAME = 'ilastik_name',
+PANEL_CSV_BARCODE_NAME = 'barcode_name',
+PANEL_CSV_CLONE_NAME = 'clone_name',
+PANEL_CSV_CONCENTRATION_NAME = 'concentration_name',
+PANEL_CSV_TUBE_NAME = 'tube_name'
+PANEL_CSV_TARGET_NAME = 'target'
 
 """
 Default settings
@@ -115,9 +125,14 @@ default_dict = {
     },
     PANNEL_CSV: {
         SEP: ',',
-        CHANNEL_NAME: 'metal',
-        DISPLAY_NAME: 'name',
-        CHANNEL_TYPE_DEFAULT: 'IMC'
+        PANEL_CSV_CHANNEL_NAME: 'metal',
+        PANEL_CSV_DISPLAY_NAME: 'name',
+        PANEL_CSV_ILASTIK_NAME: 'ilastik',
+        PANEL_CSV_BARCODE_NAME: 'barcode',
+        PANEL_CSV_CLONE_NAME: 'Antibody Clone',
+        PANEL_CSV_CONCENTRATION_NAME: 'Final Concentration / Dilution',
+        PANEL_CSV_TUBE_NAME: 'Tube Number',
+        PANEL_CSV_TARGET_NAME: 'Target'
     }
 }
 

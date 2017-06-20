@@ -54,6 +54,7 @@ TABLE_STACK = 'Stack'
 TABLE_STACKMODIFICATION = 'StackModification'
 TABLE_IMAGEMEASUREMENT = 'ImageMeasurement'
 
+
 def connect_sqlite(conf):
     """
     creates a sqlite connector to be used with the Datastore.
@@ -251,6 +252,29 @@ class Measurement(Base):
             [PlaneMeta.StackName, PlaneMeta.PlaneID])
         ,{})
 
+
+
+TABLE_PANNEL = 'Pannel'
+PANNEL_KEY_METAL = 'Metal'
+PANNEL_KEY_TARGET = 'Target'
+PANNEL_COL_ABCLONE = 'AntibodyClone'
+PANNEL_COL_CONCENTRATION = 'Concentration'
+PANNEL_COL_ILASTIK = 'Ilastik'
+PANNEL_COL_BARCODE = 'Barcode'
+PANNEL_COL_TUBENUMBER = 'TubeNumber'
+
+class Pannel(Base):
+    """docstring for Pannel."""
+    __tablename__ = TABLE_PANNEL
+    Metal = Column(String(200), primary_key=True)
+    Target = Column(String(200), primary_key=True)
+    AntibodyClone  = Column(String(200))
+    Concentration = Column(Float())
+    Ilastik = Column(Boolean())
+    Barcode = Column(Boolean())
+    TubeNumber = Column(Integer())
+    
+   
 class ImageMeasurement(Base):
     """docstring for ImageMeasurement."""
     __tablename__=TABLE_IMAGEMEASUREMENT
@@ -263,3 +287,4 @@ class ImageMeasurement(Base):
         [ImageNumber],
         [Image.ImageNumber])
         ,{})
+    
