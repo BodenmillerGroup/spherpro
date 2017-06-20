@@ -22,6 +22,7 @@ KEY_IMAGENUMBER_TO = 'ImageNumberTo'
 KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_MEASUREMENTTYPE = 'MeasurementType'
 KEY_MODIFICATIONNAME = 'ModificationName'
+KEY_MODIFICATIONPREFIX = 'ModificationPrefix'
 KEY_OBJECTID = 'ObjectID'
 KEY_OBJECTID_FROM = 'ObjectIDFrom'
 KEY_OBJECTID_TO = 'ObjectIDTo'
@@ -273,8 +274,8 @@ class Pannel(Base):
     Ilastik = Column(Boolean())
     Barcode = Column(Boolean())
     TubeNumber = Column(Integer())
-    
-   
+
+
 class ImageMeasurement(Base):
     """docstring for ImageMeasurement."""
     __tablename__=TABLE_IMAGEMEASUREMENT
@@ -287,4 +288,3 @@ class ImageMeasurement(Base):
         [ImageNumber],
         [Image.ImageNumber])
         ,{})
-    
