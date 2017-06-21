@@ -12,6 +12,7 @@ import spherpro.library as lib
 import spherpro.db as db
 import spherpro.configuration as conf
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.inspection import inspect
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
@@ -612,7 +613,8 @@ class DataStore(object):
         col_name = db.KEY_MEASUREMENTNAME,
         col_plane = db.KEY_PLANEID,
         col_stackname = db.KEY_STACKNAME,
-        col_value = db.KEY_VALUE
+        col_value = db.KEY_VALUE,
+        split = 100000
     ):
         """add_measurements
         This function allows to store new measurements to the database.
@@ -640,28 +642,41 @@ class DataStore(object):
             (col_stackname, db.KEY_STACKNAME),
             (col_value, db.KEY_VALUE)]}
 
-        measurements = measurements.rename(columns=col_map)
+        measurements_base = measurements.rename(columns=col_map)
+        finished = False
+        bak_t = un_t = measurements_base[0:0]
+        print("starting storing measurements...")
+        while not finished:
+            print("still need to store "+str(len(measurements_base))+" tuples!")
+            if len(measurements_base) > split:
+                measurements = measurements_base[:split]
+                measurements_base = measurements_base[split:]
+            else:
+                measurements = measurements_base
+                finished = True
 
-        images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
-        objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
-        object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
-        measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
-        measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
-        plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
-        stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
+            images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
+            objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
+            object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
+            measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
+            measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
+            plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
+            stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
 
-        query =  self.main_session.query(db.Measurement).filter(
-            db.Measurement.ImageNumber.in_(images),
-            db.Measurement.ObjectNumber.in_(objects),
-            db.Measurement.ObjectID.in_(object_id),
-            db.Measurement.MeasurementType.in_(measurement_type),
-            db.Measurement.MeasurementName.in_(measurement_name),
-            db.Measurement.PlaneID.in_(plane),
-            db.Measurement.StackName.in_(stack)
-        )
+            query =  self.main_session.query(db.Measurement).filter(
+                db.Measurement.ImageNumber.in_(images),
+                db.Measurement.ObjectNumber.in_(objects),
+                db.Measurement.ObjectID.in_(object_id),
+                db.Measurement.MeasurementType.in_(measurement_type),
+                db.Measurement.MeasurementName.in_(measurement_name),
+                db.Measurement.PlaneID.in_(plane),
+                db.Measurement.StackName.in_(stack)
+            )
 
-        (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
-        return (bak, un)
+            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
+            bak_t.append(bak)
+            un_t.append(un)
+        return (bak_t, un_t)
 
 
     def _add_generic_tuple(self, data, query, table, replace=False):
@@ -685,6 +700,7 @@ class DataStore(object):
         """
         data = data.reset_index(drop=True)
         backup =  pd.read_sql(query.statement, self.db_conn)
+        key_cols = [key.name for key in inspect(table).primary_key]
         # if replace=True:
         # - delete all lines with index from measurements
         # - save measurements to db using append
@@ -704,22 +720,24 @@ class DataStore(object):
         # - save measurements to db using append
         else:
             current = backup.copy()
-            storable = data[~data.isin(current)].dropna()
+            zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
+            storable = data.merge(zw)
 
             lm, ls = len(data), len(storable)
             if lm != ls:
                 miss = lm - ls
-                str = 'There were '
-                str += str(miss)
-                str += ' rows that were not updated in '
-                str += table.__tablename__
-                str += '! This does not mean that something went wrong, but '
-                str += 'maybe you tried to readd some rows.'
-                warnings.warn(str, UserWarning)
+                stri = 'There were '
+                stri += str(miss)
+                stri += ' rows that were not updated in '
+                stri += table.__tablename__
+                stri += '! This does not mean that something went wrong, but '
+                stri += 'maybe you tried to readd some rows.'
+                warnings.warn(stri, UserWarning)
+
             storable.to_sql(con=self.db_conn, if_exists='append',
                              name=table.__tablename__, index=False)
 
-            unstored = data[~data.isin(storable)].dropna()
+            unstored = data.merge(zw, how='outer')
 
             return None, unstored
 
