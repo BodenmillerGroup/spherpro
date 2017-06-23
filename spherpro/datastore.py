@@ -945,6 +945,13 @@ class DataStore(object):
         col = self._get_column_from_table(tab, col_name)
         return col
 
+    def _get_table_columnnames(self, table_name):
+        tab = self._get_table_object(table_name)
+        return tab.__table__.columns.keys()
+
+    def _get_table_keynames(self, table_name):
+        tab = self._get_table_object(table_name)
+        return tab.__table__.primary_key.column.keys()
     #Properties:
     @property
     def pannel(self):
