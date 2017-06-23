@@ -35,7 +35,8 @@ KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
-
+KEY_FILTERNAME = 'FilterName'
+KEY_FILTERVALUE = 'FilterValue'
 
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_FILTERS = 'Filters'

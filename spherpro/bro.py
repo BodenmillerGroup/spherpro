@@ -83,7 +83,7 @@ class Filters(object):
         self.bro = bro
         self.session = self.bro.data.main_session
         
-    def add_issphere(self, minfrac=0.01, min_vsother=0.5):
+    def add_issphere(self, minfrac=0.01):
         col_issphere = 'is-sphere'
         col_isother = 'is-other'
         col_measure = 'MeanIntensity'
@@ -115,11 +115,22 @@ class Filters(object):
                                  db.KEY_PLANEID]]
         dat_filter = dat_filter.pivot_table(values=db.KEY_VALUE,
                                columns=[db.KEY_CHANNEL_NAME], index=idx_cols)
-        dat_filter =  pd.DataFrame.from_dict({'is-sphere': (
+        dat_filter =  pd.DataFrame.from_dict({outcol_issphere: (
             (dat_filter[col_issphere]+non_zero_offset)/(
                 dat_filter[col_isother]+non_zero_offset) > minfrac)},
             orient='columns')
+        dat_filter.columns.names = [db.KEY_FILTERNAME]
+        dat_filter = dat_filter.stack()
+        dat_filter.name = db.KEY_FILTERVALUE
+        dat_filter = dat_filter.reset_index(drop=False)
+        dat_filter = dat_filter.loc[:,
+                       self.bro.data._get_table_columnnames(db.TABLE_FILTERS)]
+        self.bro.data._add_generic_tuple(dat_filter,
+                                         query=self.session.query(db.Filters).filter(
+                                             db.Filters.FilterName==outcol_issphere),
+                                         table=db.TABLE_FILTERS)
         return dat_filter
+
     
     @property
     def _conn(self):
