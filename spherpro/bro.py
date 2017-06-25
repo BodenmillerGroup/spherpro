@@ -8,6 +8,8 @@ import spherpro.db as db
 
 import sqlalchemy as sa
 
+import plotnine as gg
+
 CHANNEL_DISTSPHERE = 'dist-sphere'
 
 def get_bro(fn_config):
@@ -125,20 +127,71 @@ class Plotter(object):
         self.session = self.bro.data.main_session
         self.data = self.bro.data
 
+
     def plt_marker_scatterplot(self, measure_x, measure_y):
         """
         Generates a plot where markers are plotted against each other in a 2D
         scatterplot
         Args:
-            measure_x, measure_y: tuples defining the measurements of the form:
-                (object_id, channel_name, stack_name, measurement_name, measurement_type)
+            measure_x, measure_y: tuples defining the measurements
+            in the form:
+                (object_id, channel_name, stack_name,
+                measurement_name, measurement_type)
         Returns:
             p:  the plot figure object
 
         """
-        fil = self._get_measurement_filters(*zip(measure_x, measure_y))
-        dat = self._get_measurement_data([fil])
+        dat = self.get_marker_scatterplot_data(measure_x, measure_y)
+        p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
+          gg.geom_bin2d()+
+          gg.geom_smooth(method='lm') +
+          gg.xlab(' - '.join(measure_x)) +
+          gg.ylab(' - '.join(measure_y)) +
+          gg.scale_x_sqrt()+
+          gg.scale_y_sqrt()
+        )
+        return p
+
+
+    def get_marker_scatterplot_data(self, measure_x, measure_y):
+
+        filters = [self._get_measurement_filters(*[[m] for m in meas])
+                   for meas in [measure_x, measure_y]]
+        query = self._get_measurement_query()
+        query_joins = self._get_joined_filtered_queries(query, filters)
+        dat = pd.read_sql(query_joins.statement, self.data.db_conn)
         return dat
+
+    def _get_joined_filtered_queries(self, base_query, filters, on_cols=None):
+        """
+        Queries repeatedly using the base_query and applying multiple filters.
+        The results will be joined on the 'on_cols' and the columns renamed
+        with a prefix according to the filter index (0_, 1_ etc.)
+        
+        Args:
+            base_query: the query that should be used as a basis.
+            filters:    a list of filter statements
+            on_cols:    a list of column names. Default: ['ImageNumber',
+            'ObjectNumber']
+        Returns:
+            the query to get the results
+        """
+        if on_cols is None:
+            on_cols = [db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER]
+        queries = [base_query.filter(fil).subquery(name=str(i))
+                   for i, fil in enumerate(filters)]
+        # queries =[q.apply_labels() for q in queries]
+        query_joins = self.session.query(*queries)
+        for i in range(len(queries)-1):
+            query_joins = query_joins.join(
+                queries[i+1],
+                (sa.and_(*[
+                    getattr(queries[0].c, col) ==
+                    getattr(queries[i+1].c, col) for col in
+                           on_cols])))
+        query_joins = query_joins.with_labels()
+        return query_joins
+
 
     def _get_measurement_filters(self, object_ids, channel_names, stack_names, measurement_names, measurement_types):
         """
@@ -182,7 +235,15 @@ class Plotter(object):
         return dat
 
     def _get_measurement_query(self):
-        query = (self.session.query(db.RefPlaneMeta, db.Measurement)
+        query = (self.session.query(db.RefPlaneMeta.ChannelName,
+                                    db.RefPlaneMeta.ChannelType,
+                                    db.Measurement.ImageNumber,
+                                   db.Measurement.ObjectNumber,
+                                   db.Measurement.ObjectID,
+                                   db.Measurement.MeasurementName,
+                                   db.Measurement.MeasurementType,
+                                   db.Measurement.Value,
+                                   db.Measurement.PlaneID)
          .join(db.PlaneMeta)
          .join(db.Measurement)
         )
