@@ -4,7 +4,9 @@ import re
 
 import spherpro as sp
 import spherpro.datastore as datastore
+import spherpro.db as db
 
+import sqlalchemy as sa
 
 CHANNEL_DISTSPHERE = 'dist-sphere'
 
@@ -30,6 +32,7 @@ class Bro(object):
     def __init__(self, DataStore):
         self.data = DataStore
         self.filters = Filters(self)
+        self.plots = Plotter(self)
 
     #########################################################################
     #########################################################################
@@ -113,8 +116,76 @@ class Filters(object):
                     if c not in [db.KEY_VALUE, db.KEY_CHANNEL_NAME]]
         dat_filter = dat_filter.pivot_table(values=db.KEY_VALUE,
                                columns=[db.KEY_CHANNEL_NAME])
-        pd.DataFrame({'is-sphere': (
-            (dat_filter[col_issphere]+non_zero_offset)/(
-                dat_filer[col_isother]+non_zero_offset) > minfrac)})
-            
+
+class Plotter(object):
+    DEFAULT_MEASUREMENT_TYPE = 'Intensity'
+
+    def __init__(self, bro):
+        self.bro = bro
+        self.session = self.bro.data.main_session
+        self.data = self.bro.data
+
+    def plt_marker_scatterplot(self, measure_x, measure_y):
+        """
+        Generates a plot where markers are plotted against each other in a 2D
+        scatterplot
+        Args:
+            measure_x, measure_y: tuples defining the measurements of the form:
+                (object_id, channel_name, stack_name, measurement_name, measurement_type)
+        Returns:
+            p:  the plot figure object
+
+        """
+        fil = self._get_measurement_filters(*zip(measure_x, measure_y))
+        dat = self._get_measurement_data([fil])
+        return dat
+
+    def _get_measurement_filters(self, object_ids, channel_names, stack_names, measurement_names, measurement_types):
+        """
+        Generates a filter expression to query for multiple channels, defined as channel_names,
+        stack_names, measurement names and measurement types.
+
+        Input:
+            object_ids: list of object_ids
+            channel_names: list of channel names
+            stack_names: list of stack_names
+            measurement_names: list of measurement_names
+            measurement_types: list of measurement measurement_types
+        Returns:
+            A dataframes with the selected measurements
+        """
+        constraint_columns = [
+                              (db.TABLE_MEASUREMENT, db.KEY_OBJECTID),
+                              (db.TABLE_REFPLANEMETA, db.KEY_CHANNEL_NAME),
+                              (db.TABLE_PLANEMETA, db.KEY_STACKNAME),
+                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTNAME),
+                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTTYPE)]
+        constraint_columns = [self.data._get_table_column(t, c) for t, c in
+                              constraint_columns]
+
+        constraints = [sa.and_(*[c == v for c, v in zip(constraint_columns,
+                                                        values)])
+                       for values in zip(object_ids, channel_names, stack_names, measurement_names,
+                       measurement_types)]
+        measure_filter = sa.or_(*constraints)
+        return measure_filter
+
+    def _get_measurement_data(self, filters):
+        """
+        Retrieves filtered measurement data
+        """
+
+        query = self._get_measurement_query()
+        for fil in filters:
+            query = query.filter(fil)
+        dat = pd.read_sql(query.statement, self.data.db_conn)
+        return dat
+
+    def _get_measurement_query(self):
+        query = (self.session.query(db.RefPlaneMeta, db.Measurement)
+         .join(db.PlaneMeta)
+         .join(db.Measurement)
+        )
+        return query
+
 
