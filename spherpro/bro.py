@@ -141,7 +141,7 @@ class Plotter(object):
             p:  the plot figure object
 
         """
-        dat = self.get_marker_scatterplot_data(measure_x, measure_y)
+        dat = self.get_marker_scatterplot_data([measure_x, measure_y])
         p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
@@ -153,10 +153,10 @@ class Plotter(object):
         return p
 
 
-    def get_marker_scatterplot_data(self, measure_x, measure_y):
+    def get_marker_scatterplot_data(self, measures):
 
         filters = [self._get_measurement_filters(*[[m] for m in meas])
-                   for meas in [measure_x, measure_y]]
+                   for meas in measures]
         query = self._get_measurement_query()
         query_joins = self._get_joined_filtered_queries(query, filters)
         dat = pd.read_sql(query_joins.statement, self.data.db_conn)
