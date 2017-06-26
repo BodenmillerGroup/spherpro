@@ -36,8 +36,17 @@ KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
+KEY_CONDITIONID = 'ConditionID'
+KEY_SITENAME = 'SiteName'
+KEY_BCDEPTH = 'BCDepth'
+KEY_BCINVALID = 'BCInvalid'
+KEY_BCVALID = 'BCValid'
+KEY_BCHIGHESTCOUNT = 'BCHighestCount'
+KEY_BCSECONDCOUNT = 'BCSecondCount'
 
 
+TABLE_CONDITION = 'Condition'
+TABLE_SITE = 'Site'
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_FILTERS = 'Filters'
 TABLE_IMAGE = 'Image'
@@ -108,11 +117,39 @@ def drop_all(conn):
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################
+class Condition(Base):
+    """docstring for Image."""
+    __tablename__ = TABLE_CONDITION
+    ConditionID = Column(Integer(), primary_key=True)
+    Name = Column(String(200))
+    TimePoint = Column(Integer())
+    BarCode = Column(String(200))
+    CoordPlate = Column(Integer())
+    CoordX = Column(Integer())
+    CoordY = Column(Integer())
+
+class Site(Base):
+    """docstring for Image."""
+    __tablename__ = TABLE_SITE
+    SiteName = Column(String(200), primary_key=True)
+
+
 
 class Image(Base):
     """docstring for Image."""
     __tablename__ = TABLE_IMAGE
     ImageNumber = Column(Integer(), primary_key=True)
+    BCDepth = Column(Float())
+    BCInvalid = Column(Integer())
+    BCValid = Column(Integer())
+    BCHighestCount = Column(Integer())
+    BCSecondCount = Column(Integer())
+    ConditionID = Column(Integer())
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [ConditionID],
+        [Condition.ConditionID),
+            {})
 
 class Masks(Base):
     """ a table describing the masks."""
