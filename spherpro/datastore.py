@@ -468,7 +468,7 @@ class DataStore(object):
 
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        self.add_measurements(measurements)
+        self.add_measurements(measurements, replace=True)
 
         name_query = self.main_session.query(db.MeasurementName).filter(
             db.MeasurementName.MeasurementName.in_(measurements_names[db.KEY_MEASUREMENTNAME].astype(str).unique())
