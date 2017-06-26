@@ -552,7 +552,7 @@ class DataStore(object):
 
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        query = test.main_session.query(db.ObjectRelations).filter(
+        query = self.main_session.query(db.ObjectRelations).filter(
             db.ObjectRelations.ImageNumberFrom.in_(relations[db.KEY_IMAGENUMBER_FROM].astype(str).unique()),
             db.ObjectRelations.ObjectNumberFrom.in_(relations[db.KEY_OBJECTNUMBER_FROM].astype(str).unique()),
             db.ObjectRelations.ObjectIDFrom.in_(relations[db.KEY_OBJECTID_FROM].astype(str).unique()),

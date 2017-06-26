@@ -125,10 +125,11 @@ class Filters(object):
         dat_filter = dat_filter.reset_index(drop=False)
         dat_filter = dat_filter.loc[:,
                        self.bro.data._get_table_columnnames(db.TABLE_FILTERS)]
+        table = self.bro.data._get_table_object(db.TABLE_FILTERS)
         self.bro.data._add_generic_tuple(dat_filter,
                                          query=self.session.query(db.Filters).filter(
                                              db.Filters.FilterName==outcol_issphere),
-                                         table=db.TABLE_FILTERS)
+                                         table=table, replace=True)
         return dat_filter
 
     
