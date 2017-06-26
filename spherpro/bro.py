@@ -148,7 +148,7 @@ class Plotter(object):
         self.data = self.bro.data
 
 
-    def plt_marker_scatterplot(self, measure_x, measure_y):
+    def plt_marker_scatterplot(self, measure_x, measure_y, image_ids=None, filter_name=None):
         """
         Generates a plot where markers are plotted against each other in a 2D
         scatterplot
@@ -161,7 +161,9 @@ class Plotter(object):
             p:  the plot figure object
 
         """
-        dat = self.get_marker_scatterplot_data([measure_x, measure_y])
+        dat = self.get_marker_scatterplot_data([measure_x, measure_y],
+                                               image_ids=image_ids,
+                                               filter_name=filter_name)
         p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
@@ -173,11 +175,19 @@ class Plotter(object):
         return p
 
 
-    def get_marker_scatterplot_data(self, measures):
+    def get_marker_scatterplot_data(self, measures, image_ids=None,
+                                    filter_name=None):
 
         filters = [self._get_measurement_filters(*[[m] for m in meas])
                    for meas in measures]
         query = self._get_measurement_query()
+        if image_ids is not None:
+            query = query.filter(db.Measurement.ImageNumber.in_(image_ids))
+        if filter_name is not None:
+            query = (query.filter(sa.and_(db.Filters.FilterName == filter_name,
+                                         db.Filters.FilterValue == True))
+                     .join(db.Filters))
+
         query_joins = self._get_joined_filtered_queries(query, filters)
         dat = pd.read_sql(query_joins.statement, self.data.db_conn)
         return dat
@@ -228,7 +238,7 @@ class Plotter(object):
             A dataframes with the selected measurements
         """
         constraint_columns = [
-                              (db.TABLE_MEASUREMENT, db.KEY_OBJECTID),
+                              (db.TABLE_OBJECT, db.KEY_OBJECTID),
                               (db.TABLE_REFPLANEMETA, db.KEY_CHANNEL_NAME),
                               (db.TABLE_PLANEMETA, db.KEY_STACKNAME),
                               (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTNAME),
@@ -257,14 +267,16 @@ class Plotter(object):
     def _get_measurement_query(self):
         query = (self.session.query(db.RefPlaneMeta.ChannelName,
                                     db.RefPlaneMeta.ChannelType,
-                                    db.Measurement.ImageNumber,
-                                   db.Measurement.ObjectNumber,
-                                   db.Measurement.ObjectID,
+                                    db.Image.ImageNumber,
+                                   db.Objects.ObjectNumber,
+                                   db.Objects.ObjectID,
                                    db.Measurement.MeasurementName,
                                    db.Measurement.MeasurementType,
                                    db.Measurement.Value,
                                    db.Measurement.PlaneID)
          .join(db.PlaneMeta)
          .join(db.Measurement)
-        )
+        .join(db.Objects)
+        .join(db.Image)
+                )
         return query
