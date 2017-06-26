@@ -472,7 +472,7 @@ class DataStore(object):
 
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        self.add_measurements(measurements)
+        self.add_measurements(measurements, replace=True)
 
         name_query = self.main_session.query(db.MeasurementName).filter(
             db.MeasurementName.MeasurementName.in_(measurements_names[db.KEY_MEASUREMENTNAME].astype(str).unique())
@@ -556,7 +556,7 @@ class DataStore(object):
 
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        query = test.main_session.query(db.ObjectRelations).filter(
+        query = self.main_session.query(db.ObjectRelations).filter(
             db.ObjectRelations.ImageNumberFrom.in_(relations[db.KEY_IMAGENUMBER_FROM].astype(str).unique()),
             db.ObjectRelations.ObjectNumberFrom.in_(relations[db.KEY_OBJECTNUMBER_FROM].astype(str).unique()),
             db.ObjectRelations.ObjectIDFrom.in_(relations[db.KEY_OBJECTID_FROM].astype(str).unique()),
@@ -580,7 +580,7 @@ class DataStore(object):
         conf_pannel = self.conf[conf.PANNEL_CSV]
         col_map = {conf_pannel[c]: target for c, target in [
             (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
-            (conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
+            #(conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
             (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
             (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
             (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
@@ -728,7 +728,7 @@ class DataStore(object):
         return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, query, table, replace=False):
+    def _add_generic_tuple(self, data, query, table, replace=False, backup=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -740,6 +740,9 @@ class DataStore(object):
                 best option: query for all keys!
             Sqlalchemy Table table: the table object to be added to
             bool replace: if existing tuples should be replaced
+            backup: only used if replace = True. Specifies whether a table
+                with the deleted tuples should be returned. Can speed up
+                operation
 
         Returns:
             Pandas.DataFrame containing the deleted tuples. These can be used
@@ -748,13 +751,12 @@ class DataStore(object):
 
         """
         data = data.reset_index(drop=True)
-        backup =  pd.read_sql(query.statement, self.db_conn)
         key_cols = [key.name for key in inspect(table).primary_key]
-        # if replace=True:
-        # - delete all lines with index from measurements
-        # - save measurements to db using append
         if replace:
-
+            if backup:
+                backup =  pd.read_sql(query.statement, self.db_conn)
+            else:
+                backup = None
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
@@ -762,12 +764,8 @@ class DataStore(object):
                              name=table.__tablename__, index=False)
 
             return backup, None
-
-        # if replace=False:
-        # - query using keys
-        # - remove present tuples from measurements and warn
-        # - save measurements to db using append
         else:
+            backup =  pd.read_sql(query.statement, self.db_conn)
             current = backup.copy()
             zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
             storable = data.merge(zw)
