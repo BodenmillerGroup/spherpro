@@ -140,12 +140,19 @@ class Filters(object):
         return self.session.connection()
 
 class Plotter(object):
-    DEFAULT_MEASUREMENT_TYPE = 'Intensity'
 
     def __init__(self, bro):
         self.bro = bro
         self.session = self.bro.data.main_session
         self.data = self.bro.data
+        # define the measurement indexes with defaults
+        # order is order expected by _get_measurement_filters
+        self.measure_idx =[ # idx_name, default
+            (db.KEY_OBJECTID, 'cell'),
+            (db.KEY_CHANNEL_NAME, None),
+            (db.KEY_STACKNAME, 'FullStack'),
+            (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
+            (db.KEY_MEASUREMENTTYPE, 'Intensity')]
 
 
     def plt_marker_scatterplot(self, measure_x, measure_y, image_ids=None, filter_name=None):
@@ -153,10 +160,12 @@ class Plotter(object):
         Generates a plot where markers are plotted against each other in a 2D
         scatterplot
         Args:
-            measure_x, measure_y: tuples defining the measurements
-            in the form:
-                (object_id, channel_name, stack_name,
-                measurement_name, measurement_type)
+            measure_x, measure_y: dict defining the selected measures:
+                {db.KEY_OBJECTID: object_id,
+                 db.KEY_CHANNEL_NAME: channel_name,
+                 db.KEY_STACKNAME: stack_name,
+                 db.KEY_MEASUREMENTNAME: measurement_name,
+                 db.KEY_MEASUREMENTTYPE: measurement_type}
         Returns:
             p:  the plot figure object
 
@@ -167,8 +176,10 @@ class Plotter(object):
         p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
-          gg.xlab(' - '.join(measure_x)) +
-          gg.ylab(' - '.join(measure_y)) +
+          gg.xlab(' - '.join([measure_x.get(o,d) for o, d in
+                              self.measure_idx])) +
+          gg.ylab(' - '.join([measure_y.get(o,d) for o, d in
+                              self.measure_idx])) +
           gg.scale_x_sqrt()+
           gg.scale_y_sqrt()
         )
@@ -178,7 +189,9 @@ class Plotter(object):
     def get_marker_scatterplot_data(self, measures, image_ids=None,
                                     filter_name=None):
 
-        filters = [self._get_measurement_filters(*[[m] for m in meas])
+
+        filters = [self._get_measurement_filters(*[[meas.get(o,d)] for o, d in
+                                                   self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
         if image_ids is not None:
