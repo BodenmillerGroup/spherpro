@@ -679,7 +679,7 @@ class DataStore(object):
         return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, query, table, replace=False):
+    def _add_generic_tuple(self, data, query, table, replace=False, backup=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -691,6 +691,9 @@ class DataStore(object):
                 best option: query for all keys!
             Sqlalchemy Table table: the table object to be added to
             bool replace: if existing tuples should be replaced
+            backup: only used if replace = True. Specifies whether a table
+                with the deleted tuples should be returned. Can speed up
+                operation
 
         Returns:
             Pandas.DataFrame containing the deleted tuples. These can be used
@@ -699,10 +702,12 @@ class DataStore(object):
 
         """
         data = data.reset_index(drop=True)
-        backup =  pd.read_sql(query.statement, self.db_conn)
         key_cols = [key.name for key in inspect(table).primary_key]
         if replace:
-
+            if backup:
+                backup =  pd.read_sql(query.statement, self.db_conn)
+            else:
+                backup = None
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
@@ -711,6 +716,7 @@ class DataStore(object):
 
             return backup, None
         else:
+            backup =  pd.read_sql(query.statement, self.db_conn)
             current = backup.copy()
             zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
             storable = data.merge(zw)
