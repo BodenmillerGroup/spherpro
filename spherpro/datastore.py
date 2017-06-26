@@ -701,9 +701,6 @@ class DataStore(object):
         data = data.reset_index(drop=True)
         backup =  pd.read_sql(query.statement, self.db_conn)
         key_cols = [key.name for key in inspect(table).primary_key]
-        # if replace=True:
-        # - delete all lines with index from measurements
-        # - save measurements to db using append
         if replace:
 
 
@@ -713,11 +710,6 @@ class DataStore(object):
                              name=table.__tablename__, index=False)
 
             return backup, None
-
-        # if replace=False:
-        # - query using keys
-        # - remove present tuples from measurements and warn
-        # - save measurements to db using append
         else:
             current = backup.copy()
             zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
