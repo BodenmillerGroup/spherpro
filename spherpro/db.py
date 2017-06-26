@@ -37,6 +37,15 @@ KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
 KEY_CONDITIONID = 'ConditionID'
+KEY_CONDITIONNAME = 'ConditionName'
+KEY_CONCENTRATIONNAME = 'Concentration'
+KEY_TIMEPOINT = 'TimePoint'
+KEY_BCPLATENAME = 'BCPlate'
+KEY_BC = 'BarCode'
+KEY_BCX = 'BCX'
+KEY_BCY = 'BCY'
+KEY_PLATEID = 'PlateID'
+
 KEY_SITENAME = 'SiteName'
 KEY_BCDEPTH = 'BCDepth'
 KEY_BCINVALID = 'BCInvalid'
@@ -120,13 +129,15 @@ def drop_all(conn):
 class Condition(Base):
     """docstring for Image."""
     __tablename__ = TABLE_CONDITION
-    ConditionID = Column(Integer(), primary_key=True)
-    Name = Column(String(200))
-    TimePoint = Column(Integer())
+    ConditionID = Column(String(200), primary_key=True)
+    ConditionName = Column(String(200))
+    TimePoint = Column(Float())
     BarCode = Column(String(200))
-    CoordPlate = Column(Integer())
-    CoordX = Column(Integer())
-    CoordY = Column(Integer())
+    Concentration = Column(Float())
+    PlateID = Column(Integer())
+    BCPlate = Column(Integer())
+    BCX = Column(Integer())
+    BCY = Column(String(200))
 
 class Site(Base):
     """docstring for Image."""
@@ -148,7 +159,7 @@ class Image(Base):
     __table_args__ = (
         ForeignKeyConstraint(
         [ConditionID],
-        [Condition.ConditionID),
+        [Condition.ConditionID]),
             {})
 
 class Masks(Base):

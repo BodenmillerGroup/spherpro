@@ -101,7 +101,7 @@ class DataStore(object):
         # self._readWellMeasurements()
         # self._read_cut_meta()
         # self._read_roi_meta()
-        self._read_measurement_data()
+        #self._read_measurement_data()
         self._read_stack_meta()
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
@@ -136,7 +136,10 @@ class DataStore(object):
         self.barcode_key = pd.read_csv(
             self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
         ).set_index(
-            self.conf[conf.BARCODE_CSV][conf.WELL_COL]
+            [
+                self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],
+                self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
+            ]
         )
 
     def _read_well_measurements(self):
@@ -223,6 +226,7 @@ class DataStore(object):
         self._write_measurement_table()
         self._write_object_relations_table()
         self._write_pannel_table()
+        self._write_condition_table()
 
     ##########################################
     #        Database Table Generation:      #
@@ -591,6 +595,51 @@ class DataStore(object):
             lambda x: float(re.findall(r"[-+]?\d*\.\d+|\d+", x)[0])
         )
         return csv_pannel
+
+    def _write_condition_table(self):
+        conditions = self._generate_condition_table()
+        query = self.main_session.query(db.Condition).filter(
+            db.Condition.ConditionID.in_(conditions[db.KEY_CONDITIONID].astype(str).unique())
+        )
+        self._add_generic_tuple(conditions, query, db.Condition)
+        
+    def _generate_condition_table(self):
+        barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
+        barcodes = barcodes.to_frame()
+        barcodes.columns = [db.KEY_BC]
+        IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
+        barcodes[db.KEY_CONDITIONID] = IDs
+        barcodes = barcodes.reset_index(drop=False)
+        data = barcodes.merge(
+            self.experiment_layout.reset_index(drop=False),
+            left_on=(self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
+            right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
+            how='left'
+        )
+        data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
+        data[db.KEY_BCX] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+
+
+
+
+
+        rename_dict = {c: target for c, target in [
+                (db.KEY_CONDITIONID,db.KEY_CONDITIONID),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME], db.KEY_CONDITIONNAME),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME], db.KEY_TIMEPOINT),
+                (db.KEY_BC,db.KEY_BC),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_CONCENTRATION_NAME],db.KEY_CONCENTRATIONNAME),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],db.KEY_BCPLATENAME),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_PLATE_NAME],db.KEY_PLATEID),
+                (db.KEY_BCX,db.KEY_BCX),
+                (db.KEY_BCY,db.KEY_BCY)
+            ]
+        }
+        cols = [c for c in rename_dict]
+        data = data[cols]
+        data = data.rename(columns=rename_dict)
+        return data
+
 
     #########################################################################
     #########################################################################
