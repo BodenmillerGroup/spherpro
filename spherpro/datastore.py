@@ -576,6 +576,10 @@ class DataStore(object):
         conf_pannel = self.conf[conf.PANNEL_CSV]
         col_map = {conf_pannel[c]: target for c, target in [
             (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
+<<<<<<< HEAD
+=======
+            #(conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
+>>>>>>> develop
             (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
             (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
             (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
