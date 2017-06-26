@@ -89,7 +89,6 @@ class Filters(object):
         col_measure = 'MeanIntensity'
         col_stack = 'BinStack'
         outcol_issphere = 'is-sphere'
-        outcol_isambiguous = 'is-ambiguous'
         non_zero_offset = 1/100000
         dat_filter = pd.read_sql(
                 (self.session
@@ -125,14 +124,13 @@ class Filters(object):
         dat_filter = dat_filter.reset_index(drop=False)
         dat_filter = dat_filter.loc[:,
                        self.bro.data._get_table_columnnames(db.TABLE_FILTERS)]
+        query = self.session.query(db.Filters).filter(db.Filters.FilterName ==
+                                                      outcol_issphere)
         table = self.bro.data._get_table_object(db.TABLE_FILTERS)
         self.bro.data._add_generic_tuple(dat_filter,
-                                         query=self.session.query(db.Filters).filter(
-                                             db.Filters.FilterName==outcol_issphere),
-                                         table=table, replace=True)
+        query=query, table=table, replace=True)
         return dat_filter
 
-    
     @property
     def _conn(self):
         return self.session.connection()
