@@ -12,6 +12,7 @@ import spherpro.library as lib
 import spherpro.db as db
 import spherpro.configuration as conf
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.inspection import inspect
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
@@ -100,6 +101,7 @@ class DataStore(object):
         # self._readWellMeasurements()
         # self._read_cut_meta()
         # self._read_roi_meta()
+        self._read_measurement_data()
         self._read_stack_meta()
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
@@ -232,21 +234,37 @@ class DataStore(object):
         RefStack and DerivedStack tables and writes them to the database
         """
 
+        # Modifications
         modifications = self._generate_modifications()
-        modifications.to_sql(con=self.db_conn, if_exists='append',
-                             name="Modification", index=False)
+        mod_query = self.main_session.query(db.Modification).filter(
+            db.Modification.ModificationName.in_(modifications[db.KEY_MODIFICATIONNAME].astype(str).unique())
+        )
+
+        self._add_generic_tuple(modifications, mod_query, db.Modification)
+
+        # RefStacks
         RefStack = self._generate_refstack()
-        RefStack.to_sql(con=self.db_conn, if_exists='append',
-                        name="RefStack", index=False)
+        refst_query = self.main_session.query(db.RefStack).filter(
+            db.RefStack.RefStackName.in_(RefStack[db.KEY_REFSTACKNAME].astype(str).unique())
+        )
+        self._add_generic_tuple(RefStack, refst_query, db.RefStack)
 
+        # Stacks
         Stack = self._generate_stack()
-        Stack.to_sql(con=self.db_conn, if_exists='append',
-                            name=db.TABLE_STACK, index=False)
+        st_query = self.main_session.query(db.Stack).filter(
+            db.Stack.StackName.in_(Stack[db.KEY_STACKNAME].astype(str).unique())
+        )
+        self._add_generic_tuple(Stack, st_query, db.Stack)
 
+        # StackModifications
         stackmodification = self._generate_stackmodification()
+        stmod_query = self.main_session.query(db.StackModification).filter(
+            db.StackModification.ModificationName.in_(modifications[db.KEY_MODIFICATIONNAME].astype(str).unique()),
+            db.StackModification.ParentName.in_(stackmodification[db.KEY_PARENTNAME].astype(str).unique()),
+            db.StackModification.ChildName.in_(stackmodification[db.KEY_CHILDNAME].astype(str).unique())
+        )
+        self._add_generic_tuple(stackmodification, stmod_query, db.StackModification)
 
-        stackmodification.to_sql(con=self.db_conn, if_exists='append',
-                                 name="StackModification", index=False)
 
 
 
@@ -335,18 +353,23 @@ class DataStore(object):
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_refplanemeta()
+        query = self.main_session.query(db.RefPlaneMeta).filter(
+            db.RefPlaneMeta.RefStackName.in_(planes[db.KEY_REFSTACKNAME].astype(str).unique()),
+            db.RefPlaneMeta.PlaneID.in_(planes[db.KEY_PLANEID].astype(str).unique())
+        )
+        self._add_generic_tuple(planes, query, db.RefPlaneMeta)
 
-        planes.to_sql(con=self.db_conn, if_exists='append',
-                      name=db.TABLE_REFPLANEMETA, index=False)
 
     def _write_planes_table(self):
         """
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_planemeta()
-
-        planes.to_sql(con=self.db_conn, if_exists='append',
-                      name=db.TABLE_PLANEMETA, index=False)
+        query = self.main_session.query(db.PlaneMeta).filter(
+            db.PlaneMeta.StackName.in_(planes[db.KEY_STACKNAME].astype(str).unique()),
+            db.PlaneMeta.PlaneID.in_(planes[db.KEY_PLANEID].astype(str).unique())
+        )
+        self._add_generic_tuple(planes, query, db.PlaneMeta)
 
     def _generate_refplanemeta(self):
 
@@ -397,7 +420,10 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        image.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_IMAGE, index=False)
+        query = self.main_session.query(db.Image).filter(
+            db.Image.ImageNumber.in_(image[db.KEY_IMAGENUMBER].astype(str).unique())
+        )
+        self._add_generic_tuple(image, query, db.Image)
 
     def _generate_image(self):
         """
@@ -412,8 +438,13 @@ class DataStore(object):
         Generates and save the cell table
         """
         objects = self._generate_objects()
-        objects.to_sql(con=self.db_conn, if_exists='append', name=db.TABLE_OBJECT,
-                     index=False)
+        query = self.main_session.query(db.Objects).filter(
+            db.Objects.ImageNumber.in_(objects[db.KEY_IMAGENUMBER].astype(str).unique()),
+            db.Objects.ObjectNumber.in_(objects[db.KEY_OBJECTNUMBER].astype(str).unique()),
+            db.Objects.ObjectID.in_(objects[db.KEY_OBJECTID].astype(str).unique())
+        )
+        self._add_generic_tuple(objects, query, db.Objects)
+
 
     def _generate_objects(self):
         """
@@ -437,14 +468,18 @@ class DataStore(object):
 
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        measurements.to_sql(con=self.db_conn, if_exists='append',
-                            name=db.TABLE_MEASUREMENT, chunksize=chunksize, index=False)
-        measurements_names.to_sql(con=self.db_conn, if_exists='append',
-                                  name=db.TABLE_MEASUREMENT_NAME,
-                                 index=False)
-        measurements_types.to_sql(con=self.db_conn, if_exists='append',
-                                     name=db.TABLE_MEASUREMENT_TYPE,
-                                  index=False)
+        self.add_measurements(measurements)
+
+        name_query = self.main_session.query(db.MeasurementName).filter(
+            db.MeasurementName.MeasurementName.in_(measurements_names[db.KEY_MEASUREMENTNAME].astype(str).unique())
+        )
+        self._add_generic_tuple(measurements_names, name_query, db.MeasurementName)
+
+        type_query = self.main_session.query(db.MeasurementType).filter(
+            db.MeasurementType.MeasurementType.in_(measurements_types[db.KEY_MEASUREMENTTYPE].astype(str).unique())
+        )
+        self._add_generic_tuple(measurements_types, type_query, db.MeasurementType)
+
         del self._measurement_csv
 
     def _generate_measurements(self):
@@ -494,8 +529,11 @@ class DataStore(object):
 
     def _write_masks_table(self):
         masks = self._generate_masks()
-        masks.to_sql(con=self.db_conn, if_exists='append',
-                                     name=db.TABLE_MASKS, index=False)
+        query = self.main_session.query(db.Masks).filter(
+            db.Masks.ObjectID.in_(masks[db.KEY_OBJECTID].astype(str).unique()),
+            db.Masks.ImageNumber.in_(masks[db.KEY_IMAGENUMBER].astype(str).unique())
+        )
+        self._add_generic_tuple(masks, query, db.Masks)
 
     def _generate_object_relations(self):
         conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
@@ -514,13 +552,24 @@ class DataStore(object):
 
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        relations.to_sql(con=self.db_conn, if_exists='append',
-                         name=db.TABLE_OBJECT_RELATIONS, index=False)
+        query = test.main_session.query(db.ObjectRelations).filter(
+            db.ObjectRelations.ImageNumberFrom.in_(relations[db.KEY_IMAGENUMBER_FROM].astype(str).unique()),
+            db.ObjectRelations.ObjectNumberFrom.in_(relations[db.KEY_OBJECTNUMBER_FROM].astype(str).unique()),
+            db.ObjectRelations.ObjectIDFrom.in_(relations[db.KEY_OBJECTID_FROM].astype(str).unique()),
+            db.ObjectRelations.ImageNumberTo.in_(relations[db.KEY_IMAGENUMBER_TO].astype(str).unique()),
+            db.ObjectRelations.ObjectNumberTo.in_(relations[db.KEY_OBJECTNUMBER_TO].astype(str).unique()),
+            db.ObjectRelations.ObjectIDTo.in_(relations[db.KEY_OBJECTID_TO].astype(str).unique()),
+            db.ObjectRelations.Relationship.in_(relations[db.KEY_RELATIONSHIP].astype(str).unique())
+        )
+        self._add_generic_tuple(relations, query, db.ObjectRelations)
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
-        pannel.to_sql(con=self.db_conn, if_exists='append',
-                         name=db.TABLE_PANNEL, index=False)
+        query = self.main_session.query(db.Pannel).filter(
+            db.Pannel.Metal.in_(pannel[db.PANNEL_KEY_METAL].astype(str).unique()),
+            db.Pannel.Target.in_(pannel[db.PANNEL_KEY_TARGET].astype(str).unique())
+        )
+        self._add_generic_tuple(pannel, query, db.Pannel)
     def _generate_pannel_table(self):
 
         csv_pannel = self.pannel
@@ -564,7 +613,8 @@ class DataStore(object):
         col_name = db.KEY_MEASUREMENTNAME,
         col_plane = db.KEY_PLANEID,
         col_stackname = db.KEY_STACKNAME,
-        col_value = db.KEY_VALUE
+        col_value = db.KEY_VALUE,
+        split = 100000
     ):
         """add_measurements
         This function allows to store new measurements to the database.
@@ -592,31 +642,44 @@ class DataStore(object):
             (col_stackname, db.KEY_STACKNAME),
             (col_value, db.KEY_VALUE)]}
 
-        measurements = measurements.rename(columns=col_map)
+        measurements_base = measurements.rename(columns=col_map)
+        finished = False
+        bak_t = un_t = measurements_base[0:0]
+        print("starting storing measurements...")
+        while not finished:
+            print("still need to store "+str(len(measurements_base))+" tuples!")
+            if len(measurements_base) > split:
+                measurements = measurements_base[:split]
+                measurements_base = measurements_base[split:]
+            else:
+                measurements = measurements_base
+                finished = True
 
-        images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
-        objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
-        object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
-        measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
-        measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
-        plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
-        stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
+            images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
+            objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
+            object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
+            measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
+            measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
+            plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
+            stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
 
-        query =  self.main_session.query(db.Measurement).filter(
-            db.Measurement.ImageNumber.in_(images),
-            db.Measurement.ObjectNumber.in_(objects),
-            db.Measurement.ObjectID.in_(object_id),
-            db.Measurement.MeasurementType.in_(measurement_type),
-            db.Measurement.MeasurementName.in_(measurement_name),
-            db.Measurement.PlaneID.in_(plane),
-            db.Measurement.StackName.in_(stack)
-        )
+            query =  self.main_session.query(db.Measurement).filter(
+                db.Measurement.ImageNumber.in_(images),
+                db.Measurement.ObjectNumber.in_(objects),
+                db.Measurement.ObjectID.in_(object_id),
+                db.Measurement.MeasurementType.in_(measurement_type),
+                db.Measurement.MeasurementName.in_(measurement_name),
+                db.Measurement.PlaneID.in_(plane),
+                db.Measurement.StackName.in_(stack)
+            )
 
-        (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
-        return (bak, un)
+            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
+            bak_t.append(bak)
+            un_t.append(un)
+        return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, query, table, replace=False):
+    def _add_generic_tuple(self, data, query, table, replace=False, backup=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -628,6 +691,9 @@ class DataStore(object):
                 best option: query for all keys!
             Sqlalchemy Table table: the table object to be added to
             bool replace: if existing tuples should be replaced
+            backup: only used if replace = True. Specifies whether a table
+                with the deleted tuples should be returned. Can speed up
+                operation
 
         Returns:
             Pandas.DataFrame containing the deleted tuples. These can be used
@@ -635,12 +701,13 @@ class DataStore(object):
             Pandas.DataFrame containing the unstored rows
 
         """
-        backup =  pd.read_sql(query.statement, self.db_conn)
-        # if replace=True:
-        # - delete all lines with index from measurements
-        # - save measurements to db using append
+        data = data.reset_index(drop=True)
+        key_cols = [key.name for key in inspect(table).primary_key]
         if replace:
-
+            if backup:
+                backup =  pd.read_sql(query.statement, self.db_conn)
+            else:
+                backup = None
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
@@ -648,24 +715,27 @@ class DataStore(object):
                              name=table.__tablename__, index=False)
 
             return backup, None
-
-        # if replace=False:
-        # - query using keys
-        # - remove present tuples from measurements and warn
-        # - save measurements to db using append
         else:
+            backup =  pd.read_sql(query.statement, self.db_conn)
             current = backup.copy()
-            del current[db.KEY_VALUE]
-            storable = data[~data.isin(current)].dropna()
+            zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
+            storable = data.merge(zw)
 
             lm, ls = len(data), len(storable)
             if lm != ls:
                 miss = lm - ls
-                warnings.warn('There were '+str(miss)+' columns that were not updated!', UserWarning)
+                stri = 'There were '
+                stri += str(miss)
+                stri += ' rows that were not updated in '
+                stri += table.__tablename__
+                stri += '! This does not mean that something went wrong, but '
+                stri += 'maybe you tried to readd some rows.'
+                warnings.warn(stri, UserWarning)
+
             storable.to_sql(con=self.db_conn, if_exists='append',
                              name=table.__tablename__, index=False)
 
-            unstored = data[~data.isin(storable)].dropna()
+            unstored = data.merge(zw, how='outer')
 
             return None, unstored
 
