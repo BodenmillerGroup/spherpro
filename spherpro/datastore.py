@@ -14,6 +14,7 @@ import spherpro.db as db
 import spherpro.configuration as conf
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
+import sqlalchemy as sa
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
@@ -971,7 +972,6 @@ class DataStore(object):
                                                 'DerivedStack.RefStackName'],
                                        clause_dict=clause_dict)
         query += ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
-        print(query)
         return pd.read_sql_query(query, con=self.db_conn)
 
 
@@ -1090,6 +1090,30 @@ class DataStore(object):
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
 
+    def get_measurement_query(self, session=None):
+        """
+        Returns a query object that queries table with the most important
+        information do identify a measurement
+        """
+        if session is None:
+            session = self.main_session
+        query = (session.query(db.RefPlaneMeta.ChannelName,
+                                    db.RefPlaneMeta.ChannelType,
+                                    db.Image.ImageNumber,
+                                   db.Objects.ObjectNumber,
+                                   db.Objects.ObjectID,
+                                   db.Measurement.MeasurementName,
+                                   db.Measurement.MeasurementType,
+                                   db.Measurement.Value,
+                                   db.Measurement.PlaneID)
+            .join(db.PlaneMeta)
+            .join(db.Measurement)
+            .join(db.Objects)
+            .join(db.Image)
+                )
+        return query
+
+
     def _get_table_object(self, name):
         return getattr(db, name)
 
@@ -1108,6 +1132,7 @@ class DataStore(object):
     def _get_table_keynames(self, table_name):
         tab = self._get_table_object(table_name)
         return tab.__table__.primary_key.column.keys()
+
     #Properties:
     @property
     def pannel(self):
