@@ -23,7 +23,7 @@ class PlotScatter(plot_base.BasePlot):
             (db.KEY_MEASUREMENTTYPE, 'Intensity')]
 
 
-    def plot_bin2d(self, measure_x, measure_y, image_ids=None, filter_name=None):
+    def plot_bin2d(self, measure_x, measure_y, image_ids=None, filters=None):
         """
         Generates a plot where markers are plotted against each other in a 2D
         scatterplot
@@ -40,7 +40,7 @@ class PlotScatter(plot_base.BasePlot):
         """
         dat = self.get_marker_data([measure_x, measure_y],
                                                image_ids=image_ids,
-                                               filter_name=filter_name)
+                                               filters=filters)
         p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
@@ -54,7 +54,7 @@ class PlotScatter(plot_base.BasePlot):
         return p
 
 
-    def plot_points(self, measure_x, measure_y, image_ids=None, filter_name=None):
+    def plot_points(self, measure_x, measure_y, image_ids=None, filters=None):
         """
         Generates a plot where markers are plotted against each other in a 2D
         scatterplot
@@ -65,13 +65,16 @@ class PlotScatter(plot_base.BasePlot):
                  db.KEY_STACKNAME: stack_name,
                  db.KEY_MEASUREMENTNAME: measurement_name,
                  db.KEY_MEASUREMENTTYPE: measurement_type}
+            image_ids: image ids to plot
+            filters: list of filter tuples [('filtername1', True),
+            ('filtername2', False)] 
         Returns:
             p:  the plot figure object
 
         """
         dat = self.get_marker_data([measure_x, measure_y],
                                                image_ids=image_ids,
-                                               filter_name=filter_name)
+                                               filters=filters)
         p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
           gg.geom_point()+
           gg.geom_smooth(method='lm') +
@@ -85,21 +88,24 @@ class PlotScatter(plot_base.BasePlot):
         return p
 
     def get_marker_data(self, measures, image_ids=None,
-                                    filter_name=None):
+                                    filters=None):
 
 
-        filters = [self._get_measurement_filters(*[[meas.get(o,d)] for o, d in
+        filters_measurement = [self._get_measurement_filters(*[[meas.get(o,d)] for o, d in
                                                    self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
         if image_ids is not None:
             query = query.filter(db.Image.ImageNumber.in_(image_ids))
-        if filter_name is not None:
-            query = (query.filter(sa.and_(db.Filters.FilterName == filter_name,
-                                         db.Filters.FilterValue == True))
-                     .join(db.Filters))
+        if filters is not None:
+            for filtername, filtervalue in filters:
+                query = (query.filter(sa.and_(db.Filters.FilterName == filtername,
+                                         db.Filters.FilterValue ==
+                                          filtervalue)))
+            query = query.join(db.Filters)
 
-        query_joins = self._get_joined_filtered_queries(query, filters)
+        query_joins = self._get_joined_filtered_queries(query,
+                                                        filters_measurement)
         dat = pd.read_sql(query_joins.statement, self.data.db_conn)
         return dat
 
