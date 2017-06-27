@@ -220,9 +220,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
-        print('masks')
         self._write_masks_table()
-        print('image')
         self._write_image_table()
         self._write_objects_table()
         self._write_stack_tables()
@@ -499,7 +497,16 @@ class DataStore(object):
         dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
         dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
         dat_mask = dat_mask.reset_index(drop=True)
-        return dat_mask
+        mask_regexp = cpconf[conf.IMAGES_CSV][conf.MASK_REGEXP]
+        if mask_regexp is not None:
+            (dat_mask[db.KEY_CROPID], dat_mask[db.KEY_POSX],
+            dat_mask[db.KEY_POSY]) = \
+            zip(*dat_mask[db.KEY_FILENAME].map(lambda x:
+                                               [re.match(mask_regexp, x).groupdict()
+                                               .get(col, None) for col in
+                                                [db.KEY_CROPID, db.KEY_POSX,
+                                                 db.KEY_POSY]]))
+            return dat_mask
 
     def _write_masks_table(self):
         masks = self._generate_masks()

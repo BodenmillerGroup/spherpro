@@ -1,6 +1,7 @@
 import yaml
 import collections
 import copy
+import spherpro.db as db
 
 """
 This module defines the configuration file structure,
@@ -55,6 +56,7 @@ IMAGENUMBER_TO = 'second_image_number_col'
 IMAGENUMBER = 'image_number_col'
 SCALING_PREFIX = 'scaling_prefix'
 OBJECTNUMBER = 'object_number_col'
+MASK_REGEXP = 'mask_regexp'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -69,7 +71,6 @@ LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
 
 BC_CSV_PLATE_NAME = 'plate_col'
 BC_CSV_WELL_NAME = 'well_col'
-
 
 PANEL_CSV_CHANNEL_NAME = 'channel_name'
 PANEL_CSV_DISPLAY_NAME = 'display_name'
@@ -142,7 +143,10 @@ default_dict = {
         IMAGES_CSV: {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
-            SCALING_PREFIX: 'Scaling_'
+            SCALING_PREFIX: 'Scaling_',
+            MASK_REGEXP: '.*_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'.format(db.KEY_CROPID,
+                                                                db.KEY_POSX,
+                                                                db.KEY_POSY)
         }
     },
     PANNEL_CSV: {
