@@ -576,7 +576,6 @@ class DataStore(object):
         conf_pannel = self.conf[conf.PANNEL_CSV]
         col_map = {conf_pannel[c]: target for c, target in [
             (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
-            #(conf.PANEL_CSV_DISPLAY_NAME, db.PANNEL_KEY_TARGET),
             (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
             (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
             (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
@@ -1015,6 +1014,13 @@ class DataStore(object):
         col = self._get_column_from_table(tab, col_name)
         return col
 
+    def _get_table_columnnames(self, table_name):
+        tab = self._get_table_object(table_name)
+        return tab.__table__.columns.keys()
+
+    def _get_table_keynames(self, table_name):
+        tab = self._get_table_object(table_name)
+        return tab.__table__.primary_key.column.keys()
     #Properties:
     @property
     def pannel(self):
