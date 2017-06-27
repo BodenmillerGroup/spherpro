@@ -7,7 +7,6 @@ import os
 import re
 import warnings
 from odo import odo
-from odo import drop
 
 import spherpro as spp
 import spherpro.library as lib
@@ -121,28 +120,31 @@ class DataStore(object):
         reads the experiment layout as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
-        self.experiment_layout = pd.read_csv(
-            self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
-        ).set_index(
-            [self.conf[conf.LAYOUT_CSV][conf.PLATE],
-             self.conf[conf.LAYOUT_CSV][conf.CONDITION]]
-        )
+        if self.conf[conf.LAYOUT_CSV][conf.PATH] is not None:
+            sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
+            self.experiment_layout = pd.read_csv(
+                self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
+            )
+        else:
+            self.experiment_layout = None
 
     def _read_barcode_key(self):
         """
         reads the barcode key as stated in the config
         and saves it in the datastore
         """
-        sep = self.conf[conf.BARCODE_CSV][conf.SEP]
-        self.barcode_key = pd.read_csv(
-            self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
-        ).set_index(
-            [
-                self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],
-                self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
-            ]
-        )
+        if self.conf[conf.BARCODE_CSV][conf.PATH] is not None:
+            sep = self.conf[conf.BARCODE_CSV][conf.SEP]
+            self.barcode_key = pd.read_csv(
+                self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
+            ).set_index(
+                [
+                    self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],
+                    self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
+                ]
+            )
+        else:
+            self.barcode_key = None
 
     def _read_well_measurements(self):
         """
@@ -548,31 +550,11 @@ class DataStore(object):
 
     def _write_condition_table(self):
         conditions = self._generate_condition_table()
-        query = self.main_session.query(db.Condition).filter(
-            db.Condition.ConditionID.in_(conditions[db.KEY_CONDITIONID].astype(str).unique())
-        )
-        self._add_generic_tuple(conditions, query, db.Condition, replace=True)
+        if conditions is not None:
+            self._bulkinsert(conditions, db.Condition)
+
 
     def _generate_condition_table(self):
-        barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
-        barcodes = barcodes.to_frame()
-        barcodes.columns = [db.KEY_BC]
-        IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-        barcodes[db.KEY_CONDITIONID] = IDs
-        barcodes = barcodes.reset_index(drop=False)
-        data = barcodes.merge(
-            self.experiment_layout.reset_index(drop=False),
-            left_on=(self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
-            right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
-            how='left'
-        )
-        data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
-        data[db.KEY_BCX] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
-
-
-
-
-
         rename_dict = {c: target for c, target in [
                 (db.KEY_CONDITIONID,db.KEY_CONDITIONID),
                 (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME], db.KEY_CONDITIONNAME),
@@ -585,10 +567,50 @@ class DataStore(object):
                 (db.KEY_BCY,db.KEY_BCY)
             ]
         }
+        del rename_dict[None]
         cols = [c for c in rename_dict]
-        data = data[cols]
-        data = data.rename(columns=rename_dict)
-        return data
+        outcols = [rename_dict[c] for c in rename_dict]
+        if self.barcode_key is not None:
+            if self.experiment_layout is not None:
+                barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
+                barcodes = barcodes.to_frame()
+                barcodes.columns = [db.KEY_BC]
+                IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
+                barcodes[db.KEY_CONDITIONID] = IDs
+                barcodes = barcodes.reset_index(drop=False)
+                data = barcodes.merge(
+                    self.experiment_layout.reset_index(drop=False),
+                    left_on=(self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
+                    right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
+                    how='left'
+                )
+                data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
+                data[db.KEY_BCX] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+
+                data = data[cols]
+                data = data.rename(columns=rename_dict)
+                if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME] is None:
+                    data[db.KEY_TIMEPOINT] = 0.0
+                if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME] is None:
+                    data[db.KEY_CONDITIONNAME] = 'default'
+                return data
+            else:
+                barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
+                barcodes = barcodes.to_frame()
+                barcodes.columns = [db.KEY_BC]
+                IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
+                barcodes[db.KEY_CONDITIONID] = IDs
+                barcodes = barcodes.reset_index(drop=False)
+
+                barcodes = lib.fill_null(barcodes, db.Condition)
+                barcodes[db.KEY_BCY] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
+                barcodes[db.KEY_BCX] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+                barcodes[db.KEY_BCPLATENAME] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
+                return barcodes[outcols]
+        else:
+            return None
+
+
 
 
     #########################################################################
@@ -623,7 +645,9 @@ class DataStore(object):
 
         dbtable = str(self.db_conn.url)+'::'+table.__table__.name
         if drop:
-            drop(dbtable)
+            session = self.main_session
+            session.query(table).delete()
+            session.commit()
 
         data_cols = data.columns
         table_cols = table.__table__.columns.keys()

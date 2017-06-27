@@ -65,7 +65,7 @@ LAYOUT_CSV_COND_NAME = 'condition_col'
 LAYOUT_CSV_CONTROL_NAME = 'control_col'
 LAYOUT_CSV_TIMEPOINT_NAME = 'timepoint_col'
 LAYOUT_CSV_BC_PLATE_NAME = 'bc_plate_col'
-LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_name'
+LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
 
 BC_CSV_PLATE_NAME = 'plate_col'
 BC_CSV_WELL_NAME = 'well_col'
@@ -104,19 +104,21 @@ default_dict = {
     },
 
     LAYOUT_CSV: {
-    LAYOUT_CSV_PLATE_NAME: 'Plate',
+    PATH: None,
+    LAYOUT_CSV_PLATE_NAME: 'plate',
     LAYOUT_CSV_BC_PLATE_NAME: 'bc_plate',
     LAYOUT_CSV_WELL_NAME: 'TargetWell',
-    LAYOUT_CSV_COND_NAME: 'Compound',
-    LAYOUT_CSV_CONTROL_NAME: None,
+    LAYOUT_CSV_COND_NAME: None,
+    LAYOUT_CSV_CONTROL_NAME: 'control',
     LAYOUT_CSV_TIMEPOINT_NAME: None,
-    LAYOUT_CSV_CONCENTRATION_NAME: 'Final Concentration / Dilution',
+    LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
     SEP: ','
     },
 
     BACKEND: CON_MYSQL,
 
     BARCODE_CSV: {
+        PATH: None,
         BC_CSV_PLATE_NAME: 'Plate',
         BC_CSV_WELL_NAME: 'Well',
         SEP: ','
