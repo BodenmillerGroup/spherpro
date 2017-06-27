@@ -61,7 +61,7 @@ class FilterMeasurements(filter_base.BaseFilter):
             filter_statement: can be used in a filter operation
                 fitlers on the keys: ObjectID, ImageNumber and ObjectNumber
         """
-        filters = [self.get_filter_query(m, l, t) for m, l, t in query_triplets]
+        filters = [self.get_filter_statement(m, l, t) for m, l, t in query_triplets]
         meas_query = self.data.get_measurement_query()
         subquerys = [meas_query.filter(fil).subquery() for i, fil in
                      enumerate(filters)]
