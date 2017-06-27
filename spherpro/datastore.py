@@ -565,9 +565,9 @@ class DataStore(object):
                 (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_PLATE_NAME],db.KEY_PLATEID),
                 (db.KEY_BCX,db.KEY_BCX),
                 (db.KEY_BCY,db.KEY_BCY)
-            ]
+            ] if target is not None
         }
-        del rename_dict[None]
+        
         cols = [c for c in rename_dict]
         outcols = [rename_dict[c] for c in rename_dict]
         if self.barcode_key is not None:
@@ -582,8 +582,10 @@ class DataStore(object):
                                  self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME]})
                 data = barcodes.merge(
                     self.experiment_layout.reset_index(drop=False),
-                    left_on=(self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
-                    right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
+                    left_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
+                             self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
+                    right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
+                              self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
                     how='left'
                 )
                 data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
