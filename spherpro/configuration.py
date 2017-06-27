@@ -55,6 +55,10 @@ IMAGENUMBER_TO = 'second_image_number_col'
 IMAGENUMBER = 'image_number_col'
 SCALING_PREFIX = 'scaling_prefix'
 OBJECTNUMBER = 'object_number_col'
+META = 'meta'
+RE_SITE = 're_meta'
+GROUP_SITE = 'group_site'
+FILENAME_COL = 'filename_col'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -143,7 +147,12 @@ default_dict = {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
             SCALING_PREFIX: 'Scaling_'
+        },
+        META: {
+            RE_SITE: None,
+            GROUP_SITE: 'site'
         }
+
     },
     PANNEL_CSV: {
         SEP: ',',
