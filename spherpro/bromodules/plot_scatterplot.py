@@ -13,6 +13,9 @@ import plotnine as gg
 class PlotScatter(plot_base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
+        # make the dependency explicit
+
+        self.filter_measurements = self.bro.filters.measurements
         # define the measurement indexes with defaults
         # order is order expected by _get_measurement_filters
         self.measure_idx =[ # idx_name, default
@@ -91,7 +94,7 @@ class PlotScatter(plot_base.BasePlot):
                                     filters=None):
 
 
-        filters_measurement = [self.bro.filters.measurements.get_measurement_filter_statements(*[[meas.get(o,d)] for o, d in
+        filters_measurement = [self.filter_measurements.get_measurement_filter_statements(*[[meas.get(o,d)] for o, d in
                                                    self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
