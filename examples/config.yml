@@ -43,16 +43,20 @@ re_meta: "site(?P<site>[a-zA-Z0-9]+)_.*_l(?P<cutid>[0-9]+)_x(?P<x>[0-9]+)_y(?P<y
 layout_csv:
   path: '/home/mleutenegger/Code/20170324_spherpro_testing/testlayout.csv'
   plate_col: 'Plate'
+  bc_plate_col: 'BCPlate'
   well_col: 'TargetWell'
   condition_col: 'Compound'
+  #timepoint_col: 'Timepoint'
   control_col: 'isControl'
+  concentration_col: 'Final Concentration / Dilution'
 
 
 # Barcode Info:
 barcode_csv:
-  path: '/home/vitoz/Data/60-wellplate_102-104-105-106-108-110-Pd_113-115-In_BarcodingKey.csv'
-  well_col: 'Mass'
-  sep: ';'
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/60-wellplate_102-104-105-106-108-110-Pd_113-115-In_BarcodingKey_reformated.csv'
+  plate_col: 'plate'
+  well_col: 'well'
+  sep: ','
 
 # wells_csv:
   # path: ''

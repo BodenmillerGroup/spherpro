@@ -59,13 +59,24 @@ OBJECTNUMBER = 'object_number_col'
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
 
+LAYOUT_CSV_PLATE_NAME = 'plate_col'
+LAYOUT_CSV_WELL_NAME = 'well_col'
+LAYOUT_CSV_COND_NAME = 'condition_col'
+LAYOUT_CSV_CONTROL_NAME = 'control_col'
+LAYOUT_CSV_TIMEPOINT_NAME = 'timepoint_col'
+LAYOUT_CSV_BC_PLATE_NAME = 'bc_plate_col'
+LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
 
-PANEL_CSV_CHANNEL_NAME = 'channel_name',
-PANEL_CSV_DISPLAY_NAME = 'display_name',
-PANEL_CSV_ILASTIK_NAME = 'ilastik_name',
-PANEL_CSV_BARCODE_NAME = 'barcode_name',
-PANEL_CSV_CLONE_NAME = 'clone_name',
-PANEL_CSV_CONCENTRATION_NAME = 'concentration_name',
+BC_CSV_PLATE_NAME = 'plate_col'
+BC_CSV_WELL_NAME = 'well_col'
+
+
+PANEL_CSV_CHANNEL_NAME = 'channel_name'
+PANEL_CSV_DISPLAY_NAME = 'display_name'
+PANEL_CSV_ILASTIK_NAME = 'ilastik_name'
+PANEL_CSV_BARCODE_NAME = 'barcode_name'
+PANEL_CSV_CLONE_NAME = 'clone_name'
+PANEL_CSV_CONCENTRATION_NAME = 'concentration_name'
 PANEL_CSV_TUBE_NAME = 'tube_name'
 PANEL_CSV_TARGET_NAME = 'target'
 
@@ -93,12 +104,23 @@ default_dict = {
     },
 
     LAYOUT_CSV: {
+    PATH: None,
+    LAYOUT_CSV_PLATE_NAME: 'plate',
+    LAYOUT_CSV_BC_PLATE_NAME: 'bc_plate',
+    LAYOUT_CSV_WELL_NAME: 'TargetWell',
+    LAYOUT_CSV_COND_NAME: None,
+    LAYOUT_CSV_CONTROL_NAME: 'control',
+    LAYOUT_CSV_TIMEPOINT_NAME: None,
+    LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
     SEP: ','
     },
 
     BACKEND: CON_MYSQL,
 
     BARCODE_CSV: {
+        PATH: None,
+        BC_CSV_PLATE_NAME: 'Plate',
+        BC_CSV_WELL_NAME: 'Well',
         SEP: ','
     },
 

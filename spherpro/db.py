@@ -36,8 +36,30 @@ KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
+
 KEY_FILTERNAME = 'FilterName'
 KEY_FILTERVALUE = 'FilterValue'
+
+KEY_CONDITIONID = 'ConditionID'
+KEY_CONDITIONNAME = 'ConditionName'
+KEY_CONCENTRATIONNAME = 'Concentration'
+KEY_TIMEPOINT = 'TimePoint'
+KEY_BCPLATENAME = 'BCPlate'
+KEY_BC = 'BarCode'
+KEY_BCX = 'BCX'
+KEY_BCY = 'BCY'
+KEY_PLATEID = 'PlateID'
+
+KEY_SITENAME = 'SiteName'
+KEY_BCDEPTH = 'BCDepth'
+KEY_BCINVALID = 'BCInvalid'
+KEY_BCVALID = 'BCValid'
+KEY_BCHIGHESTCOUNT = 'BCHighestCount'
+KEY_BCSECONDCOUNT = 'BCSecondCount'
+
+
+TABLE_CONDITION = 'Condition'
+TABLE_SITE = 'Site'
 
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_FILTERS = 'Filters'
@@ -109,11 +131,41 @@ def drop_all(conn):
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################
+class Condition(Base):
+    """docstring for Image."""
+    __tablename__ = TABLE_CONDITION
+    ConditionID = Column(String(200), primary_key=True)
+    ConditionName = Column(String(200), server_default='default')
+    TimePoint = Column(Float(), server_default="0")
+    BarCode = Column(String(200))
+    Concentration = Column(Float())
+    PlateID = Column(Integer())
+    BCPlate = Column(Integer())
+    BCX = Column(Integer())
+    BCY = Column(String(200))
+
+class Site(Base):
+    """docstring for Image."""
+    __tablename__ = TABLE_SITE
+    SiteName = Column(String(200), primary_key=True)
+
+
 
 class Image(Base):
     """docstring for Image."""
     __tablename__ = TABLE_IMAGE
     ImageNumber = Column(Integer(), primary_key=True)
+    BCDepth = Column(Float())
+    BCInvalid = Column(Integer())
+    BCValid = Column(Integer())
+    BCHighestCount = Column(Integer())
+    BCSecondCount = Column(Integer())
+    ConditionID = Column(String(200))
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [ConditionID],
+        [Condition.ConditionID]),
+            {})
 
 class Masks(Base):
     """ a table describing the masks."""
