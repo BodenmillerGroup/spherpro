@@ -91,7 +91,7 @@ class PlotScatter(plot_base.BasePlot):
                                     filters=None):
 
 
-        filters_measurement = [self._get_measurement_filters(*[[meas.get(o,d)] for o, d in
+        filters_measurement = [self.bro.filters.measurements.get_measurement_filter_statements(*[[meas.get(o,d)] for o, d in
                                                    self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
@@ -139,37 +139,6 @@ class PlotScatter(plot_base.BasePlot):
         query_joins = query_joins.with_labels()
         return query_joins
 
-
-    def _get_measurement_filters(self, object_ids, channel_names, stack_names, measurement_names, measurement_types):
-        """
-        Generates a filter expression to query for multiple channels, defined as channel_names,
-        stack_names, measurement names and measurement types.
-
-        Input:
-            object_ids: list of object_ids
-            channel_names: list of channel names
-            stack_names: list of stack_names
-            measurement_names: list of measurement_names
-            measurement_types: list of measurement measurement_types
-        Returns:
-            A dataframes with the selected measurements
-        """
-        constraint_columns = [
-                              (db.TABLE_OBJECT, db.KEY_OBJECTID),
-                              (db.TABLE_REFPLANEMETA, db.KEY_CHANNEL_NAME),
-                              (db.TABLE_PLANEMETA, db.KEY_STACKNAME),
-                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTNAME),
-                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTTYPE)]
-        constraint_columns = [self.data._get_table_column(t, c) for t, c in
-                              constraint_columns]
-
-        constraints = [sa.and_(*[c == v for c, v in zip(constraint_columns,
-                                                        values)])
-                       for values in zip(object_ids, channel_names, stack_names, measurement_names,
-                       measurement_types)]
-        measure_filter = sa.or_(*constraints)
-        return measure_filter
-
     def _get_measurement_data(self, filters):
         """
         Retrieves filtered measurement data
@@ -182,18 +151,5 @@ class PlotScatter(plot_base.BasePlot):
         return dat
 
     def _get_measurement_query(self):
-        query = (self.session.query(db.RefPlaneMeta.ChannelName,
-                                    db.RefPlaneMeta.ChannelType,
-                                    db.Image.ImageNumber,
-                                   db.Objects.ObjectNumber,
-                                   db.Objects.ObjectID,
-                                   db.Measurement.MeasurementName,
-                                   db.Measurement.MeasurementType,
-                                   db.Measurement.Value,
-                                   db.Measurement.PlaneID)
-            .join(db.PlaneMeta)
-            .join(db.Measurement)
-            .join(db.Objects)
-            .join(db.Image)
-                )
+        query = self.data.get_measurement_query(session=self.session)
         return query

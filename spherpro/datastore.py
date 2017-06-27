@@ -14,6 +14,7 @@ import spherpro.db as db
 import spherpro.configuration as conf
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
+import sqlalchemy as sa
 
 DICT_DB_KEYS = {
     'image_number': db.KEY_IMAGENUMBER,
@@ -220,9 +221,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
-        print('masks')
         self._write_masks_table()
-        print('image')
         self._write_image_table()
         self._write_objects_table()
         self._write_stack_tables()
@@ -400,6 +399,30 @@ class DataStore(object):
         planes = planes.loc[:,[db.KEY_STACKNAME, db.KEY_REFSTACKNAME, db.KEY_PLANEID]]
         return planes
 
+    def _write_site_table(self):
+        (table,links) = self._generate_site()
+        self._bulkinsert(table, db.Site)
+        session = self.main_session
+        for image in links.iterrows():
+            img = image[1]
+            session.query(db.Image).\
+                filter(db.Image.ImageNumber == img[db.KEY_IMAGENUMBER]).\
+                update({db.KEY_SITENAME: img[db.KEY_SITENAME]})
+        session.commit()
+
+    def _generate_site(self):
+        """
+        generates the Site Table and a dataframe linking ImageNumber to site
+        """
+        names = self._generate_masks()
+        rege = re.compile(self.conf[conf.CPOUTPUT][conf.META][conf.RE_SITE])
+        names[db.KEY_SITENAME] = names[db.KEY_FILENAME].apply(lambda x: rege.match(x).group(self.conf[conf.CPOUTPUT][conf.META][conf.GROUP_SITE]))
+
+        links = names[[db.KEY_IMAGENUMBER, db.KEY_SITENAME]]
+        table = names[db.KEY_SITENAME].drop_duplicates().to_frame()
+        return table, links
+
+
     def _write_image_table(self):
         """
         Generates the Image
@@ -499,7 +522,16 @@ class DataStore(object):
         dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
         dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
         dat_mask = dat_mask.reset_index(drop=True)
-        return dat_mask
+        mask_regexp = cpconf[conf.IMAGES_CSV][conf.MASK_REGEXP]
+        if mask_regexp is not None:
+            (dat_mask[db.KEY_CROPID], dat_mask[db.KEY_POSX],
+            dat_mask[db.KEY_POSY]) = \
+            zip(*dat_mask[db.KEY_FILENAME].map(lambda x:
+                                               [re.match(mask_regexp, x).groupdict()
+                                               .get(col, None) for col in
+                                                [db.KEY_CROPID, db.KEY_POSX,
+                                                 db.KEY_POSY]]))
+            return dat_mask
 
     def _write_masks_table(self):
         masks = self._generate_masks()
@@ -940,7 +972,6 @@ class DataStore(object):
                                                 'DerivedStack.RefStackName'],
                                        clause_dict=clause_dict)
         query += ' LEFT JOIN DerivedStack ON Stack.StackName = DerivedStack.RefStackName'
-        print(query)
         return pd.read_sql_query(query, con=self.db_conn)
 
 
@@ -1059,6 +1090,30 @@ class DataStore(object):
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
 
+    def get_measurement_query(self, session=None):
+        """
+        Returns a query object that queries table with the most important
+        information do identify a measurement
+        """
+        if session is None:
+            session = self.main_session
+        query = (session.query(db.RefPlaneMeta.ChannelName,
+                                    db.RefPlaneMeta.ChannelType,
+                                    db.Image.ImageNumber,
+                                   db.Objects.ObjectNumber,
+                                   db.Objects.ObjectID,
+                                   db.Measurement.MeasurementName,
+                                   db.Measurement.MeasurementType,
+                                   db.Measurement.Value,
+                                   db.Measurement.PlaneID)
+            .join(db.PlaneMeta)
+            .join(db.Measurement)
+            .join(db.Objects)
+            .join(db.Image)
+                )
+        return query
+
+
     def _get_table_object(self, name):
         return getattr(db, name)
 
@@ -1077,6 +1132,7 @@ class DataStore(object):
     def _get_table_keynames(self, table_name):
         tab = self._get_table_object(table_name)
         return tab.__table__.primary_key.column.keys()
+
     #Properties:
     @property
     def pannel(self):

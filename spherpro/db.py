@@ -36,6 +36,10 @@ KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
+KEY_CROPID = 'CropID'
+KEY_POSX = 'PosX'
+KEY_POSY = 'PosY'
+
 
 KEY_FILTERNAME = 'FilterName'
 KEY_FILTERVALUE = 'FilterValue'
@@ -161,10 +165,14 @@ class Image(Base):
     BCHighestCount = Column(Integer())
     BCSecondCount = Column(Integer())
     ConditionID = Column(String(200))
+    SiteName = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
         [ConditionID],
         [Condition.ConditionID]),
+        ForeignKeyConstraint(
+        [SiteName],
+        [Site.SiteName]),
             {})
 
 class Masks(Base):
@@ -173,6 +181,9 @@ class Masks(Base):
     ObjectID = Column(String(200),
                        primary_key=True)
     ImageNumber = Column(Integer(),  primary_key=True)
+    PosX = Column(Integer())
+    PosY = Column(Integer())
+    CropID = Column(Integer())
     FileName = Column(String(200))
 
 class Objects(Base):

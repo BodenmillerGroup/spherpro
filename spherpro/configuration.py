@@ -1,6 +1,7 @@
 import yaml
 import collections
 import copy
+import spherpro.db as db
 
 """
 This module defines the configuration file structure,
@@ -12,49 +13,54 @@ defaults, required files, loading as well as validation functions.
 """
 List of keywords fields used in the configuration file
 """
-PANEL_CSV = 'pannel_csv'
 BACKEND = 'backend'
 BARCODE_CSV = 'barcode_csv'
+CHANNEL_NAME = 'channel_name_col'
+CHANNEL_TYPE = 'channel_type'
+CHANNEL_TYPE_DEFAULT = 'IMC'
 CONDITION = 'condition_col'
+CPOUTPUT = 'cpoutput'
+CP_DIR = 'cp_dir'
+DISPLAY_NAME = 'display_name_col'
+FILENAME_COL = 'filename_col'
+FILETYPE = 'filetype'
+GROUP_SITE = 'group_site'
 ID = 'id_col'
+IMAGENUMBER = 'image_number_col'
+IMAGENUMBER_FROM = 'first_image_number_col'
+IMAGENUMBER_TO = 'second_image_number_col'
+IMAGES_CSV = 'images_csv'
 LAYOUT_CSV = 'layout_csv'
+MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
+MASK_REGEXP = 'mask_regexp'
+MEASUREMENT_CSV = 'measurement_csv'
+META = 'meta'
 MODNAME = 'modname_col'
 MODPRE = 'modpre_col'
 NAME = 'name_col'
+OBJECTID_FROM = 'first_object_id_col'
+OBJECTID_TO = 'second_object_id_col'
+OBJECTNUMBER = 'object_number_col'
+OBJECTNUMBER_FROM = 'first_object_number_col'
+OBJECTNUMBER_TO = 'second_object_number_col'
+OBJECTS = 'objects'
+PANEL_CSV = 'pannel_csv'
+PANNEL_CSV = 'pannel_csv'
+PANNEL_ID = 'pannel_id'
 PARENT = 'parent_col'
 PATH = 'path'
 PLATE = 'plate_col'
 REF = 'ref_col'
+RELATIONSHIP = 'relationship'
+RELATION_CSV = 'relation_csv'
+RE_SITE = 're_meta'
+SCALING_PREFIX = 'scaling_prefix'
 SEP = 'sep'
 STACK = 'stack_col'
 STACK_DIR = 'stack_dir'
 STACK_RELATIONS = 'stack_relations'
 TYPE = 'type_col'
 WELL_COL = 'well_col'
-CPOUTPUT = 'cpoutput'
-MEASUREMENT_CSV = 'measurement_csv'
-IMAGES_CSV = 'images_csv'
-RELATION_CSV = 'relation_csv'
-CP_DIR = 'cp_dir'
-PANNEL_CSV = 'pannel_csv'
-CHANNEL_NAME = 'channel_name_col'
-DISPLAY_NAME = 'display_name_col'
-PANNEL_ID = 'pannel_id'
-CHANNEL_TYPE = 'channel_type'
-CHANNEL_TYPE_DEFAULT = 'IMC'
-OBJECTS = 'objects'
-FILETYPE = 'filetype'
-MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
-RELATIONSHIP = 'relationship'
-OBJECTID_FROM = 'first_object_id_col'
-OBJECTID_TO = 'second_object_id_col'
-OBJECTNUMBER_FROM = 'first_object_number_col'
-OBJECTNUMBER_TO = 'second_object_number_col'
-IMAGENUMBER_FROM = 'first_image_number_col'
-IMAGENUMBER_TO = 'second_image_number_col'
-IMAGENUMBER = 'image_number_col'
-SCALING_PREFIX = 'scaling_prefix'
-OBJECTNUMBER = 'object_number_col'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -69,7 +75,6 @@ LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
 
 BC_CSV_PLATE_NAME = 'plate_col'
 BC_CSV_WELL_NAME = 'well_col'
-
 
 PANEL_CSV_CHANNEL_NAME = 'channel_name'
 PANEL_CSV_DISPLAY_NAME = 'display_name'
@@ -142,8 +147,14 @@ default_dict = {
         IMAGES_CSV: {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
-            SCALING_PREFIX: 'Scaling_'
+            SCALING_PREFIX: 'Scaling_',
+            MASK_REGEXP: ('.*_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
+             .format(db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY))},
+        META: {
+            RE_SITE: None,
+            GROUP_SITE: 'site'
         }
+
     },
     PANNEL_CSV: {
         SEP: ',',
