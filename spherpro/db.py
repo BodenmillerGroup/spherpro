@@ -36,6 +36,10 @@ KEY_RELATIONSHIP = 'Relationship'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
 KEY_VALUE = 'Value'
+
+KEY_FILTERNAME = 'FilterName'
+KEY_FILTERVALUE = 'FilterValue'
+
 KEY_CONDITIONID = 'ConditionID'
 KEY_CONDITIONNAME = 'ConditionName'
 KEY_CONCENTRATIONNAME = 'Concentration'
@@ -56,6 +60,7 @@ KEY_BCSECONDCOUNT = 'BCSecondCount'
 
 TABLE_CONDITION = 'Condition'
 TABLE_SITE = 'Site'
+
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_FILTERS = 'Filters'
 TABLE_IMAGE = 'Image'
@@ -248,13 +253,13 @@ class StackModification(Base):
 class Filters(Base):
     __tablename__ = TABLE_FILTERS
     FilterName = Column(String(200), primary_key=True)
-    FilterValue = Column(Boolean(), primary_key=True)
     ImageNumber = Column(Integer(),
-                         primary_key=False)
+                         primary_key=True)
     ObjectNumber = Column(Integer(),
-                          primary_key=False)
+                          primary_key=True)
     ObjectID =  Column(String(200),
-                       primary_key=False)
+                       primary_key=True)
+    FilterValue = Column(Boolean(), primary_key=False)
     __table_args__ = (ForeignKeyConstraint(
         [ObjectNumber, ImageNumber, ObjectID],
         [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]), {})
