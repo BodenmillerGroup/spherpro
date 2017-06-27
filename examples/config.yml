@@ -46,8 +46,9 @@ layout_csv:
   bc_plate_col: 'BCPlate'
   well_col: 'TargetWell'
   condition_col: 'Compound'
-  timepoint_col: 'Timepoint'
+  #timepoint_col: 'Timepoint'
   control_col: 'isControl'
+  concentration_col: 'Final Concentration / Dilution'
 
 
 # Barcode Info:
