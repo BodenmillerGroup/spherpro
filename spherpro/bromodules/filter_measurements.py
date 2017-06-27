@@ -22,9 +22,20 @@ class FilterMeasurements(filter_base.BaseFilter):
             (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
             (db.KEY_MEASUREMENTTYPE, 'Intensity')]
 
-    def get_filter_query(self, measurement_dict, logical_operator, treshold):
+    def get_filter_statement(self, measurement_dict, logical_operator, treshold):
         """
-        g
+        Gets a filter statement that can select objects by a certain value in a
+        measurement.
+        
+        Args:
+            measurement_dict: contains the indexes of the measurements
+            logical_operator:
+                from the 'operator' module: e.g. operator.eq, operator.lt,
+                operator.gt
+            treshold: a treshold to be used together with the logical operator
+        Returns:
+            A statement that can be used for filtering for ObjectID,
+            ImageNumber and ObjectNumber
         """
 
         measure_query = self.data.get_measurement_query()
@@ -37,7 +48,7 @@ class FilterMeasurements(filter_base.BaseFilter):
         return filter_statement
 
 
-    def get_multifilter_query(self, query_triplets):
+    def get_multifilter_statement(self, query_triplets):
         """
         Allows to filter based on a combination of measurement values.
         The measurements, logical comparison and treshold are defined in
