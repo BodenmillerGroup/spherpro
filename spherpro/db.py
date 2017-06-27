@@ -155,7 +155,7 @@ class Image(Base):
     BCValid = Column(Integer())
     BCHighestCount = Column(Integer())
     BCSecondCount = Column(Integer())
-    ConditionID = Column(Integer())
+    ConditionID = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
         [ConditionID],

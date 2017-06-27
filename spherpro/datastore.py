@@ -223,7 +223,7 @@ class DataStore(object):
         self._write_stack_tables()
         self._write_refplanes_table()
         self._write_planes_table()
-        self._write_measurement_table()
+        #self._write_measurement_table()
         self._write_object_relations_table()
         self._write_pannel_table()
         self._write_condition_table()
@@ -601,8 +601,8 @@ class DataStore(object):
         query = self.main_session.query(db.Condition).filter(
             db.Condition.ConditionID.in_(conditions[db.KEY_CONDITIONID].astype(str).unique())
         )
-        self._add_generic_tuple(conditions, query, db.Condition)
-        
+        self._add_generic_tuple(conditions, query, db.Condition, replace=True)
+
     def _generate_condition_table(self):
         barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
         barcodes = barcodes.to_frame()
@@ -654,7 +654,7 @@ class DataStore(object):
     #                           setter functions:                           #
     #########################################################################
     #########################################################################
-    def add_measurements(self, measurements, replace=False,
+    def add_measurements(self, measurements, replace=False, backup=False,
         col_image = db.KEY_IMAGENUMBER,
         col_object_no = db.KEY_OBJECTNUMBER,
         col_object_id = db.KEY_OBJECTID,
@@ -722,7 +722,7 @@ class DataStore(object):
                 db.Measurement.StackName.in_(stack)
             )
 
-            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace)
+            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace, backup=backup)
             bak_t.append(bak)
             un_t.append(un)
         return (bak_t, un_t)
