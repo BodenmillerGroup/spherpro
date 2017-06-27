@@ -398,6 +398,30 @@ class DataStore(object):
         planes = planes.loc[:,[db.KEY_STACKNAME, db.KEY_REFSTACKNAME, db.KEY_PLANEID]]
         return planes
 
+    def _write_site_table(self):
+        (table,links) = self._generate_site()
+        self._bulkinsert(table, db.Site)
+        session = self.main_session
+        for image in links.iterrows():
+            img = image[1]
+            session.query(db.Image).\
+                filter(db.Image.ImageNumber == img[db.KEY_IMAGENUMBER]).\
+                update({db.KEY_SITENAME: img[db.KEY_SITENAME]})
+        session.commit()
+
+    def _generate_site(self):
+        """
+        generates the Site Table and a dataframe linking ImageNumber to site
+        """
+        names = self._generate_masks()
+        rege = re.compile(self.conf[conf.CPOUTPUT][conf.META][conf.RE_SITE])
+        names[db.KEY_SITENAME] = names[db.KEY_FILENAME].apply(lambda x: rege.match(x).group(self.conf[conf.CPOUTPUT][conf.META][conf.GROUP_SITE]))
+
+        links = names[[db.KEY_IMAGENUMBER, db.KEY_SITENAME]]
+        table = names[db.KEY_SITENAME].drop_duplicates().to_frame()
+        return table, links
+
+
     def _write_image_table(self):
         """
         Generates the Image

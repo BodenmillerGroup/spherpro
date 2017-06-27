@@ -165,10 +165,14 @@ class Image(Base):
     BCHighestCount = Column(Integer())
     BCSecondCount = Column(Integer())
     ConditionID = Column(String(200))
+    SiteName = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
         [ConditionID],
         [Condition.ConditionID]),
+        ForeignKeyConstraint(
+        [SiteName],
+        [Site.SiteName]),
             {})
 
 class Masks(Base):
