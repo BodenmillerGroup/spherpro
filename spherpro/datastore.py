@@ -228,7 +228,7 @@ class DataStore(object):
         self._write_stack_tables()
         self._write_refplanes_table()
         self._write_planes_table()
-        #self._write_measurement_table()
+        self._write_measurement_table()
         self._write_object_relations_table()
         self._write_pannel_table()
         self._write_condition_table()
