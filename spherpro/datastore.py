@@ -6,6 +6,8 @@ from os.path import isfile, join
 import os
 import re
 import warnings
+from odo import odo
+from odo import drop
 
 import spherpro as spp
 import spherpro.library as lib
@@ -211,6 +213,7 @@ class DataStore(object):
         writes the tables to the database
         """
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        self.drop_all()
         db.initialize_database(self.db_conn)
         print('masks')
         self._write_masks_table()
@@ -236,34 +239,19 @@ class DataStore(object):
 
         # Modifications
         modifications = self._generate_modifications()
-        mod_query = self.main_session.query(db.Modification).filter(
-            db.Modification.ModificationName.in_(modifications[db.KEY_MODIFICATIONNAME].astype(str).unique())
-        )
-
-        self._add_generic_tuple(modifications, mod_query, db.Modification)
+        self._bulkinsert(modifications, db.Modification)
 
         # RefStacks
         RefStack = self._generate_refstack()
-        refst_query = self.main_session.query(db.RefStack).filter(
-            db.RefStack.RefStackName.in_(RefStack[db.KEY_REFSTACKNAME].astype(str).unique())
-        )
-        self._add_generic_tuple(RefStack, refst_query, db.RefStack)
+        self._bulkinsert(RefStack, db.RefStack)
 
         # Stacks
         Stack = self._generate_stack()
-        st_query = self.main_session.query(db.Stack).filter(
-            db.Stack.StackName.in_(Stack[db.KEY_STACKNAME].astype(str).unique())
-        )
-        self._add_generic_tuple(Stack, st_query, db.Stack)
+        self._bulkinsert(Stack, db.Stack)
 
         # StackModifications
         stackmodification = self._generate_stackmodification()
-        stmod_query = self.main_session.query(db.StackModification).filter(
-            db.StackModification.ModificationName.in_(modifications[db.KEY_MODIFICATIONNAME].astype(str).unique()),
-            db.StackModification.ParentName.in_(stackmodification[db.KEY_PARENTNAME].astype(str).unique()),
-            db.StackModification.ChildName.in_(stackmodification[db.KEY_CHILDNAME].astype(str).unique())
-        )
-        self._add_generic_tuple(stackmodification, stmod_query, db.StackModification)
+        self._bulkinsert(stackmodification, db.StackModification)
 
 
 
@@ -353,11 +341,7 @@ class DataStore(object):
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_refplanemeta()
-        query = self.main_session.query(db.RefPlaneMeta).filter(
-            db.RefPlaneMeta.RefStackName.in_(planes[db.KEY_REFSTACKNAME].astype(str).unique()),
-            db.RefPlaneMeta.PlaneID.in_(planes[db.KEY_PLANEID].astype(str).unique())
-        )
-        self._add_generic_tuple(planes, query, db.RefPlaneMeta)
+        self._bulkinsert(planes, db.RefPlaneMeta)
 
 
     def _write_planes_table(self):
@@ -365,11 +349,7 @@ class DataStore(object):
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_planemeta()
-        query = self.main_session.query(db.PlaneMeta).filter(
-            db.PlaneMeta.StackName.in_(planes[db.KEY_STACKNAME].astype(str).unique()),
-            db.PlaneMeta.PlaneID.in_(planes[db.KEY_PLANEID].astype(str).unique())
-        )
-        self._add_generic_tuple(planes, query, db.PlaneMeta)
+        self._bulkinsert(planes, db.PlaneMeta)
 
     def _generate_refplanemeta(self):
 
@@ -420,10 +400,7 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        query = self.main_session.query(db.Image).filter(
-            db.Image.ImageNumber.in_(image[db.KEY_IMAGENUMBER].astype(str).unique())
-        )
-        self._add_generic_tuple(image, query, db.Image)
+        self._bulkinsert(image, db.Image)
 
     def _generate_image(self):
         """
@@ -438,12 +415,7 @@ class DataStore(object):
         Generates and save the cell table
         """
         objects = self._generate_objects()
-        query = self.main_session.query(db.Objects).filter(
-            db.Objects.ImageNumber.in_(objects[db.KEY_IMAGENUMBER].astype(str).unique()),
-            db.Objects.ObjectNumber.in_(objects[db.KEY_OBJECTNUMBER].astype(str).unique()),
-            db.Objects.ObjectID.in_(objects[db.KEY_OBJECTID].astype(str).unique())
-        )
-        self._add_generic_tuple(objects, query, db.Objects)
+        self._bulkinsert(objects, db.Objects)
 
 
     def _generate_objects(self):
@@ -468,17 +440,13 @@ class DataStore(object):
 
         measurements, measurements_names, measurements_types = \
         self._generate_measurements()
-        self.add_measurements(measurements, replace=True)
+        measurements = measurements.dropna()
+        measurements = measurements.reset_index(drop=True)
+        self._bulkinsert(measurements, db.Measurement)
 
-        name_query = self.main_session.query(db.MeasurementName).filter(
-            db.MeasurementName.MeasurementName.in_(measurements_names[db.KEY_MEASUREMENTNAME].astype(str).unique())
-        )
-        self._add_generic_tuple(measurements_names, name_query, db.MeasurementName)
+        self._bulkinsert(measurements_names, db.MeasurementName)
 
-        type_query = self.main_session.query(db.MeasurementType).filter(
-            db.MeasurementType.MeasurementType.in_(measurements_types[db.KEY_MEASUREMENTTYPE].astype(str).unique())
-        )
-        self._add_generic_tuple(measurements_types, type_query, db.MeasurementType)
+        self._bulkinsert(measurements_types, db.MeasurementType)
 
         del self._measurement_csv
 
@@ -494,7 +462,7 @@ class DataStore(object):
                                id_vars=[db.KEY_IMAGENUMBER,
                                         db.KEY_OBJECTNUMBER,'Number_Object_Number',
                                        db.KEY_OBJECTID],
-                               var_name='variable', value_name='value')
+                               var_name='variable', value_name=db.KEY_VALUE)
         measurements = measurements.merge(meta, how='inner', on='variable')
         del measurements['variable']
         del measurements['Number_Object_Number']
@@ -529,11 +497,7 @@ class DataStore(object):
 
     def _write_masks_table(self):
         masks = self._generate_masks()
-        query = self.main_session.query(db.Masks).filter(
-            db.Masks.ObjectID.in_(masks[db.KEY_OBJECTID].astype(str).unique()),
-            db.Masks.ImageNumber.in_(masks[db.KEY_IMAGENUMBER].astype(str).unique())
-        )
-        self._add_generic_tuple(masks, query, db.Masks)
+        self._bulkinsert(masks, db.Masks)
 
     def _generate_object_relations(self):
         conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
@@ -552,24 +516,11 @@ class DataStore(object):
 
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        query = self.main_session.query(db.ObjectRelations).filter(
-            db.ObjectRelations.ImageNumberFrom.in_(relations[db.KEY_IMAGENUMBER_FROM].astype(str).unique()),
-            db.ObjectRelations.ObjectNumberFrom.in_(relations[db.KEY_OBJECTNUMBER_FROM].astype(str).unique()),
-            db.ObjectRelations.ObjectIDFrom.in_(relations[db.KEY_OBJECTID_FROM].astype(str).unique()),
-            db.ObjectRelations.ImageNumberTo.in_(relations[db.KEY_IMAGENUMBER_TO].astype(str).unique()),
-            db.ObjectRelations.ObjectNumberTo.in_(relations[db.KEY_OBJECTNUMBER_TO].astype(str).unique()),
-            db.ObjectRelations.ObjectIDTo.in_(relations[db.KEY_OBJECTID_TO].astype(str).unique()),
-            db.ObjectRelations.Relationship.in_(relations[db.KEY_RELATIONSHIP].astype(str).unique())
-        )
-        self._add_generic_tuple(relations, query, db.ObjectRelations)
+        self._bulkinsert(relations, db.ObjectRelations)
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
-        query = self.main_session.query(db.Pannel).filter(
-            db.Pannel.Metal.in_(pannel[db.PANNEL_KEY_METAL].astype(str).unique()),
-            db.Pannel.Target.in_(pannel[db.PANNEL_KEY_TARGET].astype(str).unique())
-        )
-        self._add_generic_tuple(pannel, query, db.Pannel)
+        self._bulkinsert(pannel, query, db.Pannel)
     def _generate_pannel_table(self):
 
         csv_pannel = self.pannel
@@ -604,6 +555,34 @@ class DataStore(object):
     #                           setter functions:                           #
     #########################################################################
     #########################################################################
+    def _bulkinsert(self, data, table, drop=None):
+        """_bulkinsert
+        This function is used for Bulk inserting data to the database.
+        Note that dropping all entries in a table can fail because of
+        foregn key constraints. It is recommended to only use this method
+        at the first data import.
+
+        Args:
+            DataFrame data: the data to be inserted
+            sqlalchemy table: the target table
+            bool drop: if the table should be emptied before inserting.
+                default False.
+        """
+        if drop is None:
+            drop = False
+
+        dbtable = str(self.db_conn.url)+'::'+table.__table__.name
+        if drop:
+            drop(dbtable)
+
+        data_cols = data.columns
+        table_cols = table.__table__.columns.keys()
+        uniq = list(set(table_cols)-set(data_cols))
+        for un in uniq:
+            data[un] = None
+
+        odo(data, dbtable)
+
     def add_measurements(self, measurements, replace=False,
         col_image = db.KEY_IMAGENUMBER,
         col_object_no = db.KEY_OBJECTNUMBER,
@@ -710,8 +689,7 @@ class DataStore(object):
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
-            data.to_sql(con=self.db_conn, if_exists='append',
-                             name=table.__tablename__, index=False)
+            self._bulkinsert(data, table)
 
             return backup, None
         else:
@@ -731,8 +709,7 @@ class DataStore(object):
                 stri += 'maybe you tried to readd some rows.'
                 warnings.warn(stri, UserWarning)
 
-            storable.to_sql(con=self.db_conn, if_exists='append',
-                             name=table.__tablename__, index=False)
+            self._bulkinsert(storable, table)
 
             unstored = data.merge(zw, how='outer')
 
