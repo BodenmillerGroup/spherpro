@@ -226,7 +226,7 @@ class DataStore(object):
         self._write_stack_tables()
         self._write_refplanes_table()
         self._write_planes_table()
-        #self._write_measurement_table()
+        self._write_measurement_table()
         self._write_object_relations_table()
         self._write_pannel_table()
         self._write_condition_table()
@@ -560,9 +560,12 @@ class DataStore(object):
         IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
         barcodes[db.KEY_CONDITIONID] = IDs
         barcodes = barcodes.reset_index(drop=False)
+        barcodes = barcodes.rename(columns={self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]:
+                                 self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME]})
         data = barcodes.merge(
             self.experiment_layout.reset_index(drop=False),
-            left_on=(self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
+            left_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
+                             self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
             right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
             how='left'
         )
