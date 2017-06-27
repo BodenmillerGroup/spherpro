@@ -2,6 +2,18 @@ import pandas as pd
 import os
 import re
 import spherpro.configuration as conf
+
+def fill_null(data, table):
+    """
+    Fills a Dataframe with less columns as the DB table with None
+    """
+    data_cols = data.columns
+    table_cols = table.__table__.columns.keys()
+    uniq = list(set(table_cols)-set(data_cols))
+    for un in uniq:
+        data[un] = None
+    return data
+
 def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
     """calculate_real_dist_rim
     Calculates the real distance to rim from the real sphere radius, the radius
@@ -89,7 +101,7 @@ def construct_sql_query(table, columns=None, clauses=None):
                 default: no filter
     Return:
         the constructed query
-    
+
     Example:
         >>> construct_sql_query('Table')
         'SELECT * FROM Table;'

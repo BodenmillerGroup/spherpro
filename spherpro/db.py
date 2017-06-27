@@ -135,8 +135,8 @@ class Condition(Base):
     """docstring for Image."""
     __tablename__ = TABLE_CONDITION
     ConditionID = Column(String(200), primary_key=True)
-    ConditionName = Column(String(200))
-    TimePoint = Column(Float())
+    ConditionName = Column(String(200), server_default='default')
+    TimePoint = Column(Float(), server_default="0")
     BarCode = Column(String(200))
     Concentration = Column(Float())
     PlateID = Column(Integer())
