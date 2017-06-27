@@ -524,7 +524,7 @@ class DataStore(object):
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
-        self._bulkinsert(pannel, query, db.Pannel)
+        self._bulkinsert(pannel, db.Pannel)
     def _generate_pannel_table(self):
 
         csv_pannel = self.pannel
