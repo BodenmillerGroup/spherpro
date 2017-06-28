@@ -598,7 +598,7 @@ class DataStore(object):
                 (db.KEY_BCY,db.KEY_BCY)
             ] if target is not None
         }
-        
+
         cols = [c for c in rename_dict]
         outcols = [rename_dict[c] for c in rename_dict]
         if self.barcode_key is not None:
@@ -761,13 +761,13 @@ class DataStore(object):
                 db.Measurement.StackName.in_(stack)
             )
 
-            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace, backup=backup)
+            (bak, un) =  self._add_generic_tuple(measurements, db.Measurement,query=query, replace=replace, backup=backup)
             bak_t.append(bak)
             un_t.append(un)
         return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, query, table, replace=False, backup=False):
+    def _add_generic_tuple(self, data, table, query=None, replace=False, backup=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -775,9 +775,10 @@ class DataStore(object):
         Args:
             Pandas DataFrame data: dataframe containing the data. It is
                 required to name the columns according to the db schema
-            sqlalchemy query query: query object to retrieve existing tuples.
-                best option: query for all keys!
             Sqlalchemy Table table: the table object to be added to
+            sqlalchemy query query: query object to retrieve existing tuples.
+                best option: query for all keys! If no query is supplied,
+                a query will be generated based on the table keys
             bool replace: if existing tuples should be replaced
             backup: only used if replace = True. Specifies whether a table
                 with the deleted tuples should be returned. Can speed up
@@ -791,6 +792,11 @@ class DataStore(object):
         """
         data = data.reset_index(drop=True)
         key_cols = [key.name for key in inspect(table).primary_key]
+        if query is None:
+            query = self.main_session.query(table)
+            for key in key_cols:
+                filt_in = data[key].astype(str).unique()
+                query = query.filter(table.__table__.columns[key].in_(filt_in))
         if replace:
             if backup:
                 backup =  pd.read_sql(query.statement, self.db_conn)
