@@ -15,6 +15,10 @@ import sqlalchemy as sa
 
 import tifffile as tif
 
+import functools
+
+max_cache = 384
+
 class IoMasks(io_base.BaseIo):
     def __init__(self, bro):
         super().__init__(bro)
@@ -24,7 +28,8 @@ class IoMasks(io_base.BaseIo):
             self.basedir = self.data.conf[conf.CP_DIR]
 
         self._dat_masks = None
-
+        
+    @functools.lru_cache(maxsize=max_cache)
     def get_mask(self, image_number):
         """
         Retrieves masks based on an image_number
@@ -36,6 +41,9 @@ class IoMasks(io_base.BaseIo):
         fn = self.dat_masks.loc[self.dat_masks[db.KEY_IMAGENUMBER] == image_number,
                            db.KEY_FILENAME].iloc[0]
         return tif.imread(os.path.join(self.basedir, fn))
+
+    def clear_caches(self):
+        self.get_mask.cache_clear()
     
     @property
     def dat_masks(self):
