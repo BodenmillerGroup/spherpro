@@ -1,4 +1,6 @@
 import spherpro.bromodules.plot_base as plot_base
+
+
 import pandas as pd
 import numpy as np
 import re
@@ -11,7 +13,17 @@ import sqlalchemy as sa
 class PlotHeatmask(plot_base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
-        
+        self.io_masks = self.bro.io.masks
+
+def _prepare_masks(self, image_numbers):
+    masks = [self.io_masks.get_masks(i) for i in image_numbers]
+    return masks
+
+
+def _prepare_slices(self, image_numbers, masks):
+    dat = (self.session.query(db.Masks.ImageNumber, db.Masks.Posx, db.Masks.PosY)
+                .filter(db.Masks.ImageNumber.in_(image_numbers))).all()
+
 def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True):
     
     if crange is None:

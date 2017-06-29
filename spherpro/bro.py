@@ -7,6 +7,7 @@ import spherpro.datastore as datastore
 import spherpro.db as db
 import spherpro.bromodules.filters as filters
 import spherpro.bromodules.plots as plots
+import spherpro.bromodules.io as io
 
 import sqlalchemy as sa
 
@@ -35,8 +36,8 @@ class Bro(object):
     def __init__(self, DataStore):
         self.data = DataStore
         self.filters = filters.Filters(self)
+        self.io = io.Io(self)
         self.plots = plots.Plots(self)
-
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
