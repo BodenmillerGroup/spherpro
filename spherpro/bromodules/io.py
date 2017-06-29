@@ -1,6 +1,4 @@
-import spherpro.bromodules.filter_membership as filter_membership
-import spherpro.bromodules.filter_measurements as filter_measurements
-class Filters(object):
+import spherpro.bromodules.io_masks as io_masks
+class Io(object):
     def __init__(self, bro):
-        self.issphere = filter_membership.FilterMembership(bro)
-        self.measurements = filter_measurements.FilterMeasurements(bro) 
+        self.masks = io_masks.IoMasks(bro)
