@@ -7,6 +7,7 @@ import os
 import re
 import warnings
 from odo import odo
+import tifffile as tif
 
 import spherpro as spp
 import spherpro.library as lib
@@ -543,6 +544,7 @@ class DataStore(object):
                 """
                 cpconf = self.conf[conf.CPOUTPUT]
                 basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
+                print(basedir)
                 dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH] = \
                         zip(*dat_mask[db.KEY_FILENAME].map(lambda fn:
                                 tif.imread(os.path.join(basedir, fn)).shape))

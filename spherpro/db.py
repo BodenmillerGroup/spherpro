@@ -42,8 +42,6 @@ KEY_POSY = 'PosY'
 KEY_SHAPEW = 'ShapeW'
 KEY_SHAPEH = 'ShapeH'
 
-
-
 KEY_FILTERNAME = 'FilterName'
 KEY_FILTERVALUE = 'FilterValue'
 
