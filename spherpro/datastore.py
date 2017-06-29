@@ -530,7 +530,7 @@ class DataStore(object):
                                                .get(col, None) for col in
                                                 [db.KEY_CROPID, db.KEY_POSX,
                                                  db.KEY_POSY]]))
-            return dat_mask
+        return dat_mask
 
     def _write_masks_table(self):
         masks = self._generate_masks()
