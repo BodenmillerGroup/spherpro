@@ -544,7 +544,8 @@ class DataStore(object):
                 """
                 cpconf = self.conf[conf.CPOUTPUT]
                 basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
-                print(basedir)
+                if basedir is None:
+                    basedir = self.conf[conf.CP_DIR]
                 dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH] = \
                         zip(*dat_mask[db.KEY_FILENAME].map(lambda fn:
                                 tif.imread(os.path.join(basedir, fn)).shape))
@@ -553,7 +554,7 @@ class DataStore(object):
             dat_mask[db.KEY_POSX] = 0
             dat_mask[db.KEY_POSY] = 0
             dat_mask[db.KEY_SHAPEH] = None
-            dat_mask[db.KEY_SHAPEW] = None 
+            dat_mask[db.KEY_SHAPEW] = None
 
         return dat_mask
 

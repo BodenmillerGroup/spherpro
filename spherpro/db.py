@@ -184,6 +184,8 @@ class Masks(Base):
     ImageNumber = Column(Integer(),  primary_key=True)
     PosX = Column(Integer())
     PosY = Column(Integer())
+    ShapeH = Column(Integer())
+    ShapeW = Column(Integer())
     CropID = Column(Integer())
     FileName = Column(String(200))
 
