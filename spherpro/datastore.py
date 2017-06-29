@@ -524,14 +524,36 @@ class DataStore(object):
         dat_mask = dat_mask.reset_index(drop=True)
         mask_regexp = cpconf[conf.IMAGES_CSV][conf.MASK_REGEXP]
         if mask_regexp is not None:
+            """
+            Try to get the crop information from the provided regexp
+            """
             (dat_mask[db.KEY_CROPID], dat_mask[db.KEY_POSX],
-            dat_mask[db.KEY_POSY]) = \
+            dat_mask[db.KEY_POSY], dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH]) = \
             zip(*dat_mask[db.KEY_FILENAME].map(lambda x:
                                                [re.match(mask_regexp, x).groupdict()
                                                .get(col, None) for col in
                                                 [db.KEY_CROPID, db.KEY_POSX,
-                                                 db.KEY_POSY]]))
-            return dat_mask
+                                                 db.KEY_POSY, db.KEY_SHAPEW,
+                                                 db.KEY_SHAPEH]]))
+
+            if all(dat_mask[db.KEY_SHAPEW].isnull()):
+                """
+                If the width and height are not in the regexp, load all the
+                mask and check the width
+                """
+                cpconf = self.conf[conf.CPOUTPUT]
+                basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
+                dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH] = \
+                        zip(*dat_mask[db.KEY_FILENAME].map(lambda fn:
+                                tif.imread(os.path.join(basedir, fn)).shape))
+        else:
+            dat_mask[db.KEY_CROPID] = None
+            dat_mask[db.KEY_POSX] = 0
+            dat_mask[db.KEY_POSY] = 0
+            dat_mask[db.KEY_SHAPEH] = None
+            dat_mask[db.KEY_SHAPEW] = None 
+
+        return dat_mask
 
     def _write_masks_table(self):
         masks = self._generate_masks()
@@ -599,7 +621,7 @@ class DataStore(object):
                 (db.KEY_BCY,db.KEY_BCY)
             ] if target is not None
         }
-        
+
         cols = [c for c in rename_dict]
         outcols = [rename_dict[c] for c in rename_dict]
         if self.barcode_key is not None:
@@ -762,13 +784,13 @@ class DataStore(object):
                 db.Measurement.StackName.in_(stack)
             )
 
-            (bak, un) =  self._add_generic_tuple(measurements, query, db.Measurement, replace=replace, backup=backup)
+            (bak, un) =  self._add_generic_tuple(measurements, db.Measurement,query=query, replace=replace, backup=backup)
             bak_t.append(bak)
             un_t.append(un)
         return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, query, table, replace=False, backup=False):
+    def _add_generic_tuple(self, data, table, query=None, replace=False, backup=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -776,9 +798,10 @@ class DataStore(object):
         Args:
             Pandas DataFrame data: dataframe containing the data. It is
                 required to name the columns according to the db schema
-            sqlalchemy query query: query object to retrieve existing tuples.
-                best option: query for all keys!
             Sqlalchemy Table table: the table object to be added to
+            sqlalchemy query query: query object to retrieve existing tuples.
+                best option: query for all keys! If no query is supplied,
+                a query will be generated based on the table keys
             bool replace: if existing tuples should be replaced
             backup: only used if replace = True. Specifies whether a table
                 with the deleted tuples should be returned. Can speed up
@@ -792,6 +815,11 @@ class DataStore(object):
         """
         data = data.reset_index(drop=True)
         key_cols = [key.name for key in inspect(table).primary_key]
+        if query is None:
+            query = self.main_session.query(table)
+            for key in key_cols:
+                filt_in = data[key].astype(str).unique()
+                query = query.filter(table.__table__.columns[key].in_(filt_in))
         if replace:
             if backup:
                 backup =  pd.read_sql(query.statement, self.db_conn)

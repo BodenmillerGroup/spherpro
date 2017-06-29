@@ -39,6 +39,9 @@ KEY_VALUE = 'Value'
 KEY_CROPID = 'CropID'
 KEY_POSX = 'PosX'
 KEY_POSY = 'PosY'
+KEY_SHAPEW = 'ShapeW'
+KEY_SHAPEH = 'ShapeH'
+
 
 
 KEY_FILTERNAME = 'FilterName'
