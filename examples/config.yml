@@ -37,7 +37,6 @@ cpoutput:
     path: 'Object relationships.csv'
   images_csv:
     path: 'Image.csv'
-  meta:
     re_meta: "(?P<site>[0-9]+_p[0-9]+_s[0-9]+_ac[0-9]+_[a-zA-Z0-9]+)_.*_l(?P<cutid>[0-9]+)_x(?P<x>[0-9]+)_y(?P<y>[0-9]+).*"
     group_site: 'site'
 
