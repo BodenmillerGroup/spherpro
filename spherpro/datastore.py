@@ -624,7 +624,8 @@ class DataStore(object):
                 (db.KEY_BCY,db.KEY_BCY)
             ] if target is not None
         }
-
+        if rename_dict.get(None) is not None:
+            del rename_dict[None]
         cols = [c for c in rename_dict]
         outcols = [rename_dict[c] for c in rename_dict]
         if self.barcode_key is not None:
