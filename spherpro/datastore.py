@@ -7,6 +7,7 @@ import os
 import re
 import warnings
 from odo import odo
+import tifffile as tif
 
 import spherpro as spp
 import spherpro.library as lib
@@ -524,13 +525,37 @@ class DataStore(object):
         dat_mask = dat_mask.reset_index(drop=True)
         mask_regexp = cpconf[conf.IMAGES_CSV][conf.MASK_REGEXP]
         if mask_regexp is not None:
+            """
+            Try to get the crop information from the provided regexp
+            """
             (dat_mask[db.KEY_CROPID], dat_mask[db.KEY_POSX],
-            dat_mask[db.KEY_POSY]) = \
+            dat_mask[db.KEY_POSY], dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH]) = \
             zip(*dat_mask[db.KEY_FILENAME].map(lambda x:
                                                [re.match(mask_regexp, x).groupdict()
                                                .get(col, None) for col in
                                                 [db.KEY_CROPID, db.KEY_POSX,
-                                                 db.KEY_POSY]]))
+                                                 db.KEY_POSY, db.KEY_SHAPEW,
+                                                 db.KEY_SHAPEH]]))
+
+            if all(dat_mask[db.KEY_SHAPEW].isnull()):
+                """
+                If the width and height are not in the regexp, load all the
+                mask and check the width
+                """
+                cpconf = self.conf[conf.CPOUTPUT]
+                basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
+                if basedir is None:
+                    basedir = self.conf[conf.CP_DIR]
+                dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH] = \
+                        zip(*dat_mask[db.KEY_FILENAME].map(lambda fn:
+                                tif.imread(os.path.join(basedir, fn)).shape))
+        else:
+            dat_mask[db.KEY_CROPID] = None
+            dat_mask[db.KEY_POSX] = 0
+            dat_mask[db.KEY_POSY] = 0
+            dat_mask[db.KEY_SHAPEH] = None
+            dat_mask[db.KEY_SHAPEW] = None
+
         return dat_mask
 
     def _write_masks_table(self):

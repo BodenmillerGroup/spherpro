@@ -61,6 +61,7 @@ STACK_DIR = 'stack_dir'
 STACK_RELATIONS = 'stack_relations'
 TYPE = 'type_col'
 WELL_COL = 'well_col'
+MASK_DIR = 'mask_dir'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
@@ -149,7 +150,9 @@ default_dict = {
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
             MASK_REGEXP: ('.*_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-             .format(db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY))},
+             .format(db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY)),
+            MASK_DIR: None # default take cpoutput dir
+        },
         META: {
             RE_SITE: None,
             GROUP_SITE: 'site'
