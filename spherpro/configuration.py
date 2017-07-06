@@ -32,9 +32,7 @@ IMAGENUMBER_TO = 'second_image_number_col'
 IMAGES_CSV = 'images_csv'
 LAYOUT_CSV = 'layout_csv'
 MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
-MASK_REGEXP = 'mask_regexp'
 MEASUREMENT_CSV = 'measurement_csv'
-META = 'meta'
 MODNAME = 'modname_col'
 MODPRE = 'modpre_col'
 NAME = 'name_col'
@@ -53,7 +51,6 @@ PLATE = 'plate_col'
 REF = 'ref_col'
 RELATIONSHIP = 'relationship'
 RELATION_CSV = 'relation_csv'
-RE_SITE = 're_meta'
 SCALING_PREFIX = 'scaling_prefix'
 SEP = 'sep'
 STACK = 'stack_col'
@@ -62,9 +59,17 @@ STACK_RELATIONS = 'stack_relations'
 TYPE = 'type_col'
 WELL_COL = 'well_col'
 MASK_DIR = 'mask_dir'
+GROUP_SITE = 'group_site'
+GROUP_CROPID = 'group_cropid'
+GROUP_POSX = 'group_x'
+GROUP_POSY = 'group_y'
+GROUP_SHAPEH = 'group_h'
+GROUP_SHAPEW = 'group_w'
+META_REGEXP = 're_meta'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
+
 
 LAYOUT_CSV_PLATE_NAME = 'plate_col'
 LAYOUT_CSV_WELL_NAME = 'well_col'
@@ -149,14 +154,17 @@ default_dict = {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
-            MASK_REGEXP: ('.*_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-             .format(db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY)),
-            MASK_DIR: None # default take cpoutput dir
+            META_REGEXP: (
+                '(?P({}.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
+            .format(db.KEY_SITENAME, db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY)),
+            MASK_DIR: None, # default take cpoutput dir
+            GROUP_CROPID: db.KEY_CROPID,
+            GROUP_SITE: db.KEY_SITENAME,
+            GROUP_SHAPEH: db.KEY_SHAPEH,
+            GROUP_SHAPEW: db.KEY_SHAPEW,
+            GROUP_POSX: db.KEY_POSX,
+            GROUP_POSY: db.KEY_POSY
         },
-        META: {
-            RE_SITE: None,
-            GROUP_SITE: 'site'
-        }
 
     },
     PANNEL_CSV: {

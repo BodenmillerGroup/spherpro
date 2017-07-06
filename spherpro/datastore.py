@@ -416,8 +416,10 @@ class DataStore(object):
         generates the Site Table and a dataframe linking ImageNumber to site
         """
         names = self._generate_masks()
-        rege = re.compile(self.conf[conf.CPOUTPUT][conf.META][conf.RE_SITE])
-        names[db.KEY_SITENAME] = names[db.KEY_FILENAME].apply(lambda x: rege.match(x).group(self.conf[conf.CPOUTPUT][conf.META][conf.GROUP_SITE]))
+        rege = \
+            re.compile(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.META_REGEXP])
+        names[db.KEY_SITENAME] = names[db.KEY_FILENAME].apply(lambda x:
+                                                              rege.match(x).group(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.GROUP_SITE]))
 
         links = names[[db.KEY_IMAGENUMBER, db.KEY_SITENAME]]
         table = names[db.KEY_SITENAME].drop_duplicates().to_frame()
@@ -523,7 +525,7 @@ class DataStore(object):
         dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
         dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
         dat_mask = dat_mask.reset_index(drop=True)
-        mask_regexp = cpconf[conf.IMAGES_CSV][conf.MASK_REGEXP]
+        mask_regexp = cpconf[conf.IMAGES_CSV][conf.META_REGEXP]
         if mask_regexp is not None:
             """
             Try to get the crop information from the provided regexp
