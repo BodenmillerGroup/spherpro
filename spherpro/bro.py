@@ -8,6 +8,7 @@ import spherpro.db as db
 import spherpro.bromodules.filters as filters
 import spherpro.bromodules.plots as plots
 import spherpro.bromodules.io as io
+import spherpro.bromodules.processing as processing
 
 import sqlalchemy as sa
 
@@ -38,6 +39,7 @@ class Bro(object):
         self.filters = filters.Filters(self)
         self.io = io.Io(self)
         self.plots = plots.Plots(self)
+        self.processing = processing.Processing(self)
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
@@ -70,4 +72,3 @@ class Bro(object):
             print("assuming size from all images!")
         else:
             raise NameError('Please specify a valid option!')
-
