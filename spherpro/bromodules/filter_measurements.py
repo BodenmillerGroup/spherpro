@@ -22,7 +22,9 @@ class FilterMeasurements(filter_base.BaseFilter):
             (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
             (db.KEY_MEASUREMENTTYPE, 'Intensity')]
 
-    def get_filter_statement(self, measurement_dict, logical_operator, treshold):
+
+    def get_filter_statement(self, measurement_dict, logical_operator,
+                             treshold):
         """
         Gets a filter statement that can select objects by a certain value in a
         measurement.
@@ -36,6 +38,13 @@ class FilterMeasurements(filter_base.BaseFilter):
         Returns:
             A statement that can be used for filtering for ObjectID,
             ImageNumber and ObjectNumber
+        """
+        query_triplet = [(measurement_dict, logical_operator, treshold)]
+        return self.get_multifilter_statement(query_triplet)
+
+    def _get_filter_statement(self, measurement_dict, logical_operator, treshold):
+        """
+        NEVER USE THIS ALONE BUT JUST THROUGH GET MULTIFILTER STATEMENT
         """
 
         measure_query = self.data.get_measurement_query()
@@ -61,7 +70,7 @@ class FilterMeasurements(filter_base.BaseFilter):
             filter_statement: can be used in a filter operation
                 fitlers on the keys: ObjectID, ImageNumber and ObjectNumber
         """
-        filters = [self.get_filter_statement(m, l, t) for m, l, t in query_triplets]
+        filters = [self._get_filter_statement(m, l, t) for m, l, t in query_triplets]
         meas_query = self.data.get_measurement_query()
         subquerys = [meas_query.filter(fil).subquery() for i, fil in
                      enumerate(filters)]
