@@ -72,3 +72,14 @@ class Bro(object):
             print("assuming size from all images!")
         else:
             raise NameError('Please specify a valid option!')
+
+
+
+    @property
+    def is_debarcoded(self):
+        isdeb = False
+        q =self.data.main_session.query(db.Image.ConditionID)
+        q = q.filter(db.Image.ConditionID.isnot(None)).count()
+        if q > 0:
+            isdeb = True
+        return isdeb
