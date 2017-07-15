@@ -79,10 +79,15 @@ class DataStore(object):
         """
         self.conf = conf.read_configuration(configpath)
 
-    def import_data(self):
+    def import_data(self, minimal=None):
         """read_data
         Reads the Data using the file locations given in the configfile.
+        Args:
+            minimal: Bool, if True, the import process only imports values from
+                the RefStacks and no location values
         """
+        if minimal is None:
+            minimal = False
         # Read the data based on the config
         self._read_experiment_layout()
         self._read_barcode_key()
@@ -91,7 +96,7 @@ class DataStore(object):
         # self._read_roi_meta()
         self._read_measurement_data()
         self._read_stack_meta()
-        self._populate_db()
+        self._populate_db(minimal)
 
     def resume_data(self):
         """read_data
@@ -215,7 +220,7 @@ class DataStore(object):
         self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
 
 
-    def _populate_db(self):
+    def _populate_db(self, minimal):
         """
         writes the tables to the database
         """
@@ -228,10 +233,10 @@ class DataStore(object):
         self._write_stack_tables()
         self._write_refplanes_table()
         self._write_planes_table()
-        self._write_measurement_table()
-        self._write_object_relations_table()
         self._write_pannel_table()
         self._write_condition_table()
+        self._write_measurement_table(minimal)
+        self._write_object_relations_table()
 
     ##########################################
     #        Database Table Generation:      #
@@ -459,19 +464,17 @@ class DataStore(object):
                                                       db.KEY_IMAGENUMBER]])
         return objects
 
-    def _write_measurement_table(self, chunksize=100000):
+    def _write_measurement_table(self, minimal):
         """
         Generates the Measurement, MeasurementType and MeasurementName
         tables and writes them to the database.
         The Measurement Table can contain an extremely high ammount of rows
         and can therefore be quite slow
 
-        Args:
-            chunksize: the ammount of rows written concurrently to the DB
         """
 
         measurements, measurements_names, measurements_types = \
-        self._generate_measurements()
+        self._generate_measurements(minimal)
         measurements = measurements.dropna()
         measurements = measurements.reset_index(drop=True)
         self._bulkinsert(measurements, db.Measurement)
@@ -482,7 +485,7 @@ class DataStore(object):
 
         del self._measurement_csv
 
-    def _generate_measurements(self):
+    def _generate_measurements(self, minimal):
         measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
@@ -490,6 +493,20 @@ class DataStore(object):
                                               no_plane_string=OBJECTS_PLANEID))
         meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
                         db.KEY_STACKNAME, db.KEY_PLANEID]
+        if minimal:
+            stackrel = self._stack_relation_csv
+            stackconf = self.conf[conf.STACK_RELATIONS]
+            stackrel = stackrel.loc[stackrel[stackconf[conf.REF]]==0]
+            refstacks = list(stackrel[stackconf[conf.STACK]])
+            meta_filt = meta.loc[(meta[db.KEY_STACKNAME].isin(refstacks)) & (meta[db.KEY_MEASUREMENTTYPE]!="Location")]
+            filtered_names = meta_filt['variable'].unique()
+            filtered_names = filtered_names[filtered_names!='']
+            meta = meta_filt
+            measurements = measurements.set_index([db.KEY_IMAGENUMBER,
+                     db.KEY_OBJECTNUMBER,'Number_Object_Number',
+                    db.KEY_OBJECTID])
+            measurements = measurements[filtered_names]
+            measurements = measurements.reset_index(drop=False)
         measurements = pd.melt(measurements,
                                id_vars=[db.KEY_IMAGENUMBER,
                                         db.KEY_OBJECTNUMBER,'Number_Object_Number',
@@ -648,8 +665,16 @@ class DataStore(object):
                               self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
                     how='left'
                 )
+                tp_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME]
+                tw_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]
+                we_name = self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
+                co_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME]
+                data.loc[pd.isnull(data[tw_name]),co_name] = "default"
+                data.loc[pd.isnull(data[tw_name]),tp_name] = 0.0
+                data.loc[pd.isnull(data[tw_name]),tw_name] = data.loc[pd.isnull(data[tw_name])][we_name]
                 data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
                 data[db.KEY_BCX] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+
 
                 data = data[cols]
                 data = data.rename(columns=rename_dict)
@@ -657,6 +682,8 @@ class DataStore(object):
                     data[db.KEY_TIMEPOINT] = 0.0
                 if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME] is None:
                     data[db.KEY_CONDITIONNAME] = 'default'
+
+                data = data.fillna('0')
                 return data
             else:
                 barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
