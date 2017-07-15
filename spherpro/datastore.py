@@ -269,7 +269,7 @@ class DataStore(object):
         parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
         modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
         modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
-        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!='0']
+        stackrel = self._stack_relation_csv.loc[self._stack_relation_csv[parent_col]!=0]
         Modifications = pd.DataFrame(stackrel[modname_col])
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
@@ -287,7 +287,7 @@ class DataStore(object):
                    modname_col: db.KEY_MODIFICATIONNAME,
                    stack_col: db.KEY_CHILDNAME}
         StackModification = (self._stack_relation_csv
-                    .loc[self._stack_relation_csv[parent_col]!='0',
+                    .loc[self._stack_relation_csv[parent_col]!=0,
                          list(key_map.keys())]
                     .rename(columns=key_map))
         return StackModification
@@ -301,7 +301,7 @@ class DataStore(object):
         key_map = {stack_col: db.KEY_REFSTACKNAME}
 
         ref_stack =  (self._stack_relation_csv
-                         .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
+                         .loc[self._stack_relation_csv[ref_col]==0, list(key_map.keys())]
                          .rename(columns= key_map)
                          )
         scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
@@ -336,7 +336,7 @@ class DataStore(object):
         stack = stack.append({db.KEY_STACKNAME: OBJECTS_STACKNAME,
                               db.KEY_REFSTACKNAME: OBJECTS_STACKNAME}, ignore_index=True)
 
-        fil = stack[db.KEY_REFSTACKNAME] == '0'
+        fil = stack[db.KEY_REFSTACKNAME] == 0
         stack.loc[fil, db.KEY_REFSTACKNAME] = stack.loc[fil,
                                                                         db.KEY_STACKNAME]
         return stack
