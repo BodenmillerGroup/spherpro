@@ -12,6 +12,7 @@ import spherpro.db as db
 import pycytools as pct
 
 import sqlalchemy as sa
+import matplotlib.pyplot as plt
 
 class PlotHeatmask(plot_base.BasePlot):
     def __init__(self, bro):
@@ -41,15 +42,15 @@ class PlotHeatmask(plot_base.BasePlot):
         return slices
 
     def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None):
-        
+
         if filters is None:
             filters = []
 
         filter_statement = self.filter_measurements.get_measurement_filter_statements(*[[
             measurement_dict.get(o,d)] for o, d in self.measure_idx ])
-        
+
         query = self.data.get_measurement_query(session=self.session)
-        
+
         query = query.filter(filter_statement)
 
         query = query.join(db.Filters)
@@ -70,7 +71,7 @@ class PlotHeatmask(plot_base.BasePlot):
         """
         cut_id_name = db.KEY_IMAGENUMBER
         cell_id_name = db.KEY_OBJECTNUMBER
-        
+
         if value_var is None:
             value_var = db.KEY_VALUE
 
@@ -79,7 +80,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
         if cut_slices is None:
             cut_slices = self._prepare_slices(image_numbers)
-        
+
         if cut_masks is None:
             cut_masks = self._prepare_masks(image_numbers)
 
@@ -114,26 +115,26 @@ class PlotHeatmask(plot_base.BasePlot):
                 notbg[sl][fil2] = (timg.mask==False)[fil2]
 
         pimg = np.ma.array(pimg, mask=(notbg ==0))
-        
+
         if out_shape is None:
             pimg = pimg[min(x_start):, min(y_start):]
-        
+
         return(pimg)
 
-    def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True):
-        
+    def do_heatplot(self, img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True):
+
         if crange is None:
             crange=(np.nanmin(img[:]), np.nanmax(img[:]))
-        
+
         if cmap is None:
             cmap = plt.cm.viridis
-        cmap.set_bad('k',1.)    
+        cmap.set_bad('k',1.)
         if ax is None:
             plt.close()
             fig, ax = plt.subplots(1, 1)
         else:
             fig = ax.get_figure()
-        
+
         if len(ax.images) == 0:
             cax = ax.imshow(img, cmap=cmap)
             if colorbar:
@@ -143,13 +144,13 @@ class PlotHeatmask(plot_base.BasePlot):
             if len(ax.images) == 2:
                 cax_mask = ax.images[1]
                 cax_mask.remove()
-            
 
-            
+
+
         cax.set_data(np.flipud((img)))
         cax.set_extent([0,img.shape[1], 0, img.shape[0]])
         cax.set_clim(crange[0], crange[1])
-        
+
         # update bounts
 
         if update_axrange == True:
@@ -160,24 +161,24 @@ class PlotHeatmask(plot_base.BasePlot):
             ax.set_xbound(upper=min(img.shape[1], bndx[1]))
             bndy = ax.get_ybound()
             ax.set_ybound(upper=min(img.shape[0], bndy[1]))
-            
+
         if title is not None:
             ax.set_title(title)
         #fig.colorbar(cax)
         # slightly color the non background but not colored cells
-        
+
         if hasattr(img, 'mask'):
             mask_img = np.isnan(img)
             mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
             ax.imshow(mask_img, alpha=0.2)
-            
+
         #fig.canvas.draw()
         return ax
-        
+
 
 
     def plt_heatplot(site_id, cut_id,stat, channel, transform, censor_min, censor_max, keepRange, filter_hq,ax=None):
-        
+
         if ax is None:
             ax = plt.gca()
         channel = pct.library.metal_from_name(channel)
@@ -188,10 +189,10 @@ class PlotHeatmask(plot_base.BasePlot):
 
         if transform is not 'none':
             tdat = transf_dict[transform](tdat)
-            
+
         tdat = tdat.dropna()
         tdat.loc[~np.isfinite(tdat)] = np.min(tdat.loc[np.isfinite(tdat)])
-        
+
         crange = ( np.percentile(tdat,censor_min*100), np.percentile(tdat,censor_max*100))
         print(crange)
         if cut_id >0:
@@ -205,7 +206,7 @@ class PlotHeatmask(plot_base.BasePlot):
                                          dat_image.xs(site_id, level='site')['slice'],
                                          dat_image.xs(site_id, level='site')['mask'],
                                       tdat, out_shape = None)
-            
+
         do_heatplot(img,
                     title=pct.library.name_from_metal(channel, dict_name),
                     crange=crange,
@@ -214,4 +215,3 @@ class PlotHeatmask(plot_base.BasePlot):
                    )
         plt.axis('off')
             #print()
-
