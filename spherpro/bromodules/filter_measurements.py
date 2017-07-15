@@ -28,7 +28,7 @@ class FilterMeasurements(filter_base.BaseFilter):
         """
         Gets a filter statement that can select objects by a certain value in a
         measurement.
-        
+
         Args:
             measurement_dict: contains the indexes of the measurements
             logical_operator:
@@ -121,3 +121,16 @@ class FilterMeasurements(filter_base.BaseFilter):
         else:
             measure_filter = constraints[0]
         return measure_filter
+
+    def get_hq_filter_triplets(self):
+        """
+        returns a list of triplets, building the HQ-Filter
+        """
+        hq = [
+               ({
+                    db.KEY_STACKNAME: "BinStack",
+                    db.KEY_CHANNEL_NAME: "is-sphere",
+                    db.KEY_MEASUREMENTNAME: "MeanIntensity"
+                }, operator.gt, 0)
+            ]
+        return hq

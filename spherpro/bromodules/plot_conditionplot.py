@@ -1,5 +1,6 @@
 import spherpro.bromodules.plot_base as plot_base
 import spherpro.bromodules.plot_heatmask as plot_heatmask
+import spherpro.bromodules.filter_measurements as multifilters
 import pandas as pd
 import numpy as np
 import re
@@ -27,6 +28,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         super().__init__(bro)
         # make the dependency explicit
         self.heatmask = plot_heatmask.PlotHeatmask(bro)
+        self.multifilter = multifilters.FilterMeasurements(bro)
 
 
     def plot(self,
@@ -39,7 +41,8 @@ class PlotConditionPlot(plot_base.BasePlot):
         relative = None,
         filename = None,
         show = None,
-        cm = None
+        cm = None,
+        filters = None
     ):
         """
         Plots a plot for a condition and metal, separating the timepoints.
@@ -94,7 +97,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         fig, ax = self._prepare_grid(sizey, sizex, timepoints, wells_per_timepoint, nox, noy, plot_map, relative)
 
         # get the Data
-        data = self._get_data(metal)
+        data = self._get_data(metal, filters)
         # generate lookup table
         lookup = self._generate_wells()
         # create range
@@ -238,7 +241,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         return conditions
 
 
-    def _get_data(self, metal):
+    def _get_data(self, metal, filters):
         q  = (self.data.get_measurement_query()
                      .filter(
                          self.bro.filters.measurements.get_measurement_filter_statements(
@@ -249,5 +252,8 @@ class PlotConditionPlot(plot_base.BasePlot):
                              measurement_types=['Intensity'],
                          ))
                     )
+        if filters is not None:
+            fstatement = self.multifilter.get_multifilter_statement(filters)
+            q = q.filter(fstatement)
         data = pd.read_sql_query(q.statement, self.data.db_conn)
         return data
