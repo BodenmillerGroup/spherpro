@@ -235,6 +235,7 @@ class DataStore(object):
         self._write_planes_table()
         self._write_pannel_table()
         self._write_condition_table()
+        self._write_site_table()
         self._write_measurement_table(minimal)
         self._write_object_relations_table()
 
