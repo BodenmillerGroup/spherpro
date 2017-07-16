@@ -515,7 +515,8 @@ class DataStore(object):
         measurements = measurements.merge(meta, how='inner', on='variable')
         del measurements['variable']
         del measurements['Number_Object_Number']
-        measurements = measurements.replace([np.inf, -np.inf], np.nan)
+        measurements = measurements.replace(np.inf, 2**16)
+        measurements = measurements.replace(np.inf, -(2**16))
         measurements = measurements.dropna()
         measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
         measurements_names.columns = [db.KEY_MEASUREMENTNAME]
