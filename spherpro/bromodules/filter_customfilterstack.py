@@ -67,8 +67,8 @@ class CustomFilterStack(filter_base.BaseFilter):
         """
         self.create_filter_stack()
         # get all filter channels and the number of the largest from RefPlaneMeta
-        q = bro.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == "FilterStack")
-        channels = pd.read_sql_query(q.statement,bro.data.db_conn)
+        q = self.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == "FilterStack")
+        channels = pd.read_sql_query(q.statement,self.data.db_conn)
         channels = list(channels[db.KEY_PLANEID])
         nochannels = len(channels)
         if nochannels == 0:
