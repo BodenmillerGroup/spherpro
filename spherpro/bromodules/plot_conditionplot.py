@@ -42,7 +42,9 @@ class PlotConditionPlot(plot_base.BasePlot):
         filename = None,
         show = None,
         cm = None,
+        filtertuples = None,
         filters = None
+
     ):
         """
         Plots a plot for a condition and metal, separating the timepoints.
@@ -52,6 +54,8 @@ class PlotConditionPlot(plot_base.BasePlot):
             bool show: should plt.show be executed? default False
             condition: the condition tc to be drawn
             cm: color map to use
+            filtertuples: list of filtertuples to create subquery from
+            filters: list of filternames from db.Filters
         Returns:
             plt, ax from plot
         """
@@ -85,6 +89,7 @@ class PlotConditionPlot(plot_base.BasePlot):
 
         # get the timepoints
         timepoints, wells_per_timepoint = self._get_condition_meta()
+        timepoints.sort()
         no = (
             int(np.ceil(wells_per_timepoint/int(np.floor(np.sqrt(wells_per_timepoint))))),
             int(np.floor(np.sqrt(wells_per_timepoint)))
@@ -97,7 +102,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         fig, ax = self._prepare_grid(sizey, sizex, timepoints, wells_per_timepoint, nox, noy, plot_map, relative)
 
         # get the Data
-        data = self._get_data(metal, filters)
+        data = self._get_data(metal,filtertuples ,filters)
         # generate lookup table
         lookup = self._generate_wells()
         # create range
@@ -241,7 +246,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         return conditions
 
 
-    def _get_data(self, metal, filters):
+    def _get_data(self, metal, filtertuples, filters):
         q  = (self.data.get_measurement_query()
                      .filter(
                          self.bro.filters.measurements.get_measurement_filter_statements(
@@ -252,8 +257,11 @@ class PlotConditionPlot(plot_base.BasePlot):
                              measurement_types=['Intensity'],
                          ))
                     )
-        if filters is not None:
-            fstatement = self.multifilter.get_multifilter_statement(filters)
+        if filtertuples is not None:
+            fstatement = self.multifilter.get_multifilter_statement(filtertuples)
             q = q.filter(fstatement)
+        if filters is not None:
+            for filtername in filters:
+                q = q.join(db.Filters).filter(sa.and_(db.Filters.FilterName == filtername, db.Filters.FilterValue==1))
         data = pd.read_sql_query(q.statement, self.data.db_conn)
         return data

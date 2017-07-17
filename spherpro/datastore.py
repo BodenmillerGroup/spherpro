@@ -669,6 +669,7 @@ class DataStore(object):
                               self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
                     how='left'
                 )
+                data = data.dropna()
                 tp_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME]
                 tw_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]
                 we_name = self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
