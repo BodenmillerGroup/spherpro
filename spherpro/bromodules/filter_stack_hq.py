@@ -69,7 +69,7 @@ class StackHQ(filter_base.BaseFilter):
         data = data.join(isambigous).join(issphere)
         data = data.reset_index(drop=False)
         # HQ Filter
-        data[db.KEY_VALUE] = pd.DataFrame(
+        data[db.KEY_FILTERVALUE] = pd.DataFrame(
             data[outcol_issphere] & (data[outcol_ambigous] == False)
         )
         self.custfilter.write_filter_to_db(data, "is-hq")
@@ -112,4 +112,3 @@ class StackHQ(filter_base.BaseFilter):
             tmp = pd.DataFrame(tmp[cname])
             data = data.join(tmp)
         return data
-

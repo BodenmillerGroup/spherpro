@@ -1,7 +1,5 @@
 """
-A class to generate and add filters to a custom filter stack.
-this allows for the use of the easy filter statements without
-sacrificing filter complexity
+A class to generate and add filters to a filter table.
 """
 import spherpro.bromodules.filter_base as filter_base
 import pandas as pd
@@ -56,7 +54,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         return objects
 
 
-    def write_filter_to_db(self, filterdata, filtername):
+    def write_filter_to_db(self, filterdata, filtername, drop=None):
         """
         Writes a dataframe containing Filterdata to the DB.
         Args:
@@ -65,50 +63,44 @@ class CustomFilterStack(filter_base.BaseFilter):
                         added value table.
             filtername: String stating the Filtername
         """
-        self.create_filter_stack()
-        # get all filter channels and the number of the largest from RefPlaneMeta
-        q = self.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == "FilterStack")
-        channels = pd.read_sql_query(q.statement,self.data.db_conn)
-        channels = list(channels[db.KEY_PLANEID])
-        nochannels = len(channels)
-        if nochannels == 0:
-            channel = "c1"
-        else:
-            curr = max([int(i[-1]) for i in channels])
-            nex = curr + 1
-            channel = "c"+str(nex)
-        # create PlaneMeta for next higher channel
-        planemeta = [{
-            db.KEY_STACKNAME: FILTERSTACKNAME,
-            db.KEY_PLANEID: channel,
-            db.KEY_REFSTACKNAME: FILTERSTACKNAME
-        }]
-        table = pd.DataFrame(planemeta)
-        self.data._add_generic_tuple(table, db.PlaneMeta)
-        # create RefPlaneMeta for next higher channel using filtername
-        refplanemeta = [{
-            db.KEY_STACKNAME: FILTERSTACKNAME,
-            db.KEY_PLANEID: channel,
-            db.KEY_CHANNEL_TYPE: FILTERTYPENAME,
-            db.KEY_CHANNEL_NAME: filtername
-        }]
-        table = pd.DataFrame(refplanemeta)
-        self.data._add_generic_tuple(table, db.RefPlaneMeta)
-        # add columns MeasurementName , MeasurementType and PlaneID column
+        if drop is None:
+            drop=False
+        # self.create_filter_stack()
+        # # get all filter channels and the number of the largest from RefPlaneMeta
+        # q = self.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == "FilterStack")
+        # channels = pd.read_sql_query(q.statement,self.data.db_conn)
+        # channels = list(channels[db.KEY_PLANEID])
+        # nochannels = len(channels)
+        # if nochannels == 0:
+        #     channel = "c1"
+        # else:
+        #     curr = max([int(i[-1]) for i in channels])
+        #     nex = curr + 1
+        #     channel = "c"+str(nex)
+        # # create RefPlaneMeta for next higher channel using filtername
+        # refplanemeta = [{
+        #     db.KEY_REFSTACKNAME: FILTERSTACKNAME,
+        #     db.KEY_PLANEID: channel,
+        #     db.KEY_CHANNEL_TYPE: FILTERTYPENAME,
+        #     db.KEY_CHANNEL_NAME: filtername
+        # }]
+        # table = pd.DataFrame(refplanemeta)
+        # self.data._bulkinsert(table, db.RefPlaneMeta)
+        # # create PlaneMeta for next higher channel
+        # planemeta = [{
+        #     db.KEY_STACKNAME: FILTERSTACKNAME,
+        #     db.KEY_PLANEID: channel,
+        #     db.KEY_REFSTACKNAME: FILTERSTACKNAME
+        # }]
+        # table = pd.DataFrame(planemeta)
+        # self.data._bulkinsert(table, db.PlaneMeta)
+
+        #
         # select only database columns and write to the Database
-        filterdata = filterdata[[db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_OBJECTID, db.KEY_VALUE]]
-        filterdata[db.KEY_MEASUREMENTNAME] = FILTERTYPENAME
-        filterdata[db.KEY_MEASUREMENTTYPE] = FILTERTYPENAME
-        filterdata[db.KEY_PLANEID] = channel
-        filterdata[db.KEY_STACKNAME] = FILTERSTACKNAME
+        filterdata = filterdata[[db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_OBJECTID, db.KEY_FILTERVALUE]]
+        # filterdata[db.KEY_MEASUREMENTNAME] = FILTERTYPENAME
+        # filterdata[db.KEY_MEASUREMENTTYPE] = FILTERTYPENAME
+        filterdata[db.KEY_FILTERNAME] = filtername
+        # filterdata[db.KEY_STACKNAME] = FILTERSTACKNAME
         filterdata = filterdata.dropna()
-        self.data._add_generic_tuple(filterdata, db.Measurement)
-
-
-
-
-
-
-
-
-
+        self.data._add_generic_tuple(filterdata, db.Filters, replace=drop)
