@@ -1,0 +1,75 @@
+
+crop_dir: '/home/mleutenegger/Data/20170613_Biotin_p56/analysis_data/crop/'
+
+backend: 'mysql'
+sqlite:
+  db: '/home/mleutenegger/Code/20170324_spherpro_testing/db.db'
+
+mysql:
+  db: 'brotest'
+  user: 'spherebro'
+  pass: 'bro'
+  host: '172.18.0.2'
+  port: '3306' # Default: 3306
+
+
+# Cellprofiler output info:
+cp_dir: '/home/mleutenegger/Data/20170613_Biotin_p56/analysis_data/cpoutput/'
+stack_dir:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/stacks/'
+  id_col: 'index' # Default: 'index'
+  name_col: 'mass' # Default: 'name'
+  stack_col: 'file_name' # Default: 'StackName' --> DEPRECATED
+  type_col: 'channel_type' # Default: 'channel_type'
+  sep: ',' # Default: ','
+stack_relations:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/stackrelations.csv'
+  stack_col: 'Stack' # Default: 'Stack'
+  parent_col: 'Parent' # Default: 'Parent'
+  modname_col: 'ModificationName' # Default: 'ModificationName'
+  modpre_col: 'ModificationPrefix' # Default: 'ModificationPrefix'
+  ref_col: 'RefStack' # Default: 'RefStack'
+  sep: ',' # Default: ','
+cpoutput:
+  measurement_csv:
+    objects: ['cell']
+  relation_csv:
+    path: 'Object relationships.csv'
+  images_csv:
+    path: 'Image.csv'
+    re_meta: "(?P<SiteName>[0-9]+_p[0-9]+_s[0-9]+_ac[0-9]+_[a-zA-Z0-9]+)_.*_l(?P<CropID>[0-9]+)_x(?P<PosX>[0-9]+)_y(?P<PosY>[0-9]+).*"
+    group_site: 'SiteName'
+
+# Experiment layout info:
+layout_csv:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/testlayout.csv'
+  plate_col: 'Plate'
+  bc_plate_col: 'BCPlate'
+  well_col: 'TargetWell'
+  condition_col: 'Compound'
+  timepoint_col: 'Timepoint'
+  control_col: 'isControl'
+  concentration_col: 'Final Concentration / Dilution'
+
+
+# Barcode Info:
+barcode_csv:
+  path: '/home/mleutenegger/Code/20170324_spherpro_testing/60-wellplate_102-104-105-106-108-110-Pd_113-115-In_BarcodingKey_reformated.csv'
+  plate_col: 'plate'
+  well_col: 'well'
+  sep: ','
+
+# wells_csv:
+  # path: ''
+
+
+# Pannel Info:
+pannel_csv:
+  path: '/home/mleutenegger/Git/SpheroidSignaling/20170419_biotin_p56/20170530_Biotin_EGF_panel.csv'
+  channel_name: 'metal'
+  display_name: 'name'
+  ilastik_name: 'ilastik'
+  barcode_name: 'barcode'
+  clone_name: 'Antibody Clone'
+  concentration_name: 'Final Concentration / Dilution'
+  tube_name: 'Tube Number'

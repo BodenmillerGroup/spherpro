@@ -20,5 +20,16 @@ setup(
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
     install_requires = [
-                       'tifffile', 'scikit-image', 'scikit-learn','numpy','pandas', 'scipy', 'requests', 'matplotlib', 'seaborn'],
+                       'tifffile',
+                       'scikit-image',
+                       'scikit-learn',
+                       'numpy',
+                       'pandas',
+                       'scipy',
+                       'requests',
+                       'matplotlib',
+                       'seaborn',
+                       'pyyaml',
+                       'PyMySQL',
+                       'sqlalchemy'],
 )
