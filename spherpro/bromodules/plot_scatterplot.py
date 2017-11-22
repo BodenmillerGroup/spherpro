@@ -101,6 +101,8 @@ class PlotScatter(plot_base.BasePlot):
         if image_ids is not None:
             query = query.filter(db.Image.ImageNumber.in_(image_ids))
         if filters is not None:
+            # TODO: this NEEDs to be fixed as it wont work for multiple filters!
+            # This needs to be done with subqueries!
             for filtername, filtervalue in filters:
                 query = (query.filter(sa.and_(db.Filters.FilterName == filtername,
                                          db.Filters.FilterValue ==

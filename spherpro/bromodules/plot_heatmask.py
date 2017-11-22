@@ -26,7 +26,6 @@ class PlotHeatmask(plot_base.BasePlot):
             (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
             (db.KEY_MEASUREMENTTYPE, 'Intensity')]
 
-
     def _prepare_masks(self, image_numbers):
         masks = [self.io_masks.get_mask(i) for i in image_numbers]
         return masks
@@ -53,11 +52,13 @@ class PlotHeatmask(plot_base.BasePlot):
 
         query = query.filter(filter_statement)
 
-        query = query.join(db.Filters)
         if image_numbers is not None:
             query = query.filter(db.Image.ImageNumber.in_(image_numbers))
-
+        if len(filters) > 0:
+            query = query.join(db.Filters)
         for fil in filters:
+            # TODO: this NEEDs to be fixed as it wont work as expected with multiple filters!
+            # This needs to be done with subqueries!
             query = query.filter(fil)
 
         data = pd.read_sql(query.statement, self.data.db_conn)
@@ -177,7 +178,8 @@ class PlotHeatmask(plot_base.BasePlot):
 
 
 
-    def plt_heatplot(site_id, cut_id,stat, channel, transform, censor_min, censor_max, keepRange, filter_hq,ax=None):
+    def plt_heatplot(site_id, stat, channel, transform, censor_min, censor_max, keepRange,
+                     filters, ax=None):
 
         if ax is None:
             ax = plt.gca()
