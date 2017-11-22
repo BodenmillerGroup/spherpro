@@ -84,7 +84,6 @@ class StackHQ(filter_base.BaseFilter):
             (
                 isambigous[col_distother] != (2**16)
             )
-            & (isambigous[col_distother
         )
         data = self.custfilter._get_valueless_table()
         data = data.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
