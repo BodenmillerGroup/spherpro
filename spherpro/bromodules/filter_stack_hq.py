@@ -82,7 +82,7 @@ class StackHQ(filter_base.BaseFilter):
             )
             &
             (
-                isambigous[col_distother] != (2**16)
+                isambigous[col_distother] < (2**16-2)
             )
         )
         data = self.custfilter._get_valueless_table()
