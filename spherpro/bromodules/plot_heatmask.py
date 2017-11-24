@@ -14,6 +14,24 @@ import pycytools as pct
 import sqlalchemy as sa
 import matplotlib.pyplot as plt
 
+import ipywidgets as ipw
+import functools
+
+
+# TODO: move to the pycytools!
+def logtransf_data(x):
+    xmin = min(x[x>0])
+    return(np.log(x+xmin))
+
+
+def asinhtransf_data(x):
+    return np.arcsinh(x/5)
+
+transf_dict = {'none': lambda x: x,
+                                           'log': logtransf_data,
+                                         'asinh': asinhtransf_data,
+                                         'sqrt': np.sqrt}
+
 class PlotHeatmask(plot_base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
@@ -25,6 +43,7 @@ class PlotHeatmask(plot_base.BasePlot):
             (db.KEY_STACKNAME, 'FullStack'),
             (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
             (db.KEY_MEASUREMENTTYPE, 'Intensity')]
+
 
     def _prepare_masks(self, image_numbers):
         masks = [self.io_masks.get_mask(i) for i in image_numbers]
@@ -39,7 +58,7 @@ class PlotHeatmask(plot_base.BasePlot):
                           for i, x, y, w, h in dat}
         slices = [slice_dict[i] for i in image_numbers]
         return slices
-
+    
     def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None):
 
         if filters is None:
@@ -176,44 +195,77 @@ class PlotHeatmask(plot_base.BasePlot):
         #fig.canvas.draw()
         return ax
 
+    def plt_heatplot(self, site, img_idx, stat, stack, channel, transform, censor_min,
+                     censor_max, keepRange, filter_hq, ax=None):
+        """
+        Retrieves images form the database and maps then on masks
+        Args:
+            site: sitename
+            img_idx: 0: all images from the site are ploted
+                     #: the #th image form this site
+            stat: The KEY_MEASUREMENTNAME 
+            stack: the Stackname
+            channel: the ChannelName
+            transform: a transform
 
-
-    def plt_heatplot(site_id, stat, channel, transform, censor_min, censor_max, keepRange,
-                     filters, ax=None):
-
+        """
         if ax is None:
-            ax = plt.gca()
-        channel = pct.library.metal_from_name(channel)
-        image_ids = dat_image.xs(site_id, level='site')['ImageNumber']
-        tdat = plot_cells.loc[list(image_ids),(stat,channel)]
+            ax = self._ax
+
+        image_numbers = [q[0] for q in (self.data.main_session.query(db.Image.ImageNumber)
+                                         .filter(db.Image.SiteName == site).distinct())]
         if filter_hq:
-            tdat = tdat.loc[plot_cells['filter']['is-hq'], ]
-
-        if transform is not 'none':
-            tdat = transf_dict[transform](tdat)
-
-        tdat = tdat.dropna()
-        tdat.loc[~np.isfinite(tdat)] = np.min(tdat.loc[np.isfinite(tdat)])
-
-        crange = ( np.percentile(tdat,censor_min*100), np.percentile(tdat,censor_max*100))
-        print(crange)
-        if cut_id >0:
-            image_id = image_ids[cut_id-1]
-            real_cutid = image_ids.index[cut_id-1]
-            tdat = tdat.loc[image_id]
-            print(real_cutid)
-            img = pct.library.map_series_on_mask(dat_image.loc[(site_id, real_cutid), 'mask'], tdat)
+             fil = [sa.and_(db.Filters.FilterName=='is-hq', db.Filters.FilterValue==True)]
         else:
-            img = assemble_heatmap_image(dat_image.xs(site_id, level='site')['ImageNumber'],
-                                         dat_image.xs(site_id, level='site')['slice'],
-                                         dat_image.xs(site_id, level='site')['mask'],
-                                      tdat, out_shape = None)
+             fil = None
+        if img_idx == 0:
+            imnr = image_numbers
+        else:
+            imnr = [image_numbers[img_idx]]
+        metal = pct.library.metal_from_name(channel)
+        print('Start loading...')
+        data = self.get_heatmask_data({db.KEY_OBJECTID: 'cell',
+                                                db.KEY_CHANNEL_NAME: metal,
+                                                db.KEY_STACKNAME: stack,
+                                                db.KEY_MEASUREMENTNAME: stat},
+                                                image_numbers=imnr,
+                                                filters=fil
+                                               )
+        print('Finished loading!')
+        data['Value'] = transf_dict[transform](data['Value'])
+        img = self.assemble_heatmap_image(data)
+        crange = ( np.percentile(data['Value'],censor_min*100),
+                  np.percentile(data['Value'],censor_max*100))
 
-        do_heatplot(img,
-                    title=pct.library.name_from_metal(channel, dict_name),
-                    crange=crange,
-                    ax=ax,
-                    update_axrange=keepRange==False
-                   )
+        self.do_heatplot(img,  title=channel,
+                   crange=crange, ax=ax, update_axrange=keepRange==False)
         plt.axis('off')
-            #print()
+        
+    def ipw_heatplot(self, ax):
+
+        sites = [ s[0] for s in self.data.main_session.query(db.Image.SiteName).distinct()]
+        name_dict = {m: n for m, n in self.data.main_session.query(db.Pannel.Metal,
+                                                                  db.Pannel.Target)}
+        channel_names = [q[0] for q in
+                         self.data.main_session.query(db.RefPlaneMeta.ChannelName).distinct()]
+        stack_names = [q[0] for q in
+                       self.data.main_session.query(db.Measurement.StackName).distinct()]
+        object_names = [q[0] for q in self.data.main_session.query(db.Objects.ObjectID).distinct()]
+        measurement_names = [q[0] for q in
+                             self.data.main_session.query(db.MeasurementName.MeasurementName).distinct()]
+        channel_names_info = [pct.library.name_from_metal(c, name_dict) for c in channel_names]
+
+        ipw.interact(self.plt_heatplot,
+            site=sites,
+            img_idx=ipw.IntSlider(min=0, max=137, continuous_update=False),
+            stat=measurement_names,
+            stack=stack_names,
+            channel=channel_names_info,
+            transform=list(transf_dict.keys()),
+            censor_min=ipw.FloatSlider(min=0, max=0.5, value=0, step=0.0001, continuous_update=False),
+            censor_max=ipw.FloatSlider(min=0.5, max=1, value=1, step=0.0001, continuous_update=False),
+            keepRange=ipw.Checkbox(),
+            filter_hq=ipw.Checkbox(value=True),
+            ax=ipw.fixed(ax)
+        )
+
