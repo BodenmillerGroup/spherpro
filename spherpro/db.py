@@ -14,6 +14,7 @@ Base = declarative_base()
 KEY_CHANNEL_NAME = 'ChannelName'
 KEY_CHANNEL_TYPE = 'ChannelType'
 KEY_CHILDNAME = 'ChildName'
+KEY_CHILDID = 'ChildID'
 KEY_DISPLAY_NAME = 'DisplayName'
 KEY_FILENAME = 'FileName'
 KEY_IMAGENUMBER = 'ImageNumber'
@@ -21,20 +22,26 @@ KEY_IMAGENUMBER_FROM = 'ImageNumberFrom'
 KEY_IMAGENUMBER_TO = 'ImageNumberTo'
 KEY_MEASUREMENTNAME = 'MeasurementName'
 KEY_MEASUREMENTTYPE = 'MeasurementType'
+KEY_MEASURMENTID = 'MeasurementID'
 KEY_MODIFICATIONNAME = 'ModificationName'
 KEY_MODIFICATIONPREFIX = 'ModificationPrefix'
+KEY_MODIFICATIONID = 'ModificationID'
 KEY_OBJECTID = 'ObjectID'
-KEY_OBJECTID_FROM = 'ObjectIDFrom'
-KEY_OBJECTID_TO = 'ObjectIDTo'
 KEY_OBJECTNUMBER = 'ObjectNumber'
-KEY_OBJECTNUMBER_FROM = 'ObjectNumberFrom'
-KEY_OBJECTNUMBER_TO = 'ObjectNumberTo'
+KEY_OBJECTUNIID = 'ObjectUniID'
+KEY_OBJECTUNIID_FROM = 'ObjectIDFrom'
+KEY_OBJECTUNIID_TO = 'ObjectIDTo'
 KEY_PARENTNAME = 'ParentName'
+KEY_PARENTID = 'ParentID'
 KEY_PLANEID = 'PlaneID'
+KEY_PLANEUNIID = 'PlaneUniID'
 KEY_REFSTACKNAME = 'RefStackName'
+KEY_REFSTACKID = 'RefStackID'
 KEY_RELATIONSHIP = 'Relationship'
+KEY_RELATIONSIPID = 'RelationshipID'
 KEY_SCALE = 'Scale'
 KEY_STACKNAME = 'StackName'
+KEY_STACKID = 'StackID'
 KEY_VALUE = 'Value'
 KEY_CROPID = 'CropID'
 KEY_POSX = 'PosX'
@@ -44,6 +51,7 @@ KEY_SHAPEH = 'ShapeH'
 
 KEY_FILTERNAME = 'FilterName'
 KEY_FILTERVALUE = 'FilterValue'
+KEY_FILTERID = 'FitlerID'
 
 KEY_CONDITIONID = 'ConditionID'
 KEY_CONDITIONNAME = 'ConditionName'
@@ -68,14 +76,17 @@ TABLE_SITE = 'Site'
 
 TABLE_DERIVEDSTACK = 'DerivedStack'
 TABLE_FILTERS = 'Filters'
+TABLE_FILTER_NAMES = 'FilterNames'
 TABLE_IMAGE = 'Image'
 TABLE_MASKS = 'Masks'
 TABLE_MEASUREMENT = 'Measurement'
-TABLE_MEASUREMENT_NAME = 'MeasurementName'
-TABLE_MEASUREMENT_TYPE = 'MeasurementType'
+TABLE_MEASUREMENT_META = 'MeasurementMeta'
+TABLE_MEASUREMENT_NAME = 'MeasurementNames'
+TABLE_MEASUREMENT_TYPE = 'MeasurementTypes'
 TABLE_MODIFICATION = 'Modification'
 TABLE_OBJECT = 'Objects'
 TABLE_OBJECT_RELATIONS = 'ObjectRelations'
+TABLE_OBJECT_RELATIONS_TYPES = 'ObjectRelationsTypes'
 TABLE_PLANEMETA = 'PlaneMeta'
 TABLE_REFPLANEMETA = 'RefPlaneMeta'
 TABLE_REFSTACK = 'RefStack'
@@ -192,9 +203,10 @@ class Masks(Base):
 class Objects(Base):
     """docstring for Objects."""
     __tablename__ = TABLE_OBJECT
-    ObjectNumber = Column(Integer(), primary_key=True)
-    ImageNumber = Column(Integer(), primary_key=True)
-    ObjectID = Column(String(200), primary_key=True)
+    ObjectNumber = Column(Integer())
+    ObjectUniID = Column(Integer(), primary_key=True)
+    ImageNumber = Column(Integer(), index=True)
+    ObjectID = Column(String(200), index=True)
     __table_args__ = (ForeignKeyConstraint(
         [ImageNumber],
         [Image.ImageNumber]),
@@ -205,134 +217,143 @@ class Objects(Base):
 class RefStack(Base):
     """docstring for RefStack."""
     __tablename__ = TABLE_REFSTACK
-    RefStackName = Column(String(200), primary_key=True)
+    RefStackID = Column(Integer(), primary_key=True)
+    RefStackName = Column(String(200), unique=True)
     Scale = Column(Float())
 
 class RefPlaneMeta(Base):
     """docstring for PlaneMeta."""
     __tablename__ = TABLE_REFPLANEMETA
-    RefStackName = Column(String(200), primary_key=True)
-    PlaneID = Column(String(200), primary_key=True)
+    RefStackID = Column(Integer(), primary_key=True)
+    PlaneID = Column(Integer(), primary_key=True)
     ChannelType = Column(String(200))
     ChannelName = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
-        [RefStackName],
-        [RefStack.RefStackName]),{})
+        [RefStackID],
+        [RefStack.RefStackID]),{})
 
 class Stack(Base):
     """docstring for Stack."""
     __tablename__ = TABLE_STACK
-    StackName = Column(String(200), primary_key=True)
-    RefStackName = Column(String(200))
+    StackID = Column(Integer(), primary_key=True)
+    StackName = Column(String(200), unique=True)
+    RefStackID = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
-        [RefStackName], [RefStack.RefStackName]), {})
+        [RefStackID], [RefStack.RefStackID]), {})
 
 class PlaneMeta(Base):
     __tablename__ = TABLE_PLANEMETA
-    StackName = Column(String(200), primary_key=True)
-    PlaneID = Column(String(200), primary_key=True)
-    RefStackName = Column(String(200))
+    PlaneUniID = Column(Integer(), primary_key=True)
+    StackID = Column(Integer())
+    PlaneID = Column(Integer())
+    RefStackID = Column(Integer())
     __table_args__ = (
         ForeignKeyConstraint(
-        [RefStackName, PlaneID],
-        [RefPlaneMeta.RefStackName, RefPlaneMeta.PlaneID]),
+        [RefStackID, PlaneID],
+        [RefPlaneMeta.RefStackID, RefPlaneMeta.PlaneID]),
         ForeignKeyConstraint(
-            [StackName], [Stack.StackName]),
+            [StackID], [Stack.StackID]),
             {})
 
 class Modification(Base):
     """docstring for Modification."""
     __tablename__ = TABLE_MODIFICATION
-    ModificationName = Column(String(200), primary_key=True)
-    ModificationPrefix = Column(String(200))
+    ModificationID = Column(Integer(), primary_key=True)
+    ModificationName = Column(String(200), unique=True)
+    ModificationPrefix = Column(String(200), unique=True)
 
 class StackModification(Base):
     """docstring for StackModification."""
     __tablename__ = TABLE_STACKMODIFICATION
-    ModificationName = Column(String(200),
+    ModificationID = Column(Integer(),
                               primary_key=True)
-    ParentName = Column(String(200), primary_key=True)
-    ChildName = Column(String(200), primary_key=True)
+    ParentID = Column(Integer(), primary_key=True)
+    ChildID = Column(Integer(), primary_key=True)
     __table_args__ = (
         ForeignKeyConstraint(
-        [ParentName],
-        [Stack.StackName]),
+        [ParentID],
+        [Stack.StackID]),
         ForeignKeyConstraint(
-        [ChildName],
-        [Stack.StackName]),
+        [ChildID],
+        [Stack.StackID]),
         ForeignKeyConstraint(
-            [ModificationName],[Modification.ModificationName]),
+            [ModificationID],[Modification.ModificationID]),
         {})
+
+class FilterNames(Base):
+    __tablename__ = TABLE_FILTER_NAMES
+    FilterID = Column(Integer(), primary_key=True)
+    FilterName = Column(String(200), unique=True)
+
 
 class Filters(Base):
     __tablename__ = TABLE_FILTERS
-    FilterName = Column(String(200), primary_key=True)
-    ImageNumber = Column(Integer(),
-                         primary_key=True)
-    ObjectNumber = Column(Integer(),
-                          primary_key=True)
-    ObjectID =  Column(String(200),
+    FilterID = Column(Integer(), primary_key=True)
+    ObjectUniID =  Column(Integer(),
                        primary_key=True)
-    FilterValue = Column(Boolean(), primary_key=False)
+    FilterValue = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
-        [ObjectNumber, ImageNumber, ObjectID],
-        [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]), {})
+        [ObjectUniID],
+        [Objects.ObjectUniID]),
+        ForeignKeyConstraint([FilterID], [FilterNames.FilterID]), {})
 
 class ObjectRelations(Base):
     __tablename__ = TABLE_OBJECT_RELATIONS
-    ImageNumberFrom = Column(Integer(),
-                         primary_key=True)
-    ObjectNumberFrom = Column(Integer(),
-                          primary_key=True)
-    ObjectIDFrom = Column(String(200),
+    ObjectUniIDFrom = Column(Integer(),
                        primary_key=True)
-    ImageNumberTo = Column(Integer(),
-                         primary_key=True)
-    ObjectNumberTo = Column(Integer(),
-                          primary_key=True)
-    ObjectIDTo = Column(String(200),
+    ObjectUniIDTo = Column(Integer(),
                        primary_key=True)
-    Relationship = Column(String(200), primary_key=True)
+    RelationshipID = Column(Integer(), primary_key=True)
     __table_args__ = (ForeignKeyConstraint(
-        [ImageNumberFrom, ObjectNumberFrom, ObjectIDFrom],
-        [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),
+        [ObjectUniIDFrom],
+        [Objects.ObjectUniID]),
         ForeignKeyConstraint(
-        [ImageNumberTo, ObjectNumberTo, ObjectIDTo],
-            [Objects.ImageNumber, Objects.ObjectNumber, Objects.ObjectID]),{})
+        [ObjectUniIDTo],
+            [Objects.ObjectUniID]),{})
 
-class Measurement(Base):
-    """docstring for Measurement."""
-    __tablename__ = TABLE_MEASUREMENT
-    ImageNumber = Column(Integer(), primary_key=True)
-    ObjectNumber = Column(Integer(),  primary_key=True)
-    ObjectID = Column(String(200),
-                       primary_key=True)
-    MeasurementType = Column(String(200), primary_key=True)
-    MeasurementName = Column(String(200), primary_key=True)
-    PlaneID = Column(String(200), primary_key=True)
-    StackName = Column(String(200), primary_key=True)
-    Value = Column(Float())
-    __table_args__ = (ForeignKeyConstraint(
-        [ObjectNumber, ImageNumber, ObjectID],
-        [Objects.ObjectNumber, Objects.ImageNumber, Objects.ObjectID]),
-        ForeignKeyConstraint(
-            [StackName, PlaneID],
-            [PlaneMeta.StackName, PlaneMeta.PlaneID])
-        ,{})
+class ObjectRelationsTypes(Base):
+    __tablename__ = TABLE_OBJECT_RELATIONS_TYPES
+    RelationshipID = Column(Integer(), primary_key=True)
+    RelationshipName = Column(String(200), index=True, unique=True)
 
-class MeasurementName(Base):
+class MeasurementNames(Base):
     """
     Convenience table
     """
     __tablename__ = TABLE_MEASUREMENT_NAME
     MeasurementName = Column(String(200), primary_key=True)
 
-class MeasurementType(Base):
+class MeasurementTypes(Base):
     """
     Convenience table
     """
     __tablename__ = TABLE_MEASUREMENT_TYPE
     MeasurementType = Column(String(200), primary_key=True)
+
+class MeasurementMeta(Base):
+    __tablename__ = TABLE_MEASUREMENT_META
+    MeasurementID = Column(Integer(), primary_key=True)
+    MeasurementType = Column(String(200))
+    MeasurementName = Column(String(200))
+    PlaneUniID = Column(Integer())
+    __table_args__ = (ForeignKeyConstraint(
+        [MeasurementName], [MeasurementNames.MeasurementName]),
+        ForeignKeyConstraint([MeasurementType], [MeasurementTypes.MeasurementType]),
+        ForeignKeyConstraint([PlaneUniID], [PlaneMeta.PlaneUniID]), {})
+
+class Measurement(Base):
+    """docstring for Measurement."""
+    __tablename__ = TABLE_MEASUREMENT
+    ObjectUniID = Column(Integer(),
+                       primary_key=True)
+    MeasurementID = Column(Integer(), primary_key=True)
+    Value = Column(Float())
+    __table_args__ = (ForeignKeyConstraint(
+        [ObjectUniID],
+        [Objects.ObjectUniID]),
+        ForeignKeyConstraint(
+            [MeasurementID], [MeasurementMeta.MeasurementID])
+        ,{})
 
 
 TABLE_PANNEL = 'Pannel'

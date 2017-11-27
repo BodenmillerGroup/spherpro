@@ -29,7 +29,7 @@ DICT_DB_KEYS = {
 
 OBJECTS_STACKNAME = 'ObjectStack'
 OBJECTS_CHANNELNAME = 'object'
-OBJECTS_PLANEID = 'c1'
+OBJECTS_PLANEID = '1'
 OBJECTS_CHANNELTYPE = 'object'
 
 class DataStore(object):
@@ -274,7 +274,7 @@ class DataStore(object):
         """
         parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
         modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE] 
+        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stackrel = self._stack_relation_csv.loc[
             self._stack_relation_csv[parent_col] !='0']
         Modifications = pd.DataFrame(stackrel[modname_col])
@@ -288,17 +288,45 @@ class DataStore(object):
         """
         parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
         modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         key_map = {parent_col: db.KEY_PARENTNAME,
                    modname_col: db.KEY_MODIFICATIONNAME,
                    stack_col: db.KEY_CHILDNAME}
+
         StackModification = (self._stack_relation_csv
                              .loc[self._stack_relation_csv[parent_col] !='0',
                          list(key_map.keys())]
                     .rename(columns=key_map))
-        return StackModification
 
+        stackdict = {n: i for n, i in
+                     self.main_session.query(db.Stack.StackName, db.Stack.StackID)
+                     .filter(db.Stack.StackName.in_(
+                         StackModification[db.KEY_PARENTNAME].tolist()+
+                         StackModification[db.KEY_CHILDNAME].tolist()))}
+        StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
+                                              .replace(stackdict))
+
+        StackModification[db.KEY_CHILDID] = (StackModification[db.KEY_CHILDNAME]
+                                              .replace(stackdict))
+        modidict = {n: i for n, i in
+                    (self.main_session.query(db.Modification.ModificationName,
+                                            db.Modification.ModificationID)
+                     .filter(db.Modification.ModificationName.in_(
+                         StackModification[db.KEY_MODIFICATIONNAME])))}
+
+        StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
+                                              .replace(stackdict))
+
+        StackModification[db.KEY_CHILDID] = (StackModification[db.KEY_CHILDNAME]
+                                              .replace(stackdict))
+        StackModification[db.KEY_MODIFICATIONID] = (StackModification[db.KEY_MODIFICATIONNAME]
+                                                    .replace(modidict))
+
+        return StackModification.loc[:,
+                                     [db.KEY_PARENTID,
+                                      db.KEY_CHILDID,
+                                      db.KEY_MODIFICATIONID]]
+   
     def _generate_refstack(self):
         """
         Generates the refstack table
@@ -345,8 +373,14 @@ class DataStore(object):
 
         fil = stack[db.KEY_REFSTACKNAME] == '0'
         stack.loc[fil, db.KEY_REFSTACKNAME] = stack.loc[fil,
-                                                                        db.KEY_STACKNAME]
-        return stack
+                                                        db.KEY_STACKNAME]
+
+        refstackdict = {n: i for n, i in (self.main_session
+           .query(db.RefStack.RefStackName, db.RefStack.RefStackID)
+           .filter(db.RefStack.RefStackName.in_(stack[db.KEY_REFSTACKNAME])))}
+        stack[db.KEY_REFSTACKID] = stack[db.KEY_REFSTACKNAME].replace(refstackdict)
+
+        return stack.loc[:, [db.KEY_REFSTACKID, db.KEY_STACKNAME]]
 
 
     def _write_refplanes_table(self):
@@ -389,22 +423,31 @@ class DataStore(object):
         planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
-        planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: 'c'+str(int(x)))
+        planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: int(x))
 
         planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
                        db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
                        db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
                        db.KEY_CHANNEL_TYPE: OBJECTS_CHANNELTYPE},
                                ignore_index=True)
+        refdict = self._get_namekey_dict(db.RefStack.RefStackName, db.RefStack.RefStackID,
+                                         planes[db.KEY_REFSTACKNAME].unique())
 
-        return planes
+        planes[db.KEY_REFSTACKID] = planes[db.KEY_REFSTACKNAME].replace(refdict)
+
+        return planes.loc[:, [db.KEY_REFSTACKID, db.KEY_PLANEID, db.KEY_CHANNEL_NAME,
+                              db.KEY_CHANNEL_TYPE]]
 
     def _generate_planemeta(self):
-        refplanes = self._generate_refplanemeta()
         stack = self._generate_stack()
-        refplanes = refplanes.set_index(db.KEY_REFSTACKNAME)
-        planes = stack.join(refplanes, on=db.KEY_REFSTACKNAME)
-        planes = planes.loc[:,[db.KEY_STACKNAME, db.KEY_REFSTACKNAME, db.KEY_PLANEID]]
+        refplanes = self._generate_refplanemeta()
+        planes = stack.merge(refplanes, on=db.KEY_REFSTACKID)
+        stackdic = self._get_namekey_dict(db.Stack.StackName, db.Stack.StackID,
+                                    planes[db.KEY_STACKNAME].unique().tolist())
+        planes[db.KEY_STACKID] = planes[db.KEY_STACKNAME].replace(stackdic)
+        planes = planes.loc[:,[db.KEY_STACKID,
+                               db.KEY_REFSTACKID,
+                               db.KEY_PLANEID]]
         return planes
 
     def _write_site_table(self):
@@ -465,7 +508,6 @@ class DataStore(object):
                                                       db.KEY_OBJECTID,
                                                       db.KEY_IMAGENUMBER]])
         return objects
-
     def _write_measurement_table(self, minimal):
         """
         Generates the Measurement, MeasurementType and MeasurementName
@@ -495,6 +537,8 @@ class DataStore(object):
                                               no_plane_string=OBJECTS_PLANEID))
         meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
                         db.KEY_STACKNAME, db.KEY_PLANEID]
+        meta = meta.loc[meta['variable'] != '', :]
+        meta[db.KEY_PLANEID] = meta[db.KEY_PLANEID].map(lambda x: int(x.replace('c','')))
         if minimal:
             stackrel = self._stack_relation_csv
             stackconf = self.conf[conf.STACK_RELATIONS]
@@ -509,16 +553,37 @@ class DataStore(object):
                     db.KEY_OBJECTID])
             measurements = measurements[filtered_names]
             measurements = measurements.reset_index(drop=False)
+
+        # Query the objects table to join the measurements with it and add the numeric, 
+        # per object unique index 'ObjectUniID'
+        tab_obj = pd.read_sql(
+            self.main_session.query(db.Objects)
+            .filter(db.Objects.ImageNumber.in_(measurements[db.KEY_IMAGENUMBER].unique().tolist()))
+            .statement, self.db_conn)
+
+        measurements = measurements.merge(tab_obj)
+        measurements = measurements.loc[
+            :, measurements.columns.isin(meta['variable'].tolist() + [db.KEY_OBJECTUNIID])]
         measurements = pd.melt(measurements,
-                               id_vars=[db.KEY_IMAGENUMBER,
-                                        db.KEY_OBJECTNUMBER,'Number_Object_Number',
-                                       db.KEY_OBJECTID],
+                               id_vars=[db.KEY_OBJECTUNIID],
                                var_name='variable', value_name=db.KEY_VALUE)
+
+        # Add the MeasurementID by merging the table
+        tab_meas = pd.read_sql(
+            self.main_session.query(db.MeasurementMeta.MeasurementID,
+                                   db.MeasurementMeta.MeasurementName,
+                                   db.MeasurementMeta.MeasurementType,
+                                   db.PlaneMeta.PlaneID,
+                                   db.Stack.StackName)
+            .join(db.PlaneMeta)
+            .join(db.Stack)
+            .filter(db.Stack.in_(meat[db.KEY_STACKNAME].unique()))
+            .statement, self.db_conn)
+        meta = meta.merge(tab_meas)
         measurements = measurements.merge(meta, how='inner', on='variable')
         del measurements['variable']
-        del measurements['Number_Object_Number']
         measurements = measurements.replace(np.inf, 2**16)
-        measurements = measurements.replace(np.inf, -(2**16))
+        measurements = measurements.replace(-np.inf, -(2**16))
         measurements = measurements.dropna()
         measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
         measurements_names.columns = [db.KEY_MEASUREMENTNAME]
@@ -526,14 +591,13 @@ class DataStore(object):
         measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
         measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
         measurements_types = measurements_types.rename_axis('id')
-        measurements = measurements.sort_values([db.KEY_IMAGENUMBER,
-                                                 db.KEY_OBJECTNUMBER,
-                                                 db.KEY_STACKNAME,
-                                                 db.KEY_MEASUREMENTTYPE,
-                                                 db.KEY_MEASUREMENTNAME,
-                                                 db.KEY_PLANEID])
+        measurements = measurements.loc[:,[db.KEY_OBJECTUNIID,
+                                                 db.KEY_MEASURMENTID,
+                                          db.KEY_VALUE]]
 
         return measurements, measurements_names, measurements_types
+
+
 
     def _generate_masks(self):
         cpconf = self.conf[conf.CPOUTPUT]
@@ -753,6 +817,7 @@ class DataStore(object):
             data[un] = None
 
         odo(data, dbtable)
+        self.main_session.commit()
 
 
     def add_measurements(self, measurements, replace=False, backup=False,
@@ -1199,6 +1264,20 @@ class DataStore(object):
     def _get_table_keynames(self, table_name):
         tab = self._get_table_object(table_name)
         return tab.__table__.primary_key.column.keys()
+
+    def _get_namekey_dict(self, namecol, idcol, names):
+        """
+        Generates a name: idcol dictionary from a table
+        while filtering for names in the namecol
+
+        namecol: A sql column, e.g. db.Stack.StackName
+        idcol: A sql id column, e.g. db.Stack.StackID
+        names: names to be queried
+
+        """
+        d = {n: i for n, i in (self.main_session.query(namecol, idcol)
+                               .filter(namecol.in_(names)))}
+        return d
 
     #Properties:
     @property
