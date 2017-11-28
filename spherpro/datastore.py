@@ -517,7 +517,13 @@ class DataStore(object):
 
         """
 
-        measurements, measurements_names, measurements_types = \
+        measurement_meta = self._generate_measurement_meta
+
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.MeasurementNames)
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.MeasurementTypes)
+        self._bulkinsert(measurement_meta, db.MeasurementMeta)
+
+        measurements = \
         self._generate_measurements(minimal)
         measurements = measurements.dropna()
         measurements = measurements.reset_index(drop=True)
@@ -562,8 +568,10 @@ class DataStore(object):
             .statement, self.db_conn)
 
         measurements = measurements.merge(tab_obj)
+        print(measurements.shape)
         measurements = measurements.loc[
             :, measurements.columns.isin(meta['variable'].tolist() + [db.KEY_OBJECTUNIID])]
+        print(measurements.shape)
         measurements = pd.melt(measurements,
                                id_vars=[db.KEY_OBJECTUNIID],
                                var_name='variable', value_name=db.KEY_VALUE)
@@ -577,9 +585,11 @@ class DataStore(object):
                                    db.Stack.StackName)
             .join(db.PlaneMeta)
             .join(db.Stack)
-            .filter(db.Stack.in_(meat[db.KEY_STACKNAME].unique()))
+            .filter(db.Stack.StackName.in_(meta[db.KEY_STACKNAME].unique()))
             .statement, self.db_conn)
         meta = meta.merge(tab_meas)
+        print(meta)
+        print(measurements.columns)
         measurements = measurements.merge(meta, how='inner', on='variable')
         del measurements['variable']
         measurements = measurements.replace(np.inf, 2**16)
