@@ -5,7 +5,7 @@ import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, Boolean,\
-     ForeignKeyConstraint
+     ForeignKeyConstraint, UniqueConstraint
 Base = declarative_base()
 
 # Define the table and column names to be used
@@ -339,7 +339,8 @@ class MeasurementMeta(Base):
     __table_args__ = (ForeignKeyConstraint(
         [MeasurementName], [MeasurementNames.MeasurementName]),
         ForeignKeyConstraint([MeasurementType], [MeasurementTypes.MeasurementType]),
-        ForeignKeyConstraint([PlaneUniID], [PlaneMeta.PlaneUniID]), {})
+        ForeignKeyConstraint([PlaneUniID], [PlaneMeta.PlaneUniID]),
+        UniqueConstraint(MeasurementName, MeasurementType, PlaneUniID),{})
 
 class Measurement(Base):
     """docstring for Measurement."""
@@ -347,7 +348,7 @@ class Measurement(Base):
     ObjectUniID = Column(Integer(),
                        primary_key=True)
     MeasurementID = Column(Integer(), primary_key=True)
-    Value = Column(Float())
+    Value = Column(Float(precision=32))
     __table_args__ = (ForeignKeyConstraint(
         [ObjectUniID],
         [Objects.ObjectUniID]),

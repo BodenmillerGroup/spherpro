@@ -222,7 +222,7 @@ class DataStore(object):
 
     def _populate_db(self, minimal):
         """
-        writes the tables to the database
+        Writes the tables to the database
         """
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
@@ -516,26 +516,30 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-
-        measurement_meta = self._generate_measurement_meta
+        measurement_meta = self._generate_measurement_meta()
 
         self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.MeasurementNames)
         self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.MeasurementTypes)
-        self._bulkinsert(measurement_meta, db.MeasurementMeta)
+        self._bulkinsert(
+            measurement_meta.loc[:, [db.KEY_MEASUREMENTNAME, db.KEY_MEASUREMENTTYPE,
+                                    db.KEY_PLANEUNIID]],
+            db.MeasurementMeta)
 
-        measurements = \
-        self._generate_measurements(minimal)
-        measurements = measurements.dropna()
-        measurements = measurements.reset_index(drop=True)
+        measurements = self._generate_measurements(minimal, measurement_meta)
+        # increase performance
+        if self.conf[conf.BACKEND] == 'mysql':
+            self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
+            self.db_conn.execute('SET UNIQUE_CHECKS = 0')
         self._bulkinsert(measurements, db.Measurement)
+        if self.conf[conf.BACKEND] == 'mysql':
+            self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
+            self.db_conn.execute('SET UNIQUE_CHECKS = 1')
 
-        self._bulkinsert(measurements_names, db.MeasurementName)
 
-        self._bulkinsert(measurements_types, db.MeasurementType)
 
         del self._measurement_csv
-
-    def _generate_measurements(self, minimal):
+    
+    def _generate_measurement_meta(self):
         measurements = self._measurement_csv
         meta = pd.Series(measurements.columns.unique()).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
@@ -545,6 +549,17 @@ class DataStore(object):
                         db.KEY_STACKNAME, db.KEY_PLANEID]
         meta = meta.loc[meta['variable'] != '', :]
         meta[db.KEY_PLANEID] = meta[db.KEY_PLANEID].map(lambda x: int(x.replace('c','')))
+        
+        dat_planeids = pd.read_sql(self.main_session.query(
+                db.Stack.StackName, db.PlaneMeta.PlaneID, db.PlaneMeta.PlaneUniID)
+            .join(db.PlaneMeta).statement, self.db_conn)
+
+        meta = meta.merge(dat_planeids)
+
+        return meta
+        
+    def _generate_measurements(self, minimal, meta):
+        measurements = self._measurement_csv
         if minimal:
             stackrel = self._stack_relation_csv
             stackconf = self.conf[conf.STACK_RELATIONS]
@@ -568,10 +583,8 @@ class DataStore(object):
             .statement, self.db_conn)
 
         measurements = measurements.merge(tab_obj)
-        print(measurements.shape)
-        measurements = measurements.loc[
-            :, measurements.columns.isin(meta['variable'].tolist() + [db.KEY_OBJECTUNIID])]
-        print(measurements.shape)
+        measurements.drop([db.KEY_OBJECTID, db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER,
+                           'Number_Object_Number'], axis=1)
         measurements = pd.melt(measurements,
                                id_vars=[db.KEY_OBJECTUNIID],
                                var_name='variable', value_name=db.KEY_VALUE)
@@ -588,24 +601,15 @@ class DataStore(object):
             .filter(db.Stack.StackName.in_(meta[db.KEY_STACKNAME].unique()))
             .statement, self.db_conn)
         meta = meta.merge(tab_meas)
-        print(meta)
-        print(measurements.columns)
         measurements = measurements.merge(meta, how='inner', on='variable')
-        del measurements['variable']
-        measurements = measurements.replace(np.inf, 2**16)
-        measurements = measurements.replace(-np.inf, -(2**16))
-        measurements = measurements.dropna()
-        measurements_names = pd.DataFrame(measurements[db.KEY_MEASUREMENTNAME].unique())
-        measurements_names.columns = [db.KEY_MEASUREMENTNAME]
-        measurements_names = measurements_names.rename_axis('id')
-        measurements_types = pd.DataFrame(measurements[db.KEY_MEASUREMENTTYPE].unique())
-        measurements_types.columns = [db.KEY_MEASUREMENTTYPE]
-        measurements_types = measurements_types.rename_axis('id')
+        measurements[db.KEY_VALUE].replace(np.inf, 2**16, inplace=True)
+        measurements[db.KEY_VALUE].replace(-np.inf, -(2**16), inplace=True)
+        measurements.dropna(inplace=True)
         measurements = measurements.loc[:,[db.KEY_OBJECTUNIID,
                                                  db.KEY_MEASURMENTID,
                                           db.KEY_VALUE]]
 
-        return measurements, measurements_names, measurements_types
+        return measurements
 
 
 
@@ -825,7 +829,7 @@ class DataStore(object):
         uniq = list(set(table_cols)-set(data_cols))
         for un in uniq:
             data[un] = None
-
+        print('Insert table of dimension:', str(data.shape)) 
         odo(data, dbtable)
         self.main_session.commit()
 
