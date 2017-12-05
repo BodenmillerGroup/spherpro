@@ -58,7 +58,8 @@ class DataStore(object):
         self._session_maker = None
         self.connectors = {
             conf.CON_SQLITE: db.connect_sqlite,
-            conf.CON_MYSQL: db.connect_mysql
+            conf.CON_MYSQL: db.connect_mysql,
+            conf.CON_POSTGRESQL: db.connect_postgresql
         }
 
     #########################################################################
@@ -627,6 +628,9 @@ class DataStore(object):
         csv_pannel[db.PANNEL_COL_CONCENTRATION] = csv_pannel[db.PANNEL_COL_CONCENTRATION].apply(
             lambda x: float(re.findall(r"[-+]?\d*\.\d+|\d+", x)[0])
         )
+        # correct boolean to logical
+        csv_pannel.loc[:, [db.PANNEL_COL_BARCODE, db.PANNEL_COL_ILASTIK]] =\
+                csv_pannel.loc[:, [db.PANNEL_COL_BARCODE, db.PANNEL_COL_ILASTIK]] == 1
         return csv_pannel
 
     def _write_condition_table(self):

@@ -69,6 +69,7 @@ META_REGEXP = 're_meta'
 
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
+CON_POSTGRESQL = 'postgresql'
 
 
 LAYOUT_CSV_PLATE_NAME = 'plate_col'
