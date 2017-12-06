@@ -131,6 +131,27 @@ def connect_mysql(conf):
     engine = create_engine(conn)
     return engine
 
+def connect_postgresql(conf):
+    """
+    creates a MySQL connector to be used with the Datastore and creates the
+    Database tables.
+
+    Args:
+        conf: the config dictionnary from a Datastore object.
+
+    Returns:
+        MySQL connector
+    """
+    CON_POSTGRESQL = 'postgresql'
+    host = conf[CON_POSTGRESQL]['host']
+    port = conf[CON_POSTGRESQL].get('port', '5432')
+    user = conf[CON_POSTGRESQL]['user']
+    password = conf[CON_POSTGRESQL]['pass']
+    db = conf[CON_POSTGRESQL]['db']
+    conn = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, db)
+    engine = create_engine(conn)
+    return engine
+
 def initialize_database(engine):
     Base.metadata.create_all(engine)
     return engine
