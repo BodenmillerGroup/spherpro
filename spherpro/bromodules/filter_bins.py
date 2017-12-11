@@ -1,7 +1,6 @@
 """
-A class to generate and add a hq filter to the database.
-this filter is a composition from diffrent silent (as in not saved to the db)
-conditions.
+TODO: NON WORKING!!
+
 """
 import spherpro.bromodules.filter_base as filter_base
 import spherpro.bromodules.filter_customfilterstack as filter_customfilterstack

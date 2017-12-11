@@ -70,7 +70,7 @@ class PlotScatter(plot_base.BasePlot):
                  db.measurement_types.measurement_type.key: measurement_type}
             image_ids: image ids to plot
             filters: list of filter tuples [('filtername1', True),
-            ('filtername2', False)] 
+            ('filtername2', False)]
         Returns:
             p:  the plot figure object
 
@@ -119,7 +119,7 @@ class PlotScatter(plot_base.BasePlot):
         Queries repeatedly using the base_query and applying multiple filters.
         The results will be joined on the 'on_cols' and the columns renamed
         with a prefix according to the filter index (0_, 1_ etc.)
-        
+
         Args:
             base_query: the query that should be used as a basis.
             filters:    a list of filter statements

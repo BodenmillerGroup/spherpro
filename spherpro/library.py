@@ -1,6 +1,6 @@
-import pandas as pd
 import os
 import re
+import pandas as pd
 import spherpro.configuration as conf
 
 def fill_null(data, table):

@@ -2,10 +2,11 @@
 A class to generate filter queries from measurements
 and save them into the database.
 """
+import re
+import operator
 import spherpro.bromodules.filter_base as filter_base
 import pandas as pd
 import numpy as np
-import re
 
 import spherpro as sp
 import spherpro.datastore as datastore

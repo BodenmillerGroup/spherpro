@@ -21,7 +21,7 @@ def connect_sqlite(conf):
     Returns:
         SQLite3 conne:ctor
     """
-    db=conf['sqlite']['db']
+    db = conf['sqlite']['db']
     conn = 'sqlite:///%s' % (db)
     engine = create_engine(conn)
     Base.metadata.create_all(engine)
@@ -42,8 +42,8 @@ def connect_mysql(conf):
     port = conf['mysql'].get('port', '3306')
     user = conf['mysql']['user']
     password = conf['mysql']['pass']
-    db = conf['mysql']['db']
-    conn = 'mysql+pymysql://%s:%s@%s:%s/%s' % (user, password, host, port, db)
+    database = conf['mysql']['db']
+    conn = 'mysql+pymysql://%s:%s@%s:%s/%s' % (user, password, host, port, database)
     engine = create_engine(conn)
     return engine
 
@@ -58,13 +58,13 @@ def connect_postgresql(conf):
     Returns:
         MySQL connector
     """
-    CON_POSTGRESQL = 'postgresql'
-    host = conf[CON_POSTGRESQL]['host']
-    port = conf[CON_POSTGRESQL].get('port', '5432')
-    user = conf[CON_POSTGRESQL]['user']
-    password = conf[CON_POSTGRESQL]['pass']
-    db = conf[CON_POSTGRESQL]['db']
-    conn = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, db)
+    conf_postgresql = 'postgresql'
+    host = conf[conf_postgresql]['host']
+    port = conf[conf_postgresql].get('port', '5432')
+    user = conf[conf_postgresql]['user']
+    password = conf[conf_postgresql]['pass']
+    database = conf[conf_postgresql]['database']
+    conn = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, database)
     engine = create_engine(conn)
     return engine
 
