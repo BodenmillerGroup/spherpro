@@ -281,6 +281,7 @@ class DataStore(object):
         Modifications = pd.DataFrame(stackrel[modname_col])
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
+        Modifications[db.KEY_MODIFICATIONID] = range(Modifications.shape[0])
         return Modifications
 
     def _generate_stackmodification(self):
@@ -352,6 +353,8 @@ class DataStore(object):
         ref_stack = ref_stack.append(pd.DataFrame({
             db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
             db.KEY_SCALE: 1}, index=[1]),ignore_index=True)
+        # set uni id 
+        ref_stack[db.KEY_REFSTACKID] = range(ref_stack.shape[0])
         return ref_stack
 
 
@@ -381,7 +384,9 @@ class DataStore(object):
            .filter(db.RefStack.RefStackName.in_(stack[db.KEY_REFSTACKNAME])))}
         stack[db.KEY_REFSTACKID] = stack[db.KEY_REFSTACKNAME].replace(refstackdict)
 
-        return stack.loc[:, [db.KEY_REFSTACKID, db.KEY_STACKNAME]]
+        stack[db.KEY_STACKID] = range(stack.shape[0])
+
+        return stack
 
 
     def _write_refplanes_table(self):
@@ -449,6 +454,7 @@ class DataStore(object):
         planes = planes.loc[:,[db.KEY_STACKID,
                                db.KEY_REFSTACKID,
                                db.KEY_PLANEID]]
+        planes[db.KEY_PLANEUNIID] = range(planes.shape[0])
         return planes
 
     def _write_site_table(self):
@@ -508,7 +514,11 @@ class DataStore(object):
         objects = pd.DataFrame(self._measurement_csv[[db.KEY_OBJECTNUMBER,
                                                       db.KEY_OBJECTID,
                                                       db.KEY_IMAGENUMBER]])
+
+
+        objects[db.KEY_OBJECTUNIID] = range(objects.shape[0])
         return objects
+
     def _write_measurement_table(self, minimal):
         """
         Generates the Measurement, MeasurementType and MeasurementName
@@ -522,8 +532,7 @@ class DataStore(object):
         self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.MeasurementNames)
         self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.MeasurementTypes)
         self._bulkinsert(
-            measurement_meta.loc[:, [db.KEY_MEASUREMENTNAME, db.KEY_MEASUREMENTTYPE,
-                                    db.KEY_PLANEUNIID]],
+            measurement_meta,
             db.MeasurementMeta)
 
         measurements = self._generate_measurements(minimal, measurement_meta)
@@ -556,7 +565,7 @@ class DataStore(object):
             .join(db.PlaneMeta).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
-
+        meta[db.KEY_MEASURMENTID] = range(meta.shape[0])
         return meta
         
     def _generate_measurements(self, minimal, meta):
@@ -830,13 +839,13 @@ class DataStore(object):
 
         data_cols = data.columns
         table_cols = table.__table__.columns.keys()
+        print('Insert table of dimension:', str(data.shape)) 
         uniq = list(set(table_cols)-set(data_cols))
         for un in uniq:
             data[un] = None
-        print('Insert table of dimension:', str(data.shape)) 
+        data = data.loc[:, table_cols]
         odo(data, dbtable)
         self.main_session.commit()
-
 
     def add_measurements(self, measurements, replace=False, backup=False,
         col_image = db.KEY_IMAGENUMBER,

@@ -225,7 +225,7 @@ class Objects(Base):
     """docstring for Objects."""
     __tablename__ = TABLE_OBJECT
     ObjectNumber = Column(Integer())
-    ObjectUniID = Column(Integer(), primary_key=True)
+    ObjectUniID = Column(Integer(), primary_key=True, autoincrement=True)
     ImageNumber = Column(Integer(), index=True)
     ObjectID = Column(String(200), index=True)
     __table_args__ = (ForeignKeyConstraint(
@@ -238,7 +238,7 @@ class Objects(Base):
 class RefStack(Base):
     """docstring for RefStack."""
     __tablename__ = TABLE_REFSTACK
-    RefStackID = Column(Integer(), primary_key=True)
+    RefStackID = Column(Integer(), primary_key=True, autoincrement=True)
     RefStackName = Column(String(200), unique=True)
     Scale = Column(Float())
 
@@ -246,7 +246,7 @@ class RefPlaneMeta(Base):
     """docstring for PlaneMeta."""
     __tablename__ = TABLE_REFPLANEMETA
     RefStackID = Column(Integer(), primary_key=True)
-    PlaneID = Column(Integer(), primary_key=True)
+    PlaneID = Column(Integer(), primary_key=True, autoincrement=True)
     ChannelType = Column(String(200))
     ChannelName = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
@@ -256,7 +256,7 @@ class RefPlaneMeta(Base):
 class Stack(Base):
     """docstring for Stack."""
     __tablename__ = TABLE_STACK
-    StackID = Column(Integer(), primary_key=True)
+    StackID = Column(Integer(), primary_key=True, autoincrement=True)
     StackName = Column(String(200), unique=True)
     RefStackID = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
@@ -264,7 +264,7 @@ class Stack(Base):
 
 class PlaneMeta(Base):
     __tablename__ = TABLE_PLANEMETA
-    PlaneUniID = Column(Integer(), primary_key=True)
+    PlaneUniID = Column(Integer(), primary_key=True, autoincrement=True)
     StackID = Column(Integer())
     PlaneID = Column(Integer())
     RefStackID = Column(Integer())
@@ -279,7 +279,7 @@ class PlaneMeta(Base):
 class Modification(Base):
     """docstring for Modification."""
     __tablename__ = TABLE_MODIFICATION
-    ModificationID = Column(Integer(), primary_key=True)
+    ModificationID = Column(Integer(), primary_key=True, autoincrement=True)
     ModificationName = Column(String(200), unique=True)
     ModificationPrefix = Column(String(200), unique=True)
 
@@ -303,7 +303,7 @@ class StackModification(Base):
 
 class FilterNames(Base):
     __tablename__ = TABLE_FILTER_NAMES
-    FilterID = Column(Integer(), primary_key=True)
+    FilterID = Column(Integer(), primary_key=True, autoincrement=True)
     FilterName = Column(String(200), unique=True)
 
 
@@ -334,7 +334,7 @@ class ObjectRelations(Base):
 
 class ObjectRelationsTypes(Base):
     __tablename__ = TABLE_OBJECT_RELATIONS_TYPES
-    RelationshipID = Column(Integer(), primary_key=True)
+    RelationshipID = Column(Integer(), primary_key=True, autoincrement=True)
     RelationshipName = Column(String(200), index=True, unique=True)
 
 class MeasurementNames(Base):
@@ -353,7 +353,7 @@ class MeasurementTypes(Base):
 
 class MeasurementMeta(Base):
     __tablename__ = TABLE_MEASUREMENT_META
-    MeasurementID = Column(Integer(), primary_key=True)
+    MeasurementID = Column(Integer(), primary_key=True, autoincrement=True)
     MeasurementType = Column(String(200))
     MeasurementName = Column(String(200))
     PlaneUniID = Column(Integer())
