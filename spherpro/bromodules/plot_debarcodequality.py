@@ -59,9 +59,9 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         return plt, ax
 
     def _get_data(self):
-        q = self.data.main_session.query(db.Image)
-        zeros = q.filter(db.Image.ConditionID == None).count()
-        q = q.filter(db.Image.ConditionID.isnot(None)).statement
+        q = self.data.main_session.query(db.images)
+        zeros = q.filter(db.images.condition_id == None).count()
+        q = q.filter(db.images.condition_id.isnot(None)).statement
         table = pd.read_sql_query(q, self.data.db_conn)
         return table, zeros
 

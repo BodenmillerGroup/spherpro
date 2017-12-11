@@ -102,16 +102,16 @@ class StackHQ(filter_base.BaseFilter):
         """
         sname, mname, cname = mdicts.pop(0)
         base_query = (self.session.query(
-                                db.Objects.ImageNumber,
-                                db.Objects.ObjectID,
-                                db.Objects.ObjectNumber,
-                                db.Measurement.Value,
-                                db.RefStack.Scale
+                                db.objects.image_id,
+                                db.objects.object_type,
+                                db.objects.object_number,
+                                db.object_measurements.value,
+                                db.ref_stacks.scale
                                )
-                    .join(db.Measurement)
-                    .join(db.PlaneMeta)
-                    .join(db.RefPlaneMeta)
-                    .join(db.RefStack))
+                    .join(db.object_measurements)
+                    .join(db.planes)
+                    .join(db.ref_planes)
+                    .join(db.ref_stacks))
         q  = (base_query.filter(
                          self.bro.filters.measurements.get_measurement_filter_statements(
                              channel_names=[cname],

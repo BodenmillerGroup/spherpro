@@ -24,7 +24,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         """
         writes a new FilterStack to the database. added as a RefStack.
         """
-        exists = self.data.main_session.query(db.RefStack).filter(db.RefStack.RefStackName == FILTERSTACKNAME).count()
+        exists = self.data.main_session.query(db.ref_stacks).filter(db.ref_stacks.ref_stack_name == FILTERSTACKNAME).count()
         if exists == 0:
             # add to RefStack
             refstack = [{
@@ -32,23 +32,23 @@ class CustomFilterStack(filter_base.BaseFilter):
                 db.KEY_SCALE: 1
             }]
             refstack = pd.DataFrame(refstack)
-            self.data._add_generic_tuple(refstack, db.RefStack)
+            self.data._add_generic_tuple(refstack, db.ref_stacks)
             # add to Stack
             stack = [{
                 db.KEY_REFSTACKNAME: FILTERSTACKNAME,
                 db.KEY_STACKNAME: FILTERSTACKNAME
             }]
             stack = pd.DataFrame(stack)
-            self.data._add_generic_tuple(stack, db.Stack)
+            self.data._add_generic_tuple(stack, db.stacks)
 
         # Nothing is added to PlaneMeta or refplanemeta
 
     def _get_valueless_table(self):
         """
-        Used to create a Valueless Table. The Table represents a db.Measurement
+        Used to create a Valueless Table. The Table represents a db.object_measurements
         table, missing the value, MEasurementType, MeasurementName and PlaneID-columns
         """
-        q = self.data.main_session.query(db.Objects)
+        q = self.data.main_session.query(db.objects)
         objects = pd.read_sql_query(q.statement, self.data.db_conn)
         objects[db.KEY_STACKNAME] = FILTERSTACKNAME
         return objects
@@ -67,7 +67,7 @@ class CustomFilterStack(filter_base.BaseFilter):
             drop=False
         # self.create_filter_stack()
         # # get all filter channels and the number of the largest from RefPlaneMeta
-        # q = self.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == "FilterStack")
+        # q = self.data.main_session.query(db.ref_planes.ref_plane_id).filter(db.ref_planes.RefStackName == "FilterStack")
         # channels = pd.read_sql_query(q.statement,self.data.db_conn)
         # channels = list(channels[db.KEY_PLANEID])
         # nochannels = len(channels)
@@ -85,7 +85,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         #     db.KEY_CHANNEL_NAME: filtername
         # }]
         # table = pd.DataFrame(refplanemeta)
-        # self.data._bulkinsert(table, db.RefPlaneMeta)
+        # self.data._bulkinsert(table, db.ref_planes)
         # # create PlaneMeta for next higher channel
         # planemeta = [{
         #     db.KEY_STACKNAME: FILTERSTACKNAME,
@@ -93,7 +93,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         #     db.KEY_REFSTACKNAME: FILTERSTACKNAME
         # }]
         # table = pd.DataFrame(planemeta)
-        # self.data._bulkinsert(table, db.PlaneMeta)
+        # self.data._bulkinsert(table, db.planes)
 
         #
         # select only database columns and write to the Database
@@ -103,4 +103,4 @@ class CustomFilterStack(filter_base.BaseFilter):
         filterdata[db.KEY_FILTERNAME] = filtername
         # filterdata[db.KEY_STACKNAME] = FILTERSTACKNAME
         filterdata = filterdata.dropna()
-        self.data._add_generic_tuple(filterdata, db.Filters, replace=drop)
+        self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)

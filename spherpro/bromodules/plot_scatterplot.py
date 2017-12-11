@@ -99,15 +99,15 @@ class PlotScatter(plot_base.BasePlot):
                    for meas in measures]
         query = self._get_measurement_query()
         if image_ids is not None:
-            query = query.filter(db.Image.ImageNumber.in_(image_ids))
+            query = query.filter(db.images.image_id.in_(image_ids))
         if filters is not None:
             # TODO: this NEEDs to be fixed as it wont work for multiple filters!
             # This needs to be done with subqueries!
             for filtername, filtervalue in filters:
-                query = (query.filter(sa.and_(db.Filters.FilterName == filtername,
-                                         db.Filters.FilterValue ==
+                query = (query.filter(sa.and_(db.object_filters.FilterName == filtername,
+                                         db.object_filters.filter_value ==
                                           filtervalue)))
-            query = query.join(db.Filters)
+            query = query.join(db.object_filters)
 
         query_joins = self._get_joined_filtered_queries(query,
                                                         filters_measurement)

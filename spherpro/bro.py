@@ -78,8 +78,8 @@ class Bro(object):
     @property
     def is_debarcoded(self):
         isdeb = False
-        q =self.data.main_session.query(db.Image.ConditionID)
-        q = q.filter(db.Image.ConditionID.isnot(None)).count()
+        q =self.data.main_session.query(db.images.condition_id)
+        q = q.filter(db.images.condition_id.isnot(None)).count()
         if q > 0:
             isdeb = True
         return isdeb

@@ -50,10 +50,10 @@ class PlotHeatmask(plot_base.BasePlot):
         return masks
 
     def _prepare_slices(self, image_numbers):
-        dat = (self.session.query(db.Masks.ImageNumber, db.Masks.PosX,
-                                  db.Masks.PosY, db.Masks.ShapeW,
-                                  db.Masks.ShapeH)
-                    .filter(db.Masks.ImageNumber.in_(image_numbers))).all()
+        dat = (self.session.query(db.masks.image_id, db.masks.pos_x,
+                                  db.masks.pos_y, db.masks.shape_w,
+                                  db.masks.shape_h)
+                    .filter(db.masks.image_id.in_(image_numbers))).all()
         slice_dict = {i: (np.s_[x:(x+w)], np.s_[y:(y + h)])
                           for i, x, y, w, h in dat}
         slices = [slice_dict[i] for i in image_numbers]
@@ -72,9 +72,9 @@ class PlotHeatmask(plot_base.BasePlot):
         query = query.filter(filter_statement)
 
         if image_numbers is not None:
-            query = query.filter(db.Image.ImageNumber.in_(image_numbers))
+            query = query.filter(db.images.image_id.in_(image_numbers))
         if len(filters) > 0:
-            query = query.join(db.Filters)
+            query = query.join(db.object_filters)
         for fil in filters:
             # TODO: this NEEDs to be fixed as it wont work as expected with multiple filters!
             # This needs to be done with subqueries!
@@ -212,10 +212,10 @@ class PlotHeatmask(plot_base.BasePlot):
         if ax is None:
             ax = self._ax
 
-        image_numbers = [q[0] for q in (self.data.main_session.query(db.Image.ImageNumber)
-                                         .filter(db.Image.SiteName == site).distinct())]
+        image_numbers = [q[0] for q in (self.data.main_session.query(db.images.image_id)
+                                         .filter(db.images.site_name == site).distinct())]
         if filter_hq:
-             fil = [sa.and_(db.Filters.FilterName=='is-hq', db.Filters.FilterValue==True)]
+             fil = [sa.and_(db.object_filters.FilterName=='is-hq', db.object_filters.filter_value==True)]
         else:
              fil = None
         if img_idx == 0:
@@ -243,14 +243,14 @@ class PlotHeatmask(plot_base.BasePlot):
         
     def ipw_heatplot(self, ax):
 
-        sites = [ s[0] for s in self.data.main_session.query(db.Image.SiteName).distinct()]
-        name_dict = {m: n for m, n in self.data.main_session.query(db.Pannel.Metal,
-                                                                  db.Pannel.Target)}
+        sites = [ s[0] for s in self.data.main_session.query(db.images.site_name).distinct()]
+        name_dict = {m: n for m, n in self.data.main_session.query(db.pannel.Metal,
+                                                                  db.pannel.Target)}
         channel_names = [q[0] for q in
-                         self.data.main_session.query(db.RefPlaneMeta.ChannelName).distinct()]
+                         self.data.main_session.query(db.ref_planes.channel_name).distinct()]
         stack_names = [q[0] for q in
-                       self.data.main_session.query(db.Measurement.StackName).distinct()]
-        object_names = [q[0] for q in self.data.main_session.query(db.Objects.ObjectID).distinct()]
+                       self.data.main_session.query(db.object_measurements.StackName).distinct()]
+        object_names = [q[0] for q in self.data.main_session.query(db.object.ObjectID).distinct()]
         measurement_names = [q[0] for q in
                              self.data.main_session.query(db.MeasurementName.MeasurementName).distinct()]
         channel_names_info = [pct.library.name_from_metal(c, name_dict) for c in channel_names]

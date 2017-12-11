@@ -42,8 +42,8 @@ class Debarcode(object):
             img = dict(image[1])
             dic = {str(i): str(img[i]) if str(img[i]) != 'NAN' else None for i in img}
             dic[db.KEY_BCDEPTH] = dist
-            session.query(db.Image).\
-                filter(db.Image.ImageNumber == int(image[0])).\
+            session.query(db.images).\
+                filter(db.images.image_id == int(image[0])).\
                 update(dic)
         session.commit()
 
@@ -113,7 +113,7 @@ class Debarcode(object):
 
 
     def _get_barcode_key(self):
-        cond = pd.read_sql_query(self.data.main_session.query(db.Condition).statement, self.data.db_conn)
+        cond = pd.read_sql_query(self.data.main_session.query(db.conditions).statement, self.data.db_conn)
         i = []
         cond["BarCode"].apply(lambda x: i.append(eval(x)))
         key = pd.DataFrame(i)

@@ -27,20 +27,20 @@ class FilterMembership(filter_base.BaseFilter):
         dat_filter = pd.read_sql(
                 (self.session
                      .query(
-                                 db.Measurement.ImageNumber,
-                                 db.Measurement.ObjectID,
-                                 db.Measurement.ObjectNumber,
-                                 db.Measurement.Value,
-                                 db.RefPlaneMeta,
-                                 db.RefStack.Scale
+                                 db.object_measurements.ImageNumber,
+                                 db.object_measurements.ObjectID,
+                                 db.object_measurements.ObjectNumber,
+                                 db.object_measurements.value,
+                                 db.ref_planes,
+                                 db.ref_stacks.scale
                                    )
-                    .filter(db.Measurement.MeasurementName==col_measure)
-                    .filter(db.Measurement.StackName==col_stack)
-                    .filter(db.RefPlaneMeta.ChannelName.in_(
+                    .filter(db.object_measurements.MeasurementName==col_measure)
+                    .filter(db.object_measurements.StackName==col_stack)
+                    .filter(db.ref_planes.channel_name.in_(
                         [col_isother,col_issphere]))
-                    .join(db.PlaneMeta)
-                    .join(db.RefPlaneMeta)
-                    .join(db.RefStack)
+                    .join(db.planes)
+                    .join(db.ref_planes)
+                    .join(db.ref_stacks)
                      ).statement,
             self._conn)
         dat_filter[db.KEY_VALUE] = (dat_filter[db.KEY_VALUE] * dat_filter[db.KEY_SCALE])
@@ -59,7 +59,7 @@ class FilterMembership(filter_base.BaseFilter):
         dat_filter = dat_filter.reset_index(drop=False)
         dat_filter = dat_filter.loc[:,
                        self.bro.data._get_table_columnnames(db.TABLE_FILTERS)]
-        query = self.session.query(db.Filters).filter(db.Filters.FilterName ==
+        query = self.session.query(db.object_filters).filter(db.object_filters.FilterName ==
                                                       outcol_issphere)
         table = self.bro.data._get_table_object(db.TABLE_FILTERS)
         self.bro.data._add_generic_tuple(dat_filter,

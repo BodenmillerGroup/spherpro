@@ -74,18 +74,18 @@ class FilterMeasurements(filter_base.BaseFilter):
         meas_query = self.data.get_measurement_query()
         subquerys = [meas_query.filter(fil).subquery() for i, fil in
                      enumerate(filters)]
-        combined_filter_query = self.session.query(db.Objects)
+        combined_filter_query = self.session.query(db.objects)
         for subquery in subquerys:
             combined_filter_query = combined_filter_query.filter(sa.and_(
-                db.Objects.ObjectID == subquery.c.ObjectID,
-                db.Objects.ImageNumber == subquery.c.ImageNumber,
-                db.Objects.ObjectNumber == subquery.c.ObjectNumber))
+                db.objects.object_type == subquery.c.ObjectID,
+                db.objects.image_id == subquery.c.ImageNumber,
+                db.objects.object_number == subquery.c.ObjectNumber))
 
         subquery_filter = combined_filter_query.subquery()
         filter_statement = sa.and_(
-            db.Objects.ObjectID == subquery_filter.c.ObjectID,
-            db.Objects.ImageNumber == subquery_filter.c.ImageNumber,
-            db.Objects.ObjectNumber == subquery_filter.c.ObjectNumber)
+            db.objects.object_type == subquery_filter.c.ObjectID,
+            db.objects.image_id == subquery_filter.c.ImageNumber,
+            db.objects.object_number == subquery_filter.c.ObjectNumber)
         return filter_statement
 
     def get_measurement_filter_statements(self, object_ids, channel_names,

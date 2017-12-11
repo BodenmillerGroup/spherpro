@@ -252,19 +252,19 @@ class DataStore(object):
 
         # Modifications
         modifications = self._generate_modifications()
-        self._bulkinsert(modifications, db.Modification)
+        self._bulkinsert(modifications, db.modifications)
 
         # RefStacks
         RefStack = self._generate_refstack()
-        self._bulkinsert(RefStack, db.RefStack)
+        self._bulkinsert(RefStack, db.ref_stacks)
 
         # Stacks
         Stack = self._generate_stack()
-        self._bulkinsert(Stack, db.Stack)
+        self._bulkinsert(Stack, db.stacks)
 
         # StackModifications
         stackmodification = self._generate_stackmodification()
-        self._bulkinsert(stackmodification, db.StackModification)
+        self._bulkinsert(stackmodification, db.stack_modifications)
 
 
 
@@ -301,8 +301,8 @@ class DataStore(object):
                     .rename(columns=key_map))
 
         stackdict = {n: i for n, i in
-                     self.main_session.query(db.Stack.StackName, db.Stack.StackID)
-                     .filter(db.Stack.StackName.in_(
+                     self.main_session.query(db.stacks.stack_name, db.stacks.stack_id)
+                     .filter(db.stacks.stack_name.in_(
                          StackModification[db.KEY_PARENTNAME].tolist()+
                          StackModification[db.KEY_CHILDNAME].tolist()))}
         StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
@@ -311,9 +311,9 @@ class DataStore(object):
         StackModification[db.KEY_CHILDID] = (StackModification[db.KEY_CHILDNAME]
                                               .replace(stackdict))
         modidict = {n: i for n, i in
-                    (self.main_session.query(db.Modification.ModificationName,
-                                            db.Modification.ModificationID)
-                     .filter(db.Modification.ModificationName.in_(
+                    (self.main_session.query(db.modifications.modification_name,
+                                            db.modifications.modification_id)
+                     .filter(db.modifications.modification_name.in_(
                          StackModification[db.KEY_MODIFICATIONNAME])))}
 
         StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
@@ -380,8 +380,8 @@ class DataStore(object):
                                                         db.KEY_STACKNAME]
 
         refstackdict = {n: i for n, i in (self.main_session
-           .query(db.RefStack.RefStackName, db.RefStack.RefStackID)
-           .filter(db.RefStack.RefStackName.in_(stack[db.KEY_REFSTACKNAME])))}
+           .query(db.ref_stacks.ref_stack_name, db.ref_stacks.ref_stack_id)
+           .filter(db.ref_stacks.ref_stack_name.in_(stack[db.KEY_REFSTACKNAME])))}
         stack[db.KEY_REFSTACKID] = stack[db.KEY_REFSTACKNAME].replace(refstackdict)
 
         stack[db.KEY_STACKID] = range(stack.shape[0])
@@ -394,7 +394,7 @@ class DataStore(object):
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_refplanemeta()
-        self._bulkinsert(planes, db.RefPlaneMeta)
+        self._bulkinsert(planes, db.ref_planes)
 
 
     def _write_planes_table(self):
@@ -402,7 +402,7 @@ class DataStore(object):
         generates the PlaneMeta Table and writes it to the database.
         """
         planes = self._generate_planemeta()
-        self._bulkinsert(planes, db.PlaneMeta)
+        self._bulkinsert(planes, db.planes)
 
     def _generate_refplanemeta(self):
 
@@ -436,7 +436,7 @@ class DataStore(object):
                        db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
                        db.KEY_CHANNEL_TYPE: OBJECTS_CHANNELTYPE},
                                ignore_index=True)
-        refdict = self._get_namekey_dict(db.RefStack.RefStackName, db.RefStack.RefStackID,
+        refdict = self._get_namekey_dict(db.ref_stacks.ref_stack_name, db.ref_stacks.ref_stack_id,
                                          planes[db.KEY_REFSTACKNAME].unique())
 
         planes[db.KEY_REFSTACKID] = planes[db.KEY_REFSTACKNAME].replace(refdict)
@@ -448,7 +448,7 @@ class DataStore(object):
         stack = self._generate_stack()
         refplanes = self._generate_refplanemeta()
         planes = stack.merge(refplanes, on=db.KEY_REFSTACKID)
-        stackdic = self._get_namekey_dict(db.Stack.StackName, db.Stack.StackID,
+        stackdic = self._get_namekey_dict(db.stacks.stack_name, db.stacks.stack_id,
                                     planes[db.KEY_STACKNAME].unique().tolist())
         planes[db.KEY_STACKID] = planes[db.KEY_STACKNAME].replace(stackdic)
         planes = planes.loc[:,[db.KEY_STACKID,
@@ -459,12 +459,12 @@ class DataStore(object):
 
     def _write_site_table(self):
         (table,links) = self._generate_site()
-        self._bulkinsert(table, db.Site)
+        self._bulkinsert(table, db.sites)
         session = self.main_session
         for image in links.iterrows():
             img = image[1]
-            session.query(db.Image).\
-                filter(db.Image.ImageNumber == img[db.KEY_IMAGENUMBER]).\
+            session.query(db.images).\
+                filter(db.images.image_id == img[db.KEY_IMAGENUMBER]).\
                 update({db.KEY_SITENAME: img[db.KEY_SITENAME]})
         session.commit()
 
@@ -489,7 +489,7 @@ class DataStore(object):
         table and writes it to the database.
         """
         image = self._generate_image()
-        self._bulkinsert(image, db.Image)
+        self._bulkinsert(image, db.images)
 
     def _generate_image(self):
         """
@@ -504,7 +504,7 @@ class DataStore(object):
         Generates and save the cell table
         """
         objects = self._generate_objects()
-        self._bulkinsert(objects, db.Objects)
+        self._bulkinsert(objects, db.objects)
 
 
     def _generate_objects(self):
@@ -529,18 +529,18 @@ class DataStore(object):
         """
         measurement_meta = self._generate_measurement_meta()
 
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.MeasurementNames)
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.MeasurementTypes)
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.measurement_names)
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.measurement_types)
         self._bulkinsert(
             measurement_meta,
-            db.MeasurementMeta)
+            db.measurements)
 
         measurements = self._generate_measurements(minimal, measurement_meta)
         # increase performance
         if self.conf[conf.BACKEND] == 'mysql':
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
             self.db_conn.execute('SET UNIQUE_CHECKS = 0')
-        self._bulkinsert(measurements, db.Measurement)
+        self._bulkinsert(measurements, db.object_measurements)
         if self.conf[conf.BACKEND] == 'mysql':
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
             self.db_conn.execute('SET UNIQUE_CHECKS = 1')
@@ -561,8 +561,8 @@ class DataStore(object):
         meta[db.KEY_PLANEID] = meta[db.KEY_PLANEID].map(lambda x: int(x.replace('c','')))
         
         dat_planeids = pd.read_sql(self.main_session.query(
-                db.Stack.StackName, db.PlaneMeta.PlaneID, db.PlaneMeta.PlaneUniID)
-            .join(db.PlaneMeta).statement, self.db_conn)
+                db.stacks.stack_name, db.planes.ref_plane_id, db.planes.plane_id)
+            .join(db.planes).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
         meta[db.KEY_MEASURMENTID] = range(meta.shape[0])
@@ -588,8 +588,8 @@ class DataStore(object):
         # Query the objects table to join the measurements with it and add the numeric, 
         # per object unique index 'ObjectUniID'
         tab_obj = pd.read_sql(
-            self.main_session.query(db.Objects)
-            .filter(db.Objects.ImageNumber.in_(measurements[db.KEY_IMAGENUMBER].unique().tolist()))
+            self.main_session.query(db.objects)
+            .filter(db.objects.image_id.in_(measurements[db.KEY_IMAGENUMBER].unique().tolist()))
             .statement, self.db_conn)
 
         measurements = measurements.merge(tab_obj)
@@ -601,14 +601,14 @@ class DataStore(object):
 
         # Add the MeasurementID by merging the table
         tab_meas = pd.read_sql(
-            self.main_session.query(db.MeasurementMeta.MeasurementID,
-                                   db.MeasurementMeta.MeasurementName,
-                                   db.MeasurementMeta.MeasurementType,
-                                   db.PlaneMeta.PlaneID,
-                                   db.Stack.StackName)
-            .join(db.PlaneMeta)
-            .join(db.Stack)
-            .filter(db.Stack.StackName.in_(meta[db.KEY_STACKNAME].unique()))
+            self.main_session.query(db.measurements.measurement_id,
+                                   db.measurements.measurement_name,
+                                   db.measurements.measurement_type,
+                                   db.planes.ref_plane_id,
+                                   db.stacks.stack_name)
+            .join(db.planes)
+            .join(db.stacks)
+            .filter(db.stacks.stack_name.in_(meta[db.KEY_STACKNAME].unique()))
             .statement, self.db_conn)
         meta = meta.merge(tab_meas)
         measurements = measurements.merge(meta, how='inner', on='variable')
@@ -672,7 +672,7 @@ class DataStore(object):
 
     def _write_masks_table(self):
         masks = self._generate_masks()
-        self._bulkinsert(masks, db.Masks)
+        self._bulkinsert(masks, db.masks)
 
     def _generate_object_relations(self):
         conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
@@ -691,11 +691,11 @@ class DataStore(object):
 
     def _write_object_relations_table(self):
         relations = self._generate_object_relations()
-        self._bulkinsert(relations, db.ObjectRelations)
+        self._bulkinsert(relations, db.object_relations)
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
-        self._bulkinsert(pannel, db.Pannel)
+        self._bulkinsert(pannel, db.pannel)
     def _generate_pannel_table(self):
 
         csv_pannel = self.pannel
@@ -723,7 +723,7 @@ class DataStore(object):
     def _write_condition_table(self):
         conditions = self._generate_condition_table()
         if conditions is not None:
-            self._bulkinsert(conditions, db.Condition)
+            self._bulkinsert(conditions, db.conditions)
 
 
     def _generate_condition_table(self):
@@ -790,7 +790,7 @@ class DataStore(object):
                 barcodes[db.KEY_CONDITIONID] = IDs
                 barcodes = barcodes.reset_index(drop=False)
 
-                barcodes = lib.fill_null(barcodes, db.Condition)
+                barcodes = lib.fill_null(barcodes, db.conditions)
                 barcodes[db.KEY_BCY] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
                 barcodes[db.KEY_BCX] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
                 barcodes[db.KEY_BCPLATENAME] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
@@ -905,17 +905,17 @@ class DataStore(object):
             plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
             stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
 
-            query =  self.main_session.query(db.Measurement).filter(
-                db.Measurement.ImageNumber.in_(images),
-                db.Measurement.ObjectNumber.in_(objects),
-                db.Measurement.ObjectID.in_(object_id),
-                db.Measurement.MeasurementType.in_(measurement_type),
-                db.Measurement.MeasurementName.in_(measurement_name),
-                db.Measurement.PlaneID.in_(plane),
-                db.Measurement.StackName.in_(stack)
+            query =  self.main_session.query(db.object_measurements).filter(
+                db.object_measurements.ImageNumber.in_(images),
+                db.object_measurements.ObjectNumber.in_(objects),
+                db.object_measurements.ObjectID.in_(object_id),
+                db.object_measurements.MeasurementType.in_(measurement_type),
+                db.object_measurements.MeasurementName.in_(measurement_name),
+                db.object_measurements.PlaneID.in_(plane),
+                db.object_measurements.StackName.in_(stack)
             )
 
-            (bak, un) =  self._add_generic_tuple(measurements, db.Measurement,query=query, replace=replace, backup=backup)
+            (bak, un) =  self._add_generic_tuple(measurements, db.object_measurements,query=query, replace=replace, backup=backup)
             bak_t.append(bak)
             un_t.append(un)
         return (bak_t, un_t)
@@ -996,7 +996,7 @@ class DataStore(object):
         convenience method to get the full Panel
         """
         session = self.main_session
-        result = pd.read_sql(session.query(db.Pannel).statement,self.db_conn)
+        result = pd.read_sql(session.query(db.pannel).statement,self.db_conn)
         return  result
 
     def get_metal_from_name(self, name):
@@ -1014,7 +1014,7 @@ class DataStore(object):
         """
 
         session = self.main_session
-        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Target==name).statement,self.db_conn)
+        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.Target==name).statement,self.db_conn)
         if len(result) > 0:
             return (result[db.PANNEL_KEY_METAL], result)
         else:
@@ -1035,7 +1035,7 @@ class DataStore(object):
         """
 
         session = self.main_session
-        result = pd.read_sql(session.query(db.Pannel).filter(db.Pannel.Metal==metal).statement,self.db_conn)
+        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.Metal==metal).statement,self.db_conn)
         if len(result) > 0:
             return (result[db.PANNEL_KEY_TARGET], result)
         else:
@@ -1256,19 +1256,19 @@ class DataStore(object):
         """
         if session is None:
             session = self.main_session
-        query = (session.query(db.RefPlaneMeta.ChannelName,
-                                    db.RefPlaneMeta.ChannelType,
-                                    db.Image.ImageNumber,
-                                   db.Objects.ObjectNumber,
-                                   db.Objects.ObjectID,
-                                   db.Measurement.MeasurementName,
-                                   db.Measurement.MeasurementType,
-                                   db.Measurement.Value,
-                                   db.Measurement.PlaneID)
-            .join(db.PlaneMeta)
-            .join(db.Measurement)
-            .join(db.Objects)
-            .join(db.Image)
+        query = (session.query(db.ref_planes.channel_name,
+                                    db.ref_planes.channel_type,
+                                    db.images.image_id,
+                                   db.objects.object_number,
+                                   db.objects.object_type,
+                                   db.object_measurements.MeasurementName,
+                                   db.object_measurements.MeasurementType,
+                                   db.object_measurements.value,
+                                   db.object_measurements.PlaneID)
+            .join(db.planes)
+            .join(db.object_measurements)
+            .join(db.objects)
+            .join(db.images)
                 )
         return query
 

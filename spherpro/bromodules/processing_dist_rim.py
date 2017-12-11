@@ -60,10 +60,10 @@ class CalculateDistRim(object):
 
     def _write_tables(self, filterdata):
         # get all filter channels and the number of the largest from RefPlaneMeta
-        done = self.data.main_session.query(db.RefPlaneMeta.ChannelName).filter(db.RefPlaneMeta.ChannelName == CHANNELNAME).count()
+        done = self.data.main_session.query(db.ref_planes.channel_name).filter(db.ref_planes.channel_name == CHANNELNAME).count()
         if done > 0:
             raise NameError('Please remove the current dist-rim first')
-        q = self.data.main_session.query(db.RefPlaneMeta.PlaneID).filter(db.RefPlaneMeta.RefStackName == STACKNAME)
+        q = self.data.main_session.query(db.ref_planes.ref_plane_id).filter(db.ref_planes.RefStackName == STACKNAME)
         channels = pd.read_sql_query(q.statement,self.data.db_conn)
         channels = list(channels[db.KEY_PLANEID])
         nochannels = len(channels)
@@ -81,7 +81,7 @@ class CalculateDistRim(object):
             db.KEY_CHANNEL_NAME: CHANNELNAME
         }]
         table = pd.DataFrame(refplanemeta)
-        self.data._bulkinsert(table, db.RefPlaneMeta)
+        self.data._bulkinsert(table, db.ref_planes)
         # create PlaneMeta for next higher channel
         planemeta = [{
             db.KEY_STACKNAME: STACKNAME,
@@ -89,7 +89,7 @@ class CalculateDistRim(object):
             db.KEY_REFSTACKNAME: STACKNAME
         }]
         table = pd.DataFrame(planemeta)
-        self.data._bulkinsert(table, db.PlaneMeta)
+        self.data._bulkinsert(table, db.planes)
 
         #
         # select only database columns and write to the Database
@@ -99,4 +99,4 @@ class CalculateDistRim(object):
         filterdata[db.KEY_PLANEID] = channel
         filterdata[db.KEY_STACKNAME] = STACKNAME
         filterdata = filterdata.dropna()
-        self.data._add_generic_tuple(filterdata, db.Measurement)
+        self.data._add_generic_tuple(filterdata, db.object_measurements)

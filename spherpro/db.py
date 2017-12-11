@@ -11,8 +11,8 @@ Base = declarative_base()
 # Define the table and column names to be used
 # These need to match the definitions bellow
 
-KEY_CHANNEL_NAME = 'ChannelName'
-KEY_CHANNEL_TYPE = 'ChannelType'
+KEY_CHANNEL_NAME = 'channel_name'
+KEY_CHANNEL_TYPE = 'channel_type'
 KEY_CHILDNAME = 'ChildName'
 KEY_CHILDID = 'ChildID'
 KEY_DISPLAY_NAME = 'DisplayName'
@@ -71,28 +71,28 @@ KEY_BCHIGHESTCOUNT = 'BCHighestCount'
 KEY_BCSECONDCOUNT = 'BCSecondCount'
 
 
-TABLE_CONDITION = 'Condition'
-TABLE_SITE = 'Site'
+TABLE_CONDITION = 'conditions'
+TABLE_SITE = 'sites'
 
 TABLE_DERIVEDSTACK = 'DerivedStack'
-TABLE_FILTERS = 'Filters'
-TABLE_FILTER_NAMES = 'FilterNames'
-TABLE_IMAGE = 'Image'
-TABLE_MASKS = 'Masks'
-TABLE_MEASUREMENT = 'Measurement'
-TABLE_MEASUREMENT_META = 'MeasurementMeta'
-TABLE_MEASUREMENT_NAME = 'MeasurementNames'
-TABLE_MEASUREMENT_TYPE = 'MeasurementTypes'
-TABLE_MODIFICATION = 'Modification'
-TABLE_OBJECT = 'Objects'
-TABLE_OBJECT_RELATIONS = 'ObjectRelations'
+TABLE_FILTERS = 'object_filters'
+TABLE_FILTER_NAMES = 'object_filter_names'
+TABLE_IMAGE = 'images'
+TABLE_MASKS = 'masks'
+TABLE_MEASUREMENT = 'object_measurements'
+TABLE_MEASUREMENT_META = 'measurements'
+TABLE_MEASUREMENT_NAME = 'measurement_names'
+TABLE_MEASUREMENT_TYPE = 'measurement_types'
+TABLE_MODIFICATION = 'modifications'
+TABLE_OBJECT = 'objects'
+TABLE_OBJECT_RELATIONS = 'object_relations'
 TABLE_OBJECT_RELATIONS_TYPES = 'ObjectRelationsTypes'
-TABLE_PLANEMETA = 'PlaneMeta'
-TABLE_REFPLANEMETA = 'RefPlaneMeta'
-TABLE_REFSTACK = 'RefStack'
-TABLE_STACK = 'Stack'
-TABLE_STACKMODIFICATION = 'StackModification'
-TABLE_IMAGEMEASUREMENT = 'ImageMeasurement'
+TABLE_PLANEMETA = 'planes'
+TABLE_REFPLANEMETA = 'ref_planes'
+TABLE_REFSTACK = 'ref_stacks'
+TABLE_STACK = 'stacks'
+TABLE_STACKMODIFICATION = 'stack_modifications'
+TABLE_IMAGEMEASUREMENT = 'image_measurements'
 
 
 def connect_sqlite(conf):
@@ -168,217 +168,218 @@ def drop_all(conn):
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################
-class Condition(Base):
-    """docstring for Image."""
+class conditions(Base):
+    """docstring for images."""
     __tablename__ = TABLE_CONDITION
-    ConditionID = Column(String(200), primary_key=True)
-    ConditionName = Column(String(200), server_default='default')
-    TimePoint = Column(Float(), server_default="0")
-    BarCode = Column(String(200))
-    Concentration = Column(Float())
-    PlateID = Column(Integer())
-    BCPlate = Column(Integer())
-    BCX = Column(Integer())
-    BCY = Column(String(200))
+    condition_id = Column(String(200), primary_key=True)
+    condition_name = Column(String(200), server_default='default')
+    time_point = Column(Float(), server_default="0")
+    barcode = Column(String(200))
+    concentration = Column(Float())
+    plate_id = Column(Integer())
+    bc_plate = Column(Integer())
+    bc_x = Column(Integer())
+    bc_y = Column(String(200))
 
-class Site(Base):
-    """docstring for Image."""
+class sites(Base):
+    """docstring for images."""
     __tablename__ = TABLE_SITE
-    SiteName = Column(String(200), primary_key=True)
+    site_name = Column(String(200), primary_key=True)
 
 
 
-class Image(Base):
-    """docstring for Image."""
+class images(Base):
+    """docstring for images."""
     __tablename__ = TABLE_IMAGE
-    ImageNumber = Column(Integer(), primary_key=True)
-    BCDepth = Column(Float())
-    BCInvalid = Column(Integer())
-    BCValid = Column(Integer())
-    BCHighestCount = Column(Integer())
-    BCSecondCount = Column(Integer())
-    ConditionID = Column(String(200))
-    SiteName = Column(String(200))
+    image_id = Column(Integer(), primary_key=True)
+    image_number = Column(Integer())
+    bc_depth = Column(Float())
+    bc_invalid = Column(Integer())
+    bc_valid = Column(Integer())
+    bc_highest_count = Column(Integer())
+    bc_second_count = Column(Integer())
+    condition_id = Column(String(200))
+    site_name = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
-        [ConditionID],
-        [Condition.ConditionID]),
+        [condition_id],
+        [conditions.condition_id]),
         ForeignKeyConstraint(
-        [SiteName],
-        [Site.SiteName]),
+        [site_name],
+        [sites.site_name]),
             {})
 
-class Masks(Base):
+class masks(Base):
     """ a table describing the masks."""
     __tablename__ = TABLE_MASKS
-    ObjectID = Column(String(200),
+    object_type = Column(String(200),
                        primary_key=True)
-    ImageNumber = Column(Integer(),  primary_key=True)
-    PosX = Column(Integer())
-    PosY = Column(Integer())
-    ShapeH = Column(Integer())
-    ShapeW = Column(Integer())
-    CropID = Column(Integer())
-    FileName = Column(String(200))
+    image_id = Column(Integer(),  primary_key=True)
+    pos_x = Column(Integer())
+    pos_y = Column(Integer())
+    shape_h = Column(Integer())
+    shape_w = Column(Integer())
+    crop_number = Column(Integer())
+    file_name = Column(String(200))
 
-class Objects(Base):
-    """docstring for Objects."""
+class objects(Base):
+    """docstring for objects."""
     __tablename__ = TABLE_OBJECT
-    ObjectNumber = Column(Integer())
-    ObjectUniID = Column(Integer(), primary_key=True, autoincrement=True)
-    ImageNumber = Column(Integer(), index=True)
-    ObjectID = Column(String(200), index=True)
+    object_number = Column(Integer())
+    object_id = Column(Integer(), primary_key=True, autoincrement=True)
+    image_id = Column(Integer(), index=True)
+    object_type = Column(String(200), index=True)
     __table_args__ = (ForeignKeyConstraint(
-        [ImageNumber],
-        [Image.ImageNumber]),
+        [image_id],
+        [images.image_id]),
         ForeignKeyConstraint(
-        [ObjectID, ImageNumber],
-        [Masks.ObjectID, Masks.ImageNumber]),{})
+        [object_type, image_id],
+        [masks.object_type, masks.image_id]),{})
 
-class RefStack(Base):
-    """docstring for RefStack."""
+class ref_stacks(Base):
+    """docstring for ref_stacks."""
     __tablename__ = TABLE_REFSTACK
-    RefStackID = Column(Integer(), primary_key=True, autoincrement=True)
-    RefStackName = Column(String(200), unique=True)
-    Scale = Column(Float())
+    ref_stack_id = Column(Integer(), primary_key=True, autoincrement=True)
+    ref_stack_name = Column(String(200), unique=True)
+    scale = Column(Float())
 
-class RefPlaneMeta(Base):
-    """docstring for PlaneMeta."""
+class ref_planes(Base):
+    """docstring for planes."""
     __tablename__ = TABLE_REFPLANEMETA
-    RefStackID = Column(Integer(), primary_key=True)
-    PlaneID = Column(Integer(), primary_key=True, autoincrement=True)
-    ChannelType = Column(String(200))
-    ChannelName = Column(String(200))
+    ref_stack_id = Column(Integer(), primary_key=True)
+    ref_plane_id = Column(Integer(), primary_key=True, autoincrement=True)
+    channel_type = Column(String(200))
+    channel_name = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
-        [RefStackID],
-        [RefStack.RefStackID]),{})
+        [ref_stack_id],
+        [ref_stacks.ref_stack_id]),{})
 
-class Stack(Base):
-    """docstring for Stack."""
+class stacks(Base):
+    """docstring for stacks."""
     __tablename__ = TABLE_STACK
-    StackID = Column(Integer(), primary_key=True, autoincrement=True)
-    StackName = Column(String(200), unique=True)
-    RefStackID = Column(Integer())
+    stack_id = Column(Integer(), primary_key=True, autoincrement=True)
+    stack_name = Column(String(200), unique=True)
+    ref_stack_id = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
-        [RefStackID], [RefStack.RefStackID]), {})
+        [ref_stack_id], [ref_stacks.ref_stack_id]), {})
 
-class PlaneMeta(Base):
+class planes(Base):
     __tablename__ = TABLE_PLANEMETA
-    PlaneUniID = Column(Integer(), primary_key=True, autoincrement=True)
-    StackID = Column(Integer())
-    PlaneID = Column(Integer())
-    RefStackID = Column(Integer())
+    plane_id = Column(Integer(), primary_key=True, autoincrement=True)
+    stack_id = Column(Integer())
+    ref_plane_id = Column(Integer())
+    ref_stack_id = Column(Integer())
     __table_args__ = (
         ForeignKeyConstraint(
-        [RefStackID, PlaneID],
-        [RefPlaneMeta.RefStackID, RefPlaneMeta.PlaneID]),
+        [ref_stack_id, ref_plane_id],
+        [ref_planes.ref_stack_id, ref_planes.ref_plane_id]),
         ForeignKeyConstraint(
-            [StackID], [Stack.StackID]),
+            [stack_id], [stacks.stack_id]),
             {})
 
-class Modification(Base):
-    """docstring for Modification."""
+class modifications(Base):
+    """docstring for modifications."""
     __tablename__ = TABLE_MODIFICATION
-    ModificationID = Column(Integer(), primary_key=True, autoincrement=True)
-    ModificationName = Column(String(200), unique=True)
-    ModificationPrefix = Column(String(200), unique=True)
+    modification_id = Column(Integer(), primary_key=True, autoincrement=True)
+    modification_name = Column(String(200), unique=True)
+    modification_prefix = Column(String(200), unique=True)
 
-class StackModification(Base):
-    """docstring for StackModification."""
+class stack_modifications(Base):
+    """docstring for stack_modifications."""
     __tablename__ = TABLE_STACKMODIFICATION
-    ModificationID = Column(Integer(),
+    modification_id = Column(Integer(),
                               primary_key=True)
-    ParentID = Column(Integer(), primary_key=True)
-    ChildID = Column(Integer(), primary_key=True)
+    stack_id_parent = Column(Integer(), primary_key=True)
+    stack_id_child = Column(Integer(), primary_key=True)
     __table_args__ = (
         ForeignKeyConstraint(
-        [ParentID],
-        [Stack.StackID]),
+        [stack_id_parent],
+        [stacks.stack_id]),
         ForeignKeyConstraint(
-        [ChildID],
-        [Stack.StackID]),
+        [stack_id_child],
+        [stacks.stack_id]),
         ForeignKeyConstraint(
-            [ModificationID],[Modification.ModificationID]),
+            [modification_id],[modifications.modification_id]),
         {})
 
-class FilterNames(Base):
+class object_filter_names(Base):
     __tablename__ = TABLE_FILTER_NAMES
-    FilterID = Column(Integer(), primary_key=True, autoincrement=True)
-    FilterName = Column(String(200), unique=True)
+    object_filter_id = Column(Integer(), primary_key=True, autoincrement=True)
+    object_filter_name = Column(String(200), unique=True)
 
 
-class Filters(Base):
+class object_filters(Base):
     __tablename__ = TABLE_FILTERS
-    FilterID = Column(Integer(), primary_key=True)
-    ObjectUniID =  Column(Integer(),
+    object_filter_id = Column(Integer(), primary_key=True)
+    object_id =  Column(Integer(),
                        primary_key=True)
-    FilterValue = Column(Integer())
+    filter_value = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
-        [ObjectUniID],
-        [Objects.ObjectUniID]),
-        ForeignKeyConstraint([FilterID], [FilterNames.FilterID]), {})
+        [object_id],
+        [objects.object_id]),
+        ForeignKeyConstraint([object_filter_id], [object_filter_names.object_filter_id]), {})
 
-class ObjectRelations(Base):
+class object_relations(Base):
     __tablename__ = TABLE_OBJECT_RELATIONS
-    ObjectUniIDFrom = Column(Integer(),
+    object_id_parent = Column(Integer(),
                        primary_key=True)
-    ObjectUniIDTo = Column(Integer(),
+    object_id_child = Column(Integer(),
                        primary_key=True)
-    RelationshipID = Column(Integer(), primary_key=True)
+    object_relationtype_id = Column(Integer(), primary_key=True)
     __table_args__ = (ForeignKeyConstraint(
-        [ObjectUniIDFrom],
-        [Objects.ObjectUniID]),
+        [object_id_parent],
+        [objects.object_id]),
         ForeignKeyConstraint(
-        [ObjectUniIDTo],
-            [Objects.ObjectUniID]),{})
+        [object_id_child],
+            [objects.object_id]),{})
 
 class ObjectRelationsTypes(Base):
     __tablename__ = TABLE_OBJECT_RELATIONS_TYPES
-    RelationshipID = Column(Integer(), primary_key=True, autoincrement=True)
-    RelationshipName = Column(String(200), index=True, unique=True)
+    object_relationtype_id = Column(Integer(), primary_key=True, autoincrement=True)
+    object_relationtype_name = Column(String(200), index=True, unique=True)
 
-class MeasurementNames(Base):
+class measurement_names(Base):
     """
     Convenience table
     """
     __tablename__ = TABLE_MEASUREMENT_NAME
-    MeasurementName = Column(String(200), primary_key=True)
+    measurement_name = Column(String(200), primary_key=True)
 
-class MeasurementTypes(Base):
+class measurement_types(Base):
     """
     Convenience table
     """
     __tablename__ = TABLE_MEASUREMENT_TYPE
-    MeasurementType = Column(String(200), primary_key=True)
+    measurement_type = Column(String(200), primary_key=True)
 
-class MeasurementMeta(Base):
+class measurements(Base):
     __tablename__ = TABLE_MEASUREMENT_META
-    MeasurementID = Column(Integer(), primary_key=True, autoincrement=True)
-    MeasurementType = Column(String(200))
-    MeasurementName = Column(String(200))
-    PlaneUniID = Column(Integer())
+    measurement_id = Column(Integer(), primary_key=True, autoincrement=True)
+    measurement_type = Column(String(200))
+    measurement_name = Column(String(200))
+    plane_id = Column(Integer())
     __table_args__ = (ForeignKeyConstraint(
-        [MeasurementName], [MeasurementNames.MeasurementName]),
-        ForeignKeyConstraint([MeasurementType], [MeasurementTypes.MeasurementType]),
-        ForeignKeyConstraint([PlaneUniID], [PlaneMeta.PlaneUniID]),
-        UniqueConstraint(MeasurementName, MeasurementType, PlaneUniID),{})
+        [measurement_name], [measurement_names.measurement_name]),
+        ForeignKeyConstraint([measurement_type], [measurement_types.measurement_type]),
+        ForeignKeyConstraint([plane_id], [planes.plane_id]),
+        UniqueConstraint(measurement_name, measurement_type, plane_id),{})
 
-class Measurement(Base):
-    """docstring for Measurement."""
+class object_measurements(Base):
+    """docstring for object_measurements."""
     __tablename__ = TABLE_MEASUREMENT
-    ObjectUniID = Column(Integer(),
+    object_id = Column(Integer(),
                        primary_key=True)
-    MeasurementID = Column(Integer(), primary_key=True)
-    Value = Column(Float(precision=32))
+    measurement_id = Column(Integer(), primary_key=True)
+    value = Column(Float(precision=32))
     __table_args__ = (ForeignKeyConstraint(
-        [ObjectUniID],
-        [Objects.ObjectUniID]),
+        [object_id],
+        [objects.object_id]),
         ForeignKeyConstraint(
-            [MeasurementID], [MeasurementMeta.MeasurementID])
+            [measurement_id], [measurements.measurement_id])
         ,{})
 
 
-TABLE_PANNEL = 'Pannel'
+TABLE_PANNEL = 'pannel'
 PANNEL_KEY_METAL = 'Metal'
 PANNEL_KEY_TARGET = 'Target'
 PANNEL_COL_ABCLONE = 'AntibodyClone'
@@ -387,8 +388,8 @@ PANNEL_COL_ILASTIK = 'Ilastik'
 PANNEL_COL_BARCODE = 'Barcode'
 PANNEL_COL_TUBENUMBER = 'TubeNumber'
 
-class Pannel(Base):
-    """docstring for Pannel."""
+class pannel(Base):
+    """docstring for pannel."""
     __tablename__ = TABLE_PANNEL
     Metal = Column(String(200), primary_key=True)
     Target = Column(String(200), primary_key=True)
@@ -399,15 +400,34 @@ class Pannel(Base):
     TubeNumber = Column(Integer())
 
 
-class ImageMeasurement(Base):
-    """docstring for ImageMeasurement."""
+class mask_measurements(Base):
+    """docstring for image_measurements."""
     __tablename__=TABLE_IMAGEMEASUREMENT
-    ImageNumber = Column(Integer(), primary_key=True)
-    ObjectID = Column(String(200),
+    image_id = Column(Integer(), primary_key=True)
+    object_type = Column(String(200),
                        primary_key=True)
-    MeasurementName = Column(String(200), primary_key=True)
-    Value = Column(Float())
+    measurement_id = Column(String(200), primary_key=True)
+    value = Column(Float())
     __table_args__ = (ForeignKeyConstraint(
-        [ImageNumber],
-        [Image.ImageNumber])
-        ,{})
+        [image_id],
+        [images.image_id]), ForeignKeyConstraint(
+            [object_type], [masks.object_type]),
+        ForeignKeyConstraint(
+            [measurement_id], [measurements.measurement_id]),
+        {})
+
+class image_measurements(Base):
+    """docstring for image_measurements."""
+    __tablename__=TABLE_IMAGEMEASUREMENT
+    image_id = Column(Integer(), primary_key=True)
+    object_type = Column(String(200),
+                       primary_key=True)
+    measurement_id = Column(String(200), primary_key=True)
+    value = Column(Float())
+    __table_args__ = (ForeignKeyConstraint(
+        [image_id],
+        [images.image_id]), ForeignKeyConstraint(
+            [object_type], [masks.object_type]),
+        ForeignKeyConstraint(
+            [measurement_id], [measurements.measurement_id]),
+        {})
