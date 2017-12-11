@@ -19,11 +19,11 @@ class PlotScatter(plot_base.BasePlot):
         # define the measurement indexes with defaults
         # order is order expected by _get_measurement_filters
         self.measure_idx =[ # idx_name, default
-            (db.KEY_OBJECTID, 'cell'),
-            (db.KEY_CHANNEL_NAME, None),
-            (db.KEY_STACKNAME, 'FullStack'),
-            (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
-            (db.KEY_MEASUREMENTTYPE, 'Intensity')]
+            (db.objects.object_id.key, 'cell'),
+            (db.ref_planes.channel_name.key, None),
+            (db.stacks.stack_name.key, 'FullStack'),
+            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
+            (db.measurement_types.measurement_type.key, 'Intensity')]
 
 
     def plot_bin2d(self, measure_x, measure_y, image_ids=None, filters=None):
@@ -32,11 +32,11 @@ class PlotScatter(plot_base.BasePlot):
         scatterplot
         Args:
             measure_x, measure_y: dict defining the selected measures:
-                {db.KEY_OBJECTID: object_id,
-                 db.KEY_CHANNEL_NAME: channel_name,
-                 db.KEY_STACKNAME: stack_name,
-                 db.KEY_MEASUREMENTNAME: measurement_name,
-                 db.KEY_MEASUREMENTTYPE: measurement_type}
+                {db.objects.object_id.key: object_id,
+                 db.ref_planes.channel_name.key: channel_name,
+                 db.stacks.stack_name.key: stack_name,
+                 db.measurement_names.measurement_name.key: measurement_name,
+                 db.measurement_types.measurement_type.key: measurement_type}
         Returns:
             p:  the plot figure object
 
@@ -63,11 +63,11 @@ class PlotScatter(plot_base.BasePlot):
         scatterplot
         Args:
             measure_x, measure_y: dict defining the selected measures:
-                {db.KEY_OBJECTID: object_id,
-                 db.KEY_CHANNEL_NAME: channel_name,
-                 db.KEY_STACKNAME: stack_name,
-                 db.KEY_MEASUREMENTNAME: measurement_name,
-                 db.KEY_MEASUREMENTTYPE: measurement_type}
+                {db.objects.object_id.key: object_id,
+                 db.ref_planes.channel_name.key: channel_name,
+                 db.stacks.stack_name.key: stack_name,
+                 db.measurement_names.measurement_name.key: measurement_name,
+                 db.measurement_types.measurement_type.key: measurement_type}
             image_ids: image ids to plot
             filters: list of filter tuples [('filtername1', True),
             ('filtername2', False)] 
@@ -129,7 +129,7 @@ class PlotScatter(plot_base.BasePlot):
             the query to get the results
         """
         if on_cols is None:
-            on_cols = [db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER]
+            on_cols = [db.images.image_id.key, db.objects.object_number.key]
         queries = [base_query.filter(fil).subquery(name=str(i))
                    for i, fil in enumerate(filters)]
         # queries =[q.apply_labels() for q in queries]

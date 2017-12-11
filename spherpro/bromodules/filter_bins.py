@@ -46,8 +46,8 @@ class Bins(filter_base.BaseFilter):
                          ))
                     )
         data = pd.read_sql_query(q.statement,self.data.db_conn)
-        data = data.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-        data[cname] = data[db.KEY_VALUE]
+        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
+        data[cname] = data[db.object_measurements.value.key]
         data = pd.DataFrame(data[cname])
         for group in mdicts:
             sname, mname, cname = group
@@ -62,15 +62,14 @@ class Bins(filter_base.BaseFilter):
                              ))
                         )
             tmp = pd.read_sql_query(q.statement,self.data.db_conn)
-            tmp = tmp.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-            tmp[cname] = tmp[db.KEY_VALUE]
+            tmp = tmp.set_index([db.images.image_id.key, db.objects.object_number.key])
+            tmp[cname] = tmp[db.object_measurements.value.key]
             tmp = pd.DataFrame(tmp[cname])
             data = data.join(tmp)
         return data
 
 
-    def _filter_query(self, q, filter, filtertuple):
-        
+
 
 
 

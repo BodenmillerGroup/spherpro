@@ -157,14 +157,14 @@ default_dict = {
             SCALING_PREFIX: 'Scaling_',
             META_REGEXP: (
                 '(?P({}.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-            .format(db.KEY_SITENAME, db.KEY_CROPID, db.KEY_POSX, db.KEY_POSY)),
+            .format(db.sites.site_name.key, db.masks.crop_number.key, db.maks.posx.key, db.masks.pos_y.key)),
             MASK_DIR: None, # default take cpoutput dir
-            GROUP_CROPID: db.KEY_CROPID,
-            GROUP_SITE: db.KEY_SITENAME,
-            GROUP_SHAPEH: db.KEY_SHAPEH,
-            GROUP_SHAPEW: db.KEY_SHAPEW,
-            GROUP_POSX: db.KEY_POSX,
-            GROUP_POSY: db.KEY_POSY
+            GROUP_CROPID: db.masks.crop_number.key,
+            GROUP_SITE: db.sites.site_name.key,
+            GROUP_SHAPEH: db.masks.shape_h.key,
+            GROUP_SHAPEW: db.masks.shape_w.key,
+            GROUP_POSX: db.maks.posx.key,
+            GROUP_POSY: db.masks.pos_y.key
         },
 
     },

@@ -19,7 +19,7 @@ LABEL_CBAR = "# of all cells with valid barcodes"
 LABEL_Y = "# of cells with\nmost prominent barcode"
 LABEL_X = "# of cells with second most prominent barcode"
 PLT_TITLE = "Debarcoding Quality"
-CBAR_HUE = db.KEY_BCVALID
+CBAR_HUE = db.images.bc_valid.key
 RADIUS_COL = "radius"
 
 
@@ -106,7 +106,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         # generate lookup table
         lookup = self._generate_wells()
         # create range
-        pdat = data[db.KEY_VALUE]
+        pdat = data[db.object_measurements.value.key]
         clim = (np.percentile(pdat,censor_min*100), np.percentile(pdat,censor_max*100))
         # fill the grid
         fig, ax = self._fill_grid(data, condition, clim, cm, fig, ax, lookup, sizey, sizex, timepoints, wells_per_timepoint, nox, noy, plot_map, relative)
@@ -136,7 +136,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         """
         for tpit in range(0, len(timepoints)):
             count = 0
-            images = list(lookup.loc[(lookup[db.KEY_CONDITIONNAME]==condition)&(lookup[db.KEY_TIMEPOINT]==timepoints[tpit])][db.KEY_IMAGENUMBER])
+            images = list(lookup.loc[(lookup[db.conditions.condition_name.key]==condition)&(lookup[db.conditions.timepoint.key]==timepoints[tpit])][db.images.image_id.key])
             #print(str(tpit)+"---------")
             for well in images:
                 #print(well)
@@ -184,7 +184,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         q = self.session.query(db.conditions.time_point)
         q = q.distinct()
         tpts = pd.read_sql_query(q.statement,self.data.db_conn)
-        timepoints = list(tpts[db.KEY_TIMEPOINT])
+        timepoints = list(tpts[db.conditions.timepoint.key])
 
         COUNT_COL = "count_1"
         q = self.session.query(sa.func.count(db.conditions.condition_id))\
@@ -236,12 +236,12 @@ class PlotConditionPlot(plot_base.BasePlot):
                                             db.images.image_id)
         q = q.join(db.images)
         conditions = pd.read_sql_query(q.statement,self.data.db_conn)
-        radius = data[[db.KEY_IMAGENUMBER,db.KEY_VALUE]].groupby(db.KEY_IMAGENUMBER).max()
+        radius = data[[db.images.image_id.key,db.object_measurements.value.key]].groupby(db.images.image_id.key).max()
         radius.columns = [RADIUS_COL]
-        conditions = conditions.set_index(db.KEY_IMAGENUMBER)
+        conditions = conditions.set_index(db.images.image_id.key)
         conditions = conditions.join(radius)
         conditions = conditions.sort_values(RADIUS_COL, ascending=False)
-        conditions = conditions.drop_duplicates([db.KEY_BCPLATENAME,db.KEY_BCX,db.KEY_BCY], keep='first')
+        conditions = conditions.drop_duplicates([db.conditions.bc_plate.key,db.conditions.bc_x.key,db.conditions.bc_y.key], keep='first')
         conditions = conditions.reset_index(drop=False)
         return conditions
 

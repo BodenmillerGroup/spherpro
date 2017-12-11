@@ -29,7 +29,7 @@ class CalculateDistRim(object):
         and needs to be FIXED! to be added to the measurements!
         """
         dist_sphere = self._get_dists()
-        dist_sphere[db.KEY_VALUE] = dist_sphere.groupby(db.KEY_IMAGENUMBER)[db.KEY_VALUE].apply(lambda x:self._calc_dist_rim(x, max(x), ass_diam))
+        dist_sphere[db.object_measurements.value.key] = dist_sphere.groupby(db.images.image_id.key)[db.object_measurements.value.key].apply(lambda x:self._calc_dist_rim(x, max(x), ass_diam))
 
         self._write_tables(dist_sphere)
 
@@ -65,7 +65,7 @@ class CalculateDistRim(object):
             raise NameError('Please remove the current dist-rim first')
         q = self.data.main_session.query(db.ref_planes.ref_plane_id).filter(db.ref_planes.RefStackName == STACKNAME)
         channels = pd.read_sql_query(q.statement,self.data.db_conn)
-        channels = list(channels[db.KEY_PLANEID])
+        channels = list(channels[db.ref_planes.ref_plane_id.key])
         nochannels = len(channels)
         if nochannels == 0:
             channel = "c1"
@@ -75,28 +75,28 @@ class CalculateDistRim(object):
             channel = "c"+str(nex)
         # create RefPlaneMeta for next higher channel using CHANNELNAME
         refplanemeta = [{
-            db.KEY_REFSTACKNAME: STACKNAME,
-            db.KEY_PLANEID: channel,
-            db.KEY_CHANNEL_TYPE: TYPENAME,
-            db.KEY_CHANNEL_NAME: CHANNELNAME
+            db.ref_Stacks.ref_stack_name.key: STACKNAME,
+            db.ref_planes.ref_plane_id.key: channel,
+            db.ref_planes.channel_type.key: TYPENAME,
+            db.ref_planes.channel_name.key: CHANNELNAME
         }]
         table = pd.DataFrame(refplanemeta)
         self.data._bulkinsert(table, db.ref_planes)
         # create PlaneMeta for next higher channel
         planemeta = [{
-            db.KEY_STACKNAME: STACKNAME,
-            db.KEY_PLANEID: channel,
-            db.KEY_REFSTACKNAME: STACKNAME
+            db.stacks.stack_name.key: STACKNAME,
+            db.ref_planes.ref_plane_id.key: channel,
+            db.ref_Stacks.ref_stack_name.key: STACKNAME
         }]
         table = pd.DataFrame(planemeta)
         self.data._bulkinsert(table, db.planes)
 
         #
         # select only database columns and write to the Database
-        filterdata = filterdata[[db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_OBJECTID, db.KEY_MEASUREMENTNAME, db.KEY_PLANEID,db.KEY_VALUE]]
-        filterdata[db.KEY_MEASUREMENTNAME] = "MeanIntensity"
-        filterdata[db.KEY_MEASUREMENTTYPE] = "intensity"
-        filterdata[db.KEY_PLANEID] = channel
-        filterdata[db.KEY_STACKNAME] = STACKNAME
+        filterdata = filterdata[[db.images.image_id.key, db.objects.object_number.key, db.objects.object_id.key, db.measurement_names.measurement_name.key, db.ref_planes.ref_plane_id.key,db.object_measurements.value.key]]
+        filterdata[db.measurement_names.measurement_name.key] = "MeanIntensity"
+        filterdata[db.measurement_types.measurement_type.key] = "intensity"
+        filterdata[db.ref_planes.ref_plane_id.key] = channel
+        filterdata[db.stacks.stack_name.key] = STACKNAME
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_measurements)

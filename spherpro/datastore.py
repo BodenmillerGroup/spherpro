@@ -18,13 +18,13 @@ from sqlalchemy.inspection import inspect
 import sqlalchemy as sa
 
 DICT_DB_KEYS = {
-    'image_number': db.KEY_IMAGENUMBER,
-    'object_number': db.KEY_OBJECTNUMBER,
-    'measurement_type': db.KEY_MEASUREMENTTYPE,
-    'measurement_name': db.KEY_MEASUREMENTNAME,
-    'stack_name': db.KEY_STACKNAME,
-    'plane_id': db.KEY_PLANEID,
-    'object_id': db.KEY_OBJECTID
+    'image_number': db.images.image_id.key,
+    'object_number': db.objects.object_number.key,
+    'measurement_type': db.measurement_types.measurement_type.key,
+    'measurement_name': db.measurement_names.measurement_name.key,
+    'stack_name': db.stacks.stack_name.key,
+    'plane_id': db.ref_planes.ref_plane_id.key,
+    'object_id': db.objects.object_id.key
 }
 
 OBJECTS_STACKNAME = 'ObjectStack'
@@ -189,8 +189,8 @@ class DataStore(object):
         objids = conf_meas[conf.OBJECTS]
         cellmeas ={objid: pd.read_csv(os.path.join(cpdir, objid+filetype),
                                       sep=sep) for objid in objids}
-        cellmeas = pd.concat(cellmeas, names=[db.KEY_OBJECTID, 'idx'] )
-        cellmeas = cellmeas.reset_index(level=db.KEY_OBJECTID, drop=False)
+        cellmeas = pd.concat(cellmeas, names=[db.objects.object_id.key, 'idx'] )
+        cellmeas = cellmeas.reset_index(level=db.objects.object_id.key, drop=False)
         self._measurement_csv = cellmeas
         self._images_csv = lib.read_csv_from_config(
             self.conf[conf.CPOUTPUT][conf.IMAGES_CSV],
@@ -281,7 +281,7 @@ class DataStore(object):
         Modifications = pd.DataFrame(stackrel[modname_col])
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = ['ModificationName','ModificationPrefix']
-        Modifications[db.KEY_MODIFICATIONID] = range(Modifications.shape[0])
+        Modifications[db.modifications.modification_id.key] = range(Modifications.shape[0])
         return Modifications
 
     def _generate_stackmodification(self):
@@ -291,9 +291,9 @@ class DataStore(object):
         parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
         modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
-        key_map = {parent_col: db.KEY_PARENTNAME,
+        key_map = {parent_col: db.stack_modifications.stack_id_parent.key,
                    modname_col: db.KEY_MODIFICATIONNAME,
-                   stack_col: db.KEY_CHILDNAME}
+                   stack_col: db.ref_planes.stack_id_child}
 
         StackModification = (self._stack_relation_csv
                              .loc[self._stack_relation_csv[parent_col] !='0',
@@ -303,12 +303,12 @@ class DataStore(object):
         stackdict = {n: i for n, i in
                      self.main_session.query(db.stacks.stack_name, db.stacks.stack_id)
                      .filter(db.stacks.stack_name.in_(
-                         StackModification[db.KEY_PARENTNAME].tolist()+
-                         StackModification[db.KEY_CHILDNAME].tolist()))}
-        StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
+                         StackModification[db.stack_modifications.stack_id_parent.key].tolist()+
+                         StackModification[db.ref_planes.stack_id_child].tolist()))}
+        StackModification[db.stack_modifications.stack_id_parent.key] = (StackModification[db.stack_modifications.stack_id_parent.key]
                                               .replace(stackdict))
 
-        StackModification[db.KEY_CHILDID] = (StackModification[db.KEY_CHILDNAME]
+        StackModification[db.ref_planes.stack_id_child] = (StackModification[db.ref_planes.stack_id_child]
                                               .replace(stackdict))
         modidict = {n: i for n, i in
                     (self.main_session.query(db.modifications.modification_name,
@@ -316,18 +316,18 @@ class DataStore(object):
                      .filter(db.modifications.modification_name.in_(
                          StackModification[db.KEY_MODIFICATIONNAME])))}
 
-        StackModification[db.KEY_PARENTID] = (StackModification[db.KEY_PARENTNAME]
+        StackModification[db.stack_modifications.stack_id_parent.key] = (StackModification[db.stack_modifications.stack_id_parent.key]
                                               .replace(stackdict))
 
-        StackModification[db.KEY_CHILDID] = (StackModification[db.KEY_CHILDNAME]
+        StackModification[db.ref_planes.stack_id_child] = (StackModification[db.ref_planes.stack_id_child]
                                               .replace(stackdict))
-        StackModification[db.KEY_MODIFICATIONID] = (StackModification[db.KEY_MODIFICATIONNAME]
+        StackModification[db.modifications.modification_id.key] = (StackModification[db.KEY_MODIFICATIONNAME]
                                                     .replace(modidict))
 
         return StackModification.loc[:,
-                                     [db.KEY_PARENTID,
-                                      db.KEY_CHILDID,
-                                      db.KEY_MODIFICATIONID]]
+                                     [db.stack_modifications.stack_id_parent.key,
+                                      db.ref_planes.stack_id_child,
+                                      db.modifications.modification_id.key]]
    
     def _generate_refstack(self):
         """
@@ -335,7 +335,7 @@ class DataStore(object):
         """
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
-        key_map = {stack_col: db.KEY_REFSTACKNAME}
+        key_map = {stack_col: db.ref_Stacks.ref_stack_name.key}
 
         ref_stack =  (self._stack_relation_csv
                          .loc[self._stack_relation_csv[ref_col]=='0', list(key_map.keys())]
@@ -343,18 +343,18 @@ class DataStore(object):
                          )
         scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
         scale_names = [scale_col + n for n in
-                       ref_stack[db.KEY_REFSTACKNAME]]
+                       ref_stack[db.ref_Stacks.ref_stack_name.key]]
         dat_img = self._images_csv.loc[:, scale_names]
         dat_img = dat_img.fillna(1)
         scales = dat_img.iloc[0,:]
         # assert that scales are equal in all images
         assert np.all(dat_img.eq(scales, axis=1))
-        ref_stack[db.KEY_SCALE] = scales.values
+        ref_stack[db.ref_stacks.scale.key] = scales.values
         ref_stack = ref_stack.append(pd.DataFrame({
-            db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
-            db.KEY_SCALE: 1}, index=[1]),ignore_index=True)
+            db.ref_Stacks.ref_stack_name.key: OBJECTS_STACKNAME,
+            db.ref_stacks.scale.key: 1}, index=[1]),ignore_index=True)
         # set uni id 
-        ref_stack[db.KEY_REFSTACKID] = range(ref_stack.shape[0])
+        ref_stack[db.ref_stacks.ref_stack_id.key] = range(ref_stack.shape[0])
         return ref_stack
 
 
@@ -364,27 +364,27 @@ class DataStore(object):
         """
         stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
         ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
-        key_map = {stack_col: db.KEY_STACKNAME,
-                   ref_col: db.KEY_REFSTACKNAME}
+        key_map = {stack_col: db.stacks.stack_name.key,
+                   ref_col: db.ref_Stacks.ref_stack_name.key}
 
         stack =  (self._stack_relation_csv
                           .loc[:, list(key_map.keys())]
                          .rename(columns= key_map)
                          )
         # Add the 'objects' stack
-        stack = stack.append({db.KEY_STACKNAME: OBJECTS_STACKNAME,
-                              db.KEY_REFSTACKNAME: OBJECTS_STACKNAME}, ignore_index=True)
+        stack = stack.append({db.stacks.stack_name.key: OBJECTS_STACKNAME,
+                              db.ref_Stacks.ref_stack_name.key: OBJECTS_STACKNAME}, ignore_index=True)
 
-        fil = stack[db.KEY_REFSTACKNAME] == '0'
-        stack.loc[fil, db.KEY_REFSTACKNAME] = stack.loc[fil,
-                                                        db.KEY_STACKNAME]
+        fil = stack[db.ref_Stacks.ref_stack_name.key] == '0'
+        stack.loc[fil, db.ref_Stacks.ref_stack_name.key] = stack.loc[fil,
+                                                        db.stacks.stack_name.key]
 
         refstackdict = {n: i for n, i in (self.main_session
            .query(db.ref_stacks.ref_stack_name, db.ref_stacks.ref_stack_id)
-           .filter(db.ref_stacks.ref_stack_name.in_(stack[db.KEY_REFSTACKNAME])))}
-        stack[db.KEY_REFSTACKID] = stack[db.KEY_REFSTACKNAME].replace(refstackdict)
+           .filter(db.ref_stacks.ref_stack_name.in_(stack[db.ref_Stacks.ref_stack_name.key])))}
+        stack[db.ref_stacks.ref_stack_id.key] = stack[db.ref_Stacks.ref_stack_name.key].replace(refstackdict)
 
-        stack[db.KEY_STACKID] = range(stack.shape[0])
+        stack[db.stacks.stack_id.key] = range(stack.shape[0])
 
         return stack
 
@@ -413,48 +413,48 @@ class DataStore(object):
         planes = pd.DataFrame(
 
             columns=[
-            db.KEY_PLANEID,
-            db.KEY_REFSTACKNAME,
-            db.KEY_CHANNEL_NAME,
-            db.KEY_CHANNEL_TYPE
+            db.ref_planes.ref_plane_id.key,
+            db.ref_Stacks.ref_stack_name.key,
+            db.ref_planes.channel_name.key,
+            db.ref_planes.channel_type.key
         ])
         for stack in self.stack_csvs:
             self.stack_csvs[stack].rename(columns={
-                id_col:db.KEY_PLANEID,
-                stack_col:db.KEY_REFSTACKNAME,
-                name_col: db.KEY_CHANNEL_NAME,
-                type_col: db.KEY_CHANNEL_TYPE
+                id_col:db.ref_planes.ref_plane_id.key,
+                stack_col:db.ref_Stacks.ref_stack_name.key,
+                name_col: db.ref_planes.channel_name.key,
+                type_col: db.ref_planes.channel_type.key
             }, inplace = True)
             planes = planes.append(self.stack_csvs[stack])
         planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
-        planes[db.KEY_PLANEID] = planes[db.KEY_PLANEID].apply(lambda x: int(x))
+        planes[db.ref_planes.ref_plane_id.key] = planes[db.ref_planes.ref_plane_id.key].apply(lambda x: int(x))
 
-        planes = planes.append({db.KEY_PLANEID: OBJECTS_PLANEID,
-                       db.KEY_REFSTACKNAME: OBJECTS_STACKNAME,
-                       db.KEY_CHANNEL_NAME: OBJECTS_CHANNELNAME,
-                       db.KEY_CHANNEL_TYPE: OBJECTS_CHANNELTYPE},
+        planes = planes.append({db.ref_planes.ref_plane_id.key: OBJECTS_PLANEID,
+                       db.ref_Stacks.ref_stack_name.key: OBJECTS_STACKNAME,
+                       db.ref_planes.channel_name.key: OBJECTS_CHANNELNAME,
+                       db.ref_planes.channel_type.key: OBJECTS_CHANNELTYPE},
                                ignore_index=True)
         refdict = self._get_namekey_dict(db.ref_stacks.ref_stack_name, db.ref_stacks.ref_stack_id,
-                                         planes[db.KEY_REFSTACKNAME].unique())
+                                         planes[db.ref_Stacks.ref_stack_name.key].unique())
 
-        planes[db.KEY_REFSTACKID] = planes[db.KEY_REFSTACKNAME].replace(refdict)
+        planes[db.ref_stacks.ref_stack_id.key] = planes[db.ref_Stacks.ref_stack_name.key].replace(refdict)
 
-        return planes.loc[:, [db.KEY_REFSTACKID, db.KEY_PLANEID, db.KEY_CHANNEL_NAME,
-                              db.KEY_CHANNEL_TYPE]]
+        return planes.loc[:, [db.ref_stacks.ref_stack_id.key, db.ref_planes.ref_plane_id.key, db.ref_planes.channel_name.key,
+                              db.ref_planes.channel_type.key]]
 
     def _generate_planemeta(self):
         stack = self._generate_stack()
         refplanes = self._generate_refplanemeta()
-        planes = stack.merge(refplanes, on=db.KEY_REFSTACKID)
+        planes = stack.merge(refplanes, on=db.ref_stacks.ref_stack_id.key)
         stackdic = self._get_namekey_dict(db.stacks.stack_name, db.stacks.stack_id,
-                                    planes[db.KEY_STACKNAME].unique().tolist())
-        planes[db.KEY_STACKID] = planes[db.KEY_STACKNAME].replace(stackdic)
-        planes = planes.loc[:,[db.KEY_STACKID,
-                               db.KEY_REFSTACKID,
-                               db.KEY_PLANEID]]
-        planes[db.KEY_PLANEUNIID] = range(planes.shape[0])
+                                    planes[db.stacks.stack_name.key].unique().tolist())
+        planes[db.stacks.stack_id.key] = planes[db.stacks.stack_name.key].replace(stackdic)
+        planes = planes.loc[:,[db.stacks.stack_id.key,
+                               db.ref_stacks.ref_stack_id.key,
+                               db.ref_planes.ref_plane_id.key]]
+        planes[db.planes.plane_id.key] = range(planes.shape[0])
         return planes
 
     def _write_site_table(self):
@@ -464,8 +464,8 @@ class DataStore(object):
         for image in links.iterrows():
             img = image[1]
             session.query(db.images).\
-                filter(db.images.image_id == img[db.KEY_IMAGENUMBER]).\
-                update({db.KEY_SITENAME: img[db.KEY_SITENAME]})
+                filter(db.images.image_id == img[db.images.image_id.key]).\
+                update({db.sites.site_name.key: img[db.sites.site_name.key]})
         session.commit()
 
     def _generate_site(self):
@@ -475,11 +475,11 @@ class DataStore(object):
         names = self._generate_masks()
         rege = \
             re.compile(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.META_REGEXP])
-        names[db.KEY_SITENAME] = names[db.KEY_FILENAME].apply(lambda x:
+        names[db.sites.site_name.key] = names[db.masks.file_name.key].apply(lambda x:
                                                               rege.match(x).group(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.GROUP_SITE]))
 
-        links = names[[db.KEY_IMAGENUMBER, db.KEY_SITENAME]]
-        table = names[db.KEY_SITENAME].drop_duplicates().to_frame()
+        links = names[[db.images.image_id.key, db.sites.site_name.key]]
+        table = names[db.sites.site_name.key].drop_duplicates().to_frame()
         return table, links
 
 
@@ -496,7 +496,7 @@ class DataStore(object):
         Generates the Image
         table.
         """
-        image = pd.DataFrame(self._images_csv[db.KEY_IMAGENUMBER])
+        image = pd.DataFrame(self._images_csv[db.images.image_id.key])
         return image
 
     def _write_objects_table(self):
@@ -511,12 +511,12 @@ class DataStore(object):
         """
         Genertes the cell table
         """
-        objects = pd.DataFrame(self._measurement_csv[[db.KEY_OBJECTNUMBER,
-                                                      db.KEY_OBJECTID,
-                                                      db.KEY_IMAGENUMBER]])
+        objects = pd.DataFrame(self._measurement_csv[[db.objects.object_number.key,
+                                                      db.objects.object_id.key,
+                                                      db.images.image_id.key]])
 
 
-        objects[db.KEY_OBJECTUNIID] = range(objects.shape[0])
+        objects[db.objects.object_id.key] = range(objects.shape[0])
         return objects
 
     def _write_measurement_table(self, minimal):
@@ -529,8 +529,8 @@ class DataStore(object):
         """
         measurement_meta = self._generate_measurement_meta()
 
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTNAME]).drop_duplicates(), db.measurement_names)
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.KEY_MEASUREMENTTYPE]).drop_duplicates(), db.measurement_types)
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.measurement_names.measurement_name.key]).drop_duplicates(), db.measurement_names)
+        self._bulkinsert(pd.DataFrame(measurement_meta[db.measurement_types.measurement_type.key]).drop_duplicates(), db.measurement_types)
         self._bulkinsert(
             measurement_meta,
             db.measurements)
@@ -555,17 +555,17 @@ class DataStore(object):
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
                                               no_plane_string=OBJECTS_PLANEID))
-        meta.columns = ['variable', db.KEY_MEASUREMENTTYPE, db.KEY_MEASUREMENTNAME,
-                        db.KEY_STACKNAME, db.KEY_PLANEID]
+        meta.columns = ['variable', db.measurement_types.measurement_type.key, db.measurement_names.measurement_name.key,
+                        db.stacks.stack_name.key, db.ref_planes.ref_plane_id.key]
         meta = meta.loc[meta['variable'] != '', :]
-        meta[db.KEY_PLANEID] = meta[db.KEY_PLANEID].map(lambda x: int(x.replace('c','')))
+        meta[db.ref_planes.ref_plane_id.key] = meta[db.ref_planes.ref_plane_id.key].map(lambda x: int(x.replace('c','')))
         
         dat_planeids = pd.read_sql(self.main_session.query(
                 db.stacks.stack_name, db.planes.ref_plane_id, db.planes.plane_id)
             .join(db.planes).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
-        meta[db.KEY_MEASURMENTID] = range(meta.shape[0])
+        meta[db.measurements.measurement_id.key] = range(meta.shape[0])
         return meta
         
     def _generate_measurements(self, minimal, meta):
@@ -575,13 +575,13 @@ class DataStore(object):
             stackconf = self.conf[conf.STACK_RELATIONS]
             stackrel = stackrel.loc[stackrel[stackconf[conf.REF]]=='0']
             refstacks = list(stackrel[stackconf[conf.STACK]])
-            meta_filt = meta.loc[(meta[db.KEY_STACKNAME].isin(refstacks)) & (meta[db.KEY_MEASUREMENTTYPE]!="Location")]
+            meta_filt = meta.loc[(meta[db.stacks.stack_name.key].isin(refstacks)) & (meta[db.measurement_types.measurement_type.key]!="Location")]
             filtered_names = meta_filt['variable'].unique()
             filtered_names = filtered_names[filtered_names!='']
             meta = meta_filt
-            measurements = measurements.set_index([db.KEY_IMAGENUMBER,
-                     db.KEY_OBJECTNUMBER,'Number_Object_Number',
-                    db.KEY_OBJECTID])
+            measurements = measurements.set_index([db.images.image_id.key,
+                     db.objects.object_number.key,'Number_Object_Number',
+                    db.objects.object_id.key])
             measurements = measurements[filtered_names]
             measurements = measurements.reset_index(drop=False)
 
@@ -589,15 +589,15 @@ class DataStore(object):
         # per object unique index 'ObjectUniID'
         tab_obj = pd.read_sql(
             self.main_session.query(db.objects)
-            .filter(db.objects.image_id.in_(measurements[db.KEY_IMAGENUMBER].unique().tolist()))
+            .filter(db.objects.image_id.in_(measurements[db.images.image_id.key].unique().tolist()))
             .statement, self.db_conn)
 
         measurements = measurements.merge(tab_obj)
-        measurements.drop([db.KEY_OBJECTID, db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER,
+        measurements.drop([db.objects.object_id.key, db.images.image_id.key, db.objects.object_number.key,
                            'Number_Object_Number'], axis=1)
         measurements = pd.melt(measurements,
-                               id_vars=[db.KEY_OBJECTUNIID],
-                               var_name='variable', value_name=db.KEY_VALUE)
+                               id_vars=[db.objects.object_id.key],
+                               var_name='variable', value_name=db.object_measurements.value.key)
 
         # Add the MeasurementID by merging the table
         tab_meas = pd.read_sql(
@@ -608,16 +608,16 @@ class DataStore(object):
                                    db.stacks.stack_name)
             .join(db.planes)
             .join(db.stacks)
-            .filter(db.stacks.stack_name.in_(meta[db.KEY_STACKNAME].unique()))
+            .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
             .statement, self.db_conn)
         meta = meta.merge(tab_meas)
         measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements[db.KEY_VALUE].replace(np.inf, 2**16, inplace=True)
-        measurements[db.KEY_VALUE].replace(-np.inf, -(2**16), inplace=True)
+        measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
+        measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
         measurements.dropna(inplace=True)
-        measurements = measurements.loc[:,[db.KEY_OBJECTUNIID,
-                                                 db.KEY_MEASURMENTID,
-                                          db.KEY_VALUE]]
+        measurements = measurements.loc[:,[db.objects.object_id.key,
+                                                 db.measurements.measurement_id.key,
+                                          db.object_measurements.value.key]]
 
         return measurements
 
@@ -629,27 +629,27 @@ class DataStore(object):
         prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
         dat_mask = {obj:
                     self._images_csv[
-                        [db.KEY_IMAGENUMBER, prefix+obj]
-                    ].rename(columns={prefix+obj: db.KEY_FILENAME})
+                        [db.images.image_id.key, prefix+obj]
+                    ].rename(columns={prefix+obj: db.masks.file_name.key})
          for obj in objects}
-        dat_mask = pd.concat(dat_mask, names=[db.KEY_OBJECTID, 'idx'])
-        dat_mask = dat_mask.reset_index(level=db.KEY_OBJECTID, drop=False)
+        dat_mask = pd.concat(dat_mask, names=[db.objects.object_id.key, 'idx'])
+        dat_mask = dat_mask.reset_index(level=db.objects.object_id.key, drop=False)
         dat_mask = dat_mask.reset_index(drop=True)
         mask_regexp = cpconf[conf.IMAGES_CSV][conf.META_REGEXP]
         if mask_regexp is not None:
             """
             Try to get the crop information from the provided regexp
             """
-            (dat_mask[db.KEY_CROPID], dat_mask[db.KEY_POSX],
-            dat_mask[db.KEY_POSY], dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH]) = \
-            zip(*dat_mask[db.KEY_FILENAME].map(lambda x:
+            (dat_mask[db.masks.crop_number.key], dat_mask[db.maks.posx.key],
+            dat_mask[db.masks.pos_y.key], dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key]) = \
+            zip(*dat_mask[db.masks.file_name.key].map(lambda x:
                                                [re.match(mask_regexp, x).groupdict()
                                                .get(col, None) for col in
-                                                [db.KEY_CROPID, db.KEY_POSX,
-                                                 db.KEY_POSY, db.KEY_SHAPEW,
-                                                 db.KEY_SHAPEH]]))
+                                                [db.masks.crop_number.key, db.maks.posx.key,
+                                                 db.masks.pos_y.key, db.masks.shape_w.key,
+                                                 db.masks.shape_h.key]]))
 
-            if all(dat_mask[db.KEY_SHAPEW].isnull()):
+            if all(dat_mask[db.masks.shape_w.key].isnull()):
                 """
                 If the width and height are not in the regexp, load all the
                 mask and check the width
@@ -658,15 +658,15 @@ class DataStore(object):
                 basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
                 if basedir is None:
                     basedir = self.conf[conf.CP_DIR]
-                dat_mask[db.KEY_SHAPEW], dat_mask[db.KEY_SHAPEH] = \
-                        zip(*dat_mask[db.KEY_FILENAME].map(lambda fn:
+                dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key] = \
+                        zip(*dat_mask[db.masks.file_name.key].map(lambda fn:
                                 tif.imread(os.path.join(basedir, fn)).shape))
         else:
-            dat_mask[db.KEY_CROPID] = None
-            dat_mask[db.KEY_POSX] = 0
-            dat_mask[db.KEY_POSY] = 0
-            dat_mask[db.KEY_SHAPEH] = None
-            dat_mask[db.KEY_SHAPEW] = None
+            dat_mask[db.masks.crop_number.key] = None
+            dat_mask[db.maks.posx.key] = 0
+            dat_mask[db.masks.pos_y.key] = 0
+            dat_mask[db.masks.shape_h.key] = None
+            dat_mask[db.masks.shape_w.key] = None
 
         return dat_mask
 
@@ -683,7 +683,7 @@ class DataStore(object):
             (conf.OBJECTNUMBER_TO, db.KEY_OBJECTNUMBER_TO),
             (conf.IMAGENUMBER_FROM, db.KEY_IMAGENUMBER_FROM),
             (conf.IMAGENUMBER_TO, db.KEY_IMAGENUMBER_TO),
-            (conf.RELATIONSHIP, db.KEY_RELATIONSHIP)]}
+            (conf.RELATIONSHIP, db.object_relations.object_relationtype_name.key)]}
         dat_relations = self._relation_csv[list(col_map.keys())]
         dat_relations = (dat_relations.rename(columns=col_map)
                          )
@@ -701,23 +701,23 @@ class DataStore(object):
         csv_pannel = self.pannel
         conf_pannel = self.conf[conf.PANNEL_CSV]
         col_map = {conf_pannel[c]: target for c, target in [
-            (conf.PANEL_CSV_CHANNEL_NAME, db.PANNEL_KEY_METAL),
-            (conf.PANEL_CSV_ILASTIK_NAME, db.PANNEL_COL_ILASTIK),
-            (conf.PANEL_CSV_BARCODE_NAME, db.PANNEL_COL_BARCODE),
-            (conf.PANEL_CSV_CLONE_NAME, db.PANNEL_COL_ABCLONE),
-            (conf.PANEL_CSV_CONCENTRATION_NAME, db.PANNEL_COL_CONCENTRATION),
-            (conf.PANEL_CSV_TARGET_NAME, db.PANNEL_KEY_TARGET),
-            (conf.PANEL_CSV_TUBE_NAME, db.PANNEL_COL_TUBENUMBER)]}
+            (conf.PANEL_CSV_CHANNEL_NAME, db.pannel.metal.key),
+            (conf.PANEL_CSV_ILASTIK_NAME, db.pannel.is_ilastik.key),
+            (conf.PANEL_CSV_BARCODE_NAME, db.pannel.is_barcode.key),
+            (conf.PANEL_CSV_CLONE_NAME, db.pannel.antibody_clone.key),
+            (conf.PANEL_CSV_CONCENTRATION_NAME, db.pannel.concentration.key),
+            (conf.PANEL_CSV_TARGET_NAME, db.pannel.target.key),
+            (conf.PANEL_CSV_TUBE_NAME, db.pannel.tube_number.key)]}
         cols = [c for c in col_map]
         csv_pannel.drop(list(set(csv_pannel.columns) - set(cols)), axis=1, inplace=True)
         csv_pannel = csv_pannel.rename(columns=col_map)
         #correct conc to Float
-        csv_pannel[db.PANNEL_COL_CONCENTRATION] = csv_pannel[db.PANNEL_COL_CONCENTRATION].apply(
+        csv_pannel[db.pannel.concentration.key] = csv_pannel[db.pannel.concentration.key].apply(
             lambda x: float(re.findall(r"[-+]?\d*\.\d+|\d+", x)[0])
         )
         # correct boolean to logical
-        csv_pannel.loc[:, [db.PANNEL_COL_BARCODE, db.PANNEL_COL_ILASTIK]] =\
-                csv_pannel.loc[:, [db.PANNEL_COL_BARCODE, db.PANNEL_COL_ILASTIK]] == 1
+        csv_pannel.loc[:, [db.pannel.is_barcode.key, db.pannel.is_ilastik.key]] =\
+                csv_pannel.loc[:, [db.pannel.is_barcode.key, db.pannel.is_ilastik.key]] == 1
         return csv_pannel
 
     def _write_condition_table(self):
@@ -728,15 +728,15 @@ class DataStore(object):
 
     def _generate_condition_table(self):
         rename_dict = {c: target for c, target in [
-                (db.KEY_CONDITIONID,db.KEY_CONDITIONID),
-                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME], db.KEY_CONDITIONNAME),
-                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME], db.KEY_TIMEPOINT),
-                (db.KEY_BC,db.KEY_BC),
-                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_CONCENTRATION_NAME],db.KEY_CONCENTRATIONNAME),
-                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],db.KEY_BCPLATENAME),
-                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_PLATE_NAME],db.KEY_PLATEID),
-                (db.KEY_BCX,db.KEY_BCX),
-                (db.KEY_BCY,db.KEY_BCY)
+                (db.conditions.condition_id.key,db.conditions.condition_id.key),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME], db.conditions.condition_name.key),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME], db.conditions.timepoint.key),
+                (db.conditions.barcode.key,db.conditions.barcode.key),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_CONCENTRATION_NAME],db.conditions.concentration.key),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],db.conditions.bc_plate.key),
+                (self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_PLATE_NAME],db.conditions.plate_id.key),
+                (db.conditions.bc_x.key,db.conditions.bc_x.key),
+                (db.conditions.bc_y.key,db.conditions.bc_y.key)
             ] if target is not None
         }
         if rename_dict.get(None) is not None:
@@ -747,9 +747,9 @@ class DataStore(object):
             if self.experiment_layout is not None:
                 barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
                 barcodes = barcodes.to_frame()
-                barcodes.columns = [db.KEY_BC]
+                barcodes.columns = [db.conditions.barcode.key]
                 IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-                barcodes[db.KEY_CONDITIONID] = IDs
+                barcodes[db.conditions.condition_id.key] = IDs
                 barcodes = barcodes.reset_index(drop=False)
                 barcodes = barcodes.rename(columns={self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]:
                                  self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME]})
@@ -769,31 +769,31 @@ class DataStore(object):
                 data.loc[pd.isnull(data[tw_name]),co_name] = "default"
                 data.loc[pd.isnull(data[tw_name]),tp_name] = 0.0
                 data.loc[pd.isnull(data[tw_name]),tw_name] = data.loc[pd.isnull(data[tw_name])][we_name]
-                data[db.KEY_BCY] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
-                data[db.KEY_BCX] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+                data[db.conditions.bc_y.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
+                data[db.conditions.bc_x.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
 
 
                 data = data[cols]
                 data = data.rename(columns=rename_dict)
                 if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME] is None:
-                    data[db.KEY_TIMEPOINT] = 0.0
+                    data[db.conditions.timepoint.key] = 0.0
                 if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME] is None:
-                    data[db.KEY_CONDITIONNAME] = 'default'
+                    data[db.conditions.condition_name.key] = 'default'
 
                 data = data.fillna('0')
                 return data
             else:
                 barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
                 barcodes = barcodes.to_frame()
-                barcodes.columns = [db.KEY_BC]
+                barcodes.columns = [db.conditions.barcode.key]
                 IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-                barcodes[db.KEY_CONDITIONID] = IDs
+                barcodes[db.conditions.condition_id.key] = IDs
                 barcodes = barcodes.reset_index(drop=False)
 
                 barcodes = lib.fill_null(barcodes, db.conditions)
-                barcodes[db.KEY_BCY] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
-                barcodes[db.KEY_BCX] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
-                barcodes[db.KEY_BCPLATENAME] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
+                barcodes[db.conditions.bc_y.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
+                barcodes[db.conditions.bc_x.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+                barcodes[db.conditions.bc_plate.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
                 return barcodes[outcols]
         else:
             return None
@@ -848,14 +848,14 @@ class DataStore(object):
         self.main_session.commit()
 
     def add_measurements(self, measurements, replace=False, backup=False,
-        col_image = db.KEY_IMAGENUMBER,
-        col_object_no = db.KEY_OBJECTNUMBER,
-        col_object_id = db.KEY_OBJECTID,
-        col_type = db.KEY_MEASUREMENTTYPE,
-        col_name = db.KEY_MEASUREMENTNAME,
-        col_plane = db.KEY_PLANEID,
-        col_stackname = db.KEY_STACKNAME,
-        col_value = db.KEY_VALUE,
+        col_image = db.images.image_id.key,
+        col_object_no = db.objects.object_number.key,
+        col_object_id = db.objects.object_id.key,
+        col_type = db.measurement_types.measurement_type.key,
+        col_name = db.measurement_names.measurement_name.key,
+        col_plane = db.ref_planes.ref_plane_id.key,
+        col_stackname = db.stacks.stack_name.key,
+        col_value = db.object_measurements.value.key,
         split = 100000
     ):
         """add_measurements
@@ -875,14 +875,14 @@ class DataStore(object):
             Pandas.DataFrame containing the unstored rows
         """
         col_map = {c: target for c, target in [
-            (col_image, db.KEY_IMAGENUMBER),
-            (col_object_no, db.KEY_OBJECTNUMBER),
-            (col_object_id, db.KEY_OBJECTID),
-            (col_type, db.KEY_MEASUREMENTTYPE),
-            (col_name, db.KEY_MEASUREMENTNAME),
-            (col_plane, db.KEY_PLANEID),
-            (col_stackname, db.KEY_STACKNAME),
-            (col_value, db.KEY_VALUE)]}
+            (col_image, db.images.image_id.key),
+            (col_object_no, db.objects.object_number.key),
+            (col_object_id, db.objects.object_id.key),
+            (col_type, db.measurement_types.measurement_type.key),
+            (col_name, db.measurement_names.measurement_name.key),
+            (col_plane, db.ref_planes.ref_plane_id.key),
+            (col_stackname, db.stacks.stack_name.key),
+            (col_value, db.object_measurements.value.key)]}
 
         measurements_base = measurements.rename(columns=col_map)
         finished = False
@@ -897,13 +897,13 @@ class DataStore(object):
                 measurements = measurements_base
                 finished = True
 
-            images = [int(c) for c in measurements[db.KEY_IMAGENUMBER].unique()]
-            objects = [int(c) for c in measurements[db.KEY_OBJECTNUMBER].unique()]
-            object_id = [str(c) for c in measurements[db.KEY_OBJECTID].unique()]
-            measurement_type = [str(c) for c in measurements[db.KEY_MEASUREMENTTYPE].unique()]
-            measurement_name = [str(c) for c in measurements[db.KEY_MEASUREMENTNAME].unique()]
-            plane = [str(c) for c in measurements[db.KEY_PLANEID].unique()]
-            stack = [str(c) for c in measurements[db.KEY_STACKNAME].unique()]
+            images = [int(c) for c in measurements[db.images.image_id.key].unique()]
+            objects = [int(c) for c in measurements[db.objects.object_number.key].unique()]
+            object_id = [str(c) for c in measurements[db.objects.object_id.key].unique()]
+            measurement_type = [str(c) for c in measurements[db.measurement_types.measurement_type.key].unique()]
+            measurement_name = [str(c) for c in measurements[db.measurement_names.measurement_name.key].unique()]
+            plane = [str(c) for c in measurements[db.ref_planes.ref_plane_id.key].unique()]
+            stack = [str(c) for c in measurements[db.stacks.stack_name.key].unique()]
 
             query =  self.main_session.query(db.object_measurements).filter(
                 db.object_measurements.ImageNumber.in_(images),
@@ -1014,9 +1014,9 @@ class DataStore(object):
         """
 
         session = self.main_session
-        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.Target==name).statement,self.db_conn)
+        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.target==name).statement,self.db_conn)
         if len(result) > 0:
-            return (result[db.PANNEL_KEY_METAL], result)
+            return (result[db.pannel.metal.key], result)
         else:
             return (name, None)
 
@@ -1035,9 +1035,9 @@ class DataStore(object):
         """
 
         session = self.main_session
-        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.Metal==metal).statement,self.db_conn)
+        result = pd.read_sql(session.query(db.pannel).filter(db.pannel.metal==metal).statement,self.db_conn)
         if len(result) > 0:
-            return (result[db.PANNEL_KEY_TARGET], result)
+            return (result[db.pannel.target.key], result)
         else:
             return (metal, None)
 
@@ -1094,7 +1094,7 @@ class DataStore(object):
 
         args = locals()
         args.pop('self')
-        return self.get_table_data(db.TABLE_OBJECT,  **args)
+        return self.get_table_data(db.objects.__tablename__,  **args)
 
     def get_stack_meta(self,
         stack_name = None):
@@ -1124,7 +1124,7 @@ class DataStore(object):
         if stack_name is None:
             clause_dict = None
         else:
-            clause_dict = {db.KEY_STACKNAME: stack_name}
+            clause_dict = {db.stacks.stack_name.key: stack_name}
 
         #stack_name
         self._sqlgenerate_simple_query('Stack', columns=['Stack.*',
@@ -1193,7 +1193,7 @@ class DataStore(object):
 
         args = locals()
         args.pop('self')
-        return self.get_table_data(db.TABLE_MEASUREMENT,  **args)
+        return self.get_table_data(db.object_measurements.__tablename__,  **args)
 
     def get_(self, arg):
         pass

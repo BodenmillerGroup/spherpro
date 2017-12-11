@@ -11,90 +11,6 @@ Base = declarative_base()
 # Define the table and column names to be used
 # These need to match the definitions bellow
 
-KEY_CHANNEL_NAME = 'channel_name'
-KEY_CHANNEL_TYPE = 'channel_type'
-KEY_CHILDNAME = 'ChildName'
-KEY_CHILDID = 'ChildID'
-KEY_DISPLAY_NAME = 'DisplayName'
-KEY_FILENAME = 'FileName'
-KEY_IMAGENUMBER = 'ImageNumber'
-KEY_IMAGENUMBER_FROM = 'ImageNumberFrom'
-KEY_IMAGENUMBER_TO = 'ImageNumberTo'
-KEY_MEASUREMENTNAME = 'MeasurementName'
-KEY_MEASUREMENTTYPE = 'MeasurementType'
-KEY_MEASURMENTID = 'MeasurementID'
-KEY_MODIFICATIONNAME = 'ModificationName'
-KEY_MODIFICATIONPREFIX = 'ModificationPrefix'
-KEY_MODIFICATIONID = 'ModificationID'
-KEY_OBJECTID = 'ObjectID'
-KEY_OBJECTNUMBER = 'ObjectNumber'
-KEY_OBJECTUNIID = 'ObjectUniID'
-KEY_OBJECTUNIID_FROM = 'ObjectIDFrom'
-KEY_OBJECTUNIID_TO = 'ObjectIDTo'
-KEY_PARENTNAME = 'ParentName'
-KEY_PARENTID = 'ParentID'
-KEY_PLANEID = 'PlaneID'
-KEY_PLANEUNIID = 'PlaneUniID'
-KEY_REFSTACKNAME = 'RefStackName'
-KEY_REFSTACKID = 'RefStackID'
-KEY_RELATIONSHIP = 'Relationship'
-KEY_RELATIONSIPID = 'RelationshipID'
-KEY_SCALE = 'Scale'
-KEY_STACKNAME = 'StackName'
-KEY_STACKID = 'StackID'
-KEY_VALUE = 'Value'
-KEY_CROPID = 'CropID'
-KEY_POSX = 'PosX'
-KEY_POSY = 'PosY'
-KEY_SHAPEW = 'ShapeW'
-KEY_SHAPEH = 'ShapeH'
-
-KEY_FILTERNAME = 'FilterName'
-KEY_FILTERVALUE = 'FilterValue'
-KEY_FILTERID = 'FitlerID'
-
-KEY_CONDITIONID = 'ConditionID'
-KEY_CONDITIONNAME = 'ConditionName'
-KEY_CONCENTRATIONNAME = 'Concentration'
-KEY_TIMEPOINT = 'TimePoint'
-KEY_BCPLATENAME = 'BCPlate'
-KEY_BC = 'BarCode'
-KEY_BCX = 'BCX'
-KEY_BCY = 'BCY'
-KEY_PLATEID = 'PlateID'
-
-KEY_SITENAME = 'SiteName'
-KEY_BCDEPTH = 'BCDepth'
-KEY_BCINVALID = 'BCInvalid'
-KEY_BCVALID = 'BCValid'
-KEY_BCHIGHESTCOUNT = 'BCHighestCount'
-KEY_BCSECONDCOUNT = 'BCSecondCount'
-
-
-TABLE_CONDITION = 'conditions'
-TABLE_SITE = 'sites'
-
-TABLE_DERIVEDSTACK = 'DerivedStack'
-TABLE_FILTERS = 'object_filters'
-TABLE_FILTER_NAMES = 'object_filter_names'
-TABLE_IMAGE = 'images'
-TABLE_MASKS = 'masks'
-TABLE_MEASUREMENT = 'object_measurements'
-TABLE_MEASUREMENT_META = 'measurements'
-TABLE_MEASUREMENT_NAME = 'measurement_names'
-TABLE_MEASUREMENT_TYPE = 'measurement_types'
-TABLE_MODIFICATION = 'modifications'
-TABLE_OBJECT = 'objects'
-TABLE_OBJECT_RELATIONS = 'object_relations'
-TABLE_OBJECT_RELATIONS_TYPES = 'ObjectRelationsTypes'
-TABLE_PLANEMETA = 'planes'
-TABLE_REFPLANEMETA = 'ref_planes'
-TABLE_REFSTACK = 'ref_stacks'
-TABLE_STACK = 'stacks'
-TABLE_STACKMODIFICATION = 'stack_modifications'
-TABLE_IMAGEMEASUREMENT = 'image_measurements'
-
-
 def connect_sqlite(conf):
     """
     creates a sqlite connector to be used with the Datastore.
@@ -168,9 +84,11 @@ def drop_all(conn):
 ################################################################################
 #                           Model Definitions                                  #
 ################################################################################
+
+
 class conditions(Base):
     """docstring for images."""
-    __tablename__ = TABLE_CONDITION
+    __tablename__ = 'conditions'
     condition_id = Column(String(200), primary_key=True)
     condition_name = Column(String(200), server_default='default')
     time_point = Column(Float(), server_default="0")
@@ -181,16 +99,18 @@ class conditions(Base):
     bc_x = Column(Integer())
     bc_y = Column(String(200))
 
+
 class sites(Base):
     """docstring for images."""
-    __tablename__ = TABLE_SITE
+    __tablename__ = 'sites'
     site_name = Column(String(200), primary_key=True)
 
-
+sites.__tablename__ = 'sites'
+sites.site_name.key = sites.site_name.key
 
 class images(Base):
     """docstring for images."""
-    __tablename__ = TABLE_IMAGE
+    __tablename__ = 'images'
     image_id = Column(Integer(), primary_key=True)
     image_number = Column(Integer())
     bc_depth = Column(Float())
@@ -209,9 +129,11 @@ class images(Base):
         [sites.site_name]),
             {})
 
+TABLE_IMAGE = images.__tablename__
+
 class masks(Base):
     """ a table describing the masks."""
-    __tablename__ = TABLE_MASKS
+    __tablename__ = 'masks'
     object_type = Column(String(200),
                        primary_key=True)
     image_id = Column(Integer(),  primary_key=True)
@@ -224,7 +146,7 @@ class masks(Base):
 
 class objects(Base):
     """docstring for objects."""
-    __tablename__ = TABLE_OBJECT
+    __tablename__ = 'objects'
     object_number = Column(Integer())
     object_id = Column(Integer(), primary_key=True, autoincrement=True)
     image_id = Column(Integer(), index=True)
@@ -238,14 +160,14 @@ class objects(Base):
 
 class ref_stacks(Base):
     """docstring for ref_stacks."""
-    __tablename__ = TABLE_REFSTACK
+    __tablename__ = 'ref_stacks'
     ref_stack_id = Column(Integer(), primary_key=True, autoincrement=True)
     ref_stack_name = Column(String(200), unique=True)
     scale = Column(Float())
 
 class ref_planes(Base):
     """docstring for planes."""
-    __tablename__ = TABLE_REFPLANEMETA
+    __tablename__ = 'ref_planes'
     ref_stack_id = Column(Integer(), primary_key=True)
     ref_plane_id = Column(Integer(), primary_key=True, autoincrement=True)
     channel_type = Column(String(200))
@@ -256,7 +178,7 @@ class ref_planes(Base):
 
 class stacks(Base):
     """docstring for stacks."""
-    __tablename__ = TABLE_STACK
+    __tablename__ = 'stacks'
     stack_id = Column(Integer(), primary_key=True, autoincrement=True)
     stack_name = Column(String(200), unique=True)
     ref_stack_id = Column(Integer())
@@ -264,7 +186,7 @@ class stacks(Base):
         [ref_stack_id], [ref_stacks.ref_stack_id]), {})
 
 class planes(Base):
-    __tablename__ = TABLE_PLANEMETA
+    __tablename__ = 'planes'
     plane_id = Column(Integer(), primary_key=True, autoincrement=True)
     stack_id = Column(Integer())
     ref_plane_id = Column(Integer())
@@ -279,14 +201,14 @@ class planes(Base):
 
 class modifications(Base):
     """docstring for modifications."""
-    __tablename__ = TABLE_MODIFICATION
+    __tablename__ = 'modifications'
     modification_id = Column(Integer(), primary_key=True, autoincrement=True)
     modification_name = Column(String(200), unique=True)
     modification_prefix = Column(String(200), unique=True)
 
 class stack_modifications(Base):
     """docstring for stack_modifications."""
-    __tablename__ = TABLE_STACKMODIFICATION
+    __tablename__ = 'stack_modifications'
     modification_id = Column(Integer(),
                               primary_key=True)
     stack_id_parent = Column(Integer(), primary_key=True)
@@ -303,13 +225,13 @@ class stack_modifications(Base):
         {})
 
 class object_filter_names(Base):
-    __tablename__ = TABLE_FILTER_NAMES
+    __tablename__ = 'object_filter_names'
     object_filter_id = Column(Integer(), primary_key=True, autoincrement=True)
     object_filter_name = Column(String(200), unique=True)
 
 
 class object_filters(Base):
-    __tablename__ = TABLE_FILTERS
+    __tablename__ = 'object_filters'
     object_filter_id = Column(Integer(), primary_key=True)
     object_id =  Column(Integer(),
                        primary_key=True)
@@ -320,7 +242,7 @@ class object_filters(Base):
         ForeignKeyConstraint([object_filter_id], [object_filter_names.object_filter_id]), {})
 
 class object_relations(Base):
-    __tablename__ = TABLE_OBJECT_RELATIONS
+    __tablename__ = 'object_relations'
     object_id_parent = Column(Integer(),
                        primary_key=True)
     object_id_child = Column(Integer(),
@@ -333,8 +255,8 @@ class object_relations(Base):
         [object_id_child],
             [objects.object_id]),{})
 
-class ObjectRelationsTypes(Base):
-    __tablename__ = TABLE_OBJECT_RELATIONS_TYPES
+class object_relation_types(Base):
+    __tablename__ = 'object_relation_types'
     object_relationtype_id = Column(Integer(), primary_key=True, autoincrement=True)
     object_relationtype_name = Column(String(200), index=True, unique=True)
 
@@ -342,18 +264,18 @@ class measurement_names(Base):
     """
     Convenience table
     """
-    __tablename__ = TABLE_MEASUREMENT_NAME
+    __tablename__ = 'measurement_names'
     measurement_name = Column(String(200), primary_key=True)
 
 class measurement_types(Base):
     """
     Convenience table
     """
-    __tablename__ = TABLE_MEASUREMENT_TYPE
+    __tablename__ = 'measurement_types'
     measurement_type = Column(String(200), primary_key=True)
 
 class measurements(Base):
-    __tablename__ = TABLE_MEASUREMENT_META
+    __tablename__ = 'measurements'
     measurement_id = Column(Integer(), primary_key=True, autoincrement=True)
     measurement_type = Column(String(200))
     measurement_name = Column(String(200))
@@ -366,7 +288,7 @@ class measurements(Base):
 
 class object_measurements(Base):
     """docstring for object_measurements."""
-    __tablename__ = TABLE_MEASUREMENT
+    __tablename__ = 'object_measurements'
     object_id = Column(Integer(),
                        primary_key=True)
     measurement_id = Column(Integer(), primary_key=True)
@@ -379,30 +301,21 @@ class object_measurements(Base):
         ,{})
 
 
-TABLE_PANNEL = 'pannel'
-PANNEL_KEY_METAL = 'Metal'
-PANNEL_KEY_TARGET = 'Target'
-PANNEL_COL_ABCLONE = 'AntibodyClone'
-PANNEL_COL_CONCENTRATION = 'Concentration'
-PANNEL_COL_ILASTIK = 'Ilastik'
-PANNEL_COL_BARCODE = 'Barcode'
-PANNEL_COL_TUBENUMBER = 'TubeNumber'
-
 class pannel(Base):
     """docstring for pannel."""
-    __tablename__ = TABLE_PANNEL
-    Metal = Column(String(200), primary_key=True)
-    Target = Column(String(200), primary_key=True)
-    AntibodyClone  = Column(String(200))
-    Concentration = Column(Float())
-    Ilastik = Column(Boolean())
-    Barcode = Column(Boolean())
-    TubeNumber = Column(Integer())
+    __tablename__ = 'pannel'
+    metal = Column(String(200), primary_key=True)
+    target = Column(String(200), primary_key=True)
+    antibody_clone  = Column(String(200))
+    concentration = Column(Float())
+    is_ilastik = Column(Boolean())
+    is_barcode = Column(Boolean())
+    tube_number = Column(Integer())
 
 
 class mask_measurements(Base):
     """docstring for image_measurements."""
-    __tablename__=TABLE_IMAGEMEASUREMENT
+    __tablename__= 'mask_measurements'
     image_id = Column(Integer(), primary_key=True)
     object_type = Column(String(200),
                        primary_key=True)
@@ -418,7 +331,7 @@ class mask_measurements(Base):
 
 class image_measurements(Base):
     """docstring for image_measurements."""
-    __tablename__=TABLE_IMAGEMEASUREMENT
+    __tablename__ = 'image_measurements'
     image_id = Column(Integer(), primary_key=True)
     object_type = Column(String(200),
                        primary_key=True)
@@ -431,3 +344,5 @@ class image_measurements(Base):
         ForeignKeyConstraint(
             [measurement_id], [measurements.measurement_id]),
         {})
+
+

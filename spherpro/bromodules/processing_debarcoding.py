@@ -41,7 +41,7 @@ class Debarcode(object):
         for image in bc_dic.iterrows():
             img = dict(image[1])
             dic = {str(i): str(img[i]) if str(img[i]) != 'NAN' else None for i in img}
-            dic[db.KEY_BCDEPTH] = dist
+            dic[db.images.bc_depth.key] = dist
             session.query(db.images).\
                 filter(db.images.image_id == int(image[0])).\
                 update(dic)
@@ -66,7 +66,7 @@ class Debarcode(object):
         data = data.rename(columns={chan: ''.join(c for c in chan if c.isdigit()) for chan in data.columns})
         data[NAME_BARCODE] = data.apply(lambda x: ''.join([str(int(v)) for v in x]),axis=1)
         bc_dict = bc_dict.set_index(NAME_BARCODE)
-        data[NAME_WELLCOLUMN] = [bc_dict[db.KEY_CONDITIONID].get(b, NAME_INVALID) for b in data[NAME_BARCODE]]
+        data[NAME_WELLCOLUMN] = [bc_dict[db.conditions.condition_id.key].get(b, NAME_INVALID) for b in data[NAME_BARCODE]]
         bc_dict = bc_dict.reset_index(drop=False)
 
         data = data.set_index(NAME_WELLCOLUMN, append=True)
@@ -81,8 +81,8 @@ class Debarcode(object):
 
     def _summarize_singlecell_barcodes(self, data):
         # prepare a dicitionary containing the barcode
-        idxs = data.index.get_level_values(db.KEY_IMAGENUMBER).unique()
-        dic = data.groupby(level=db.KEY_IMAGENUMBER).apply(self._aggregate_barcodes)
+        idxs = data.index.get_level_values(db.images.image_id.key).unique()
+        dic = data.groupby(level=db.images.image_id.key).apply(self._aggregate_barcodes)
         return dic
 
 
@@ -90,23 +90,23 @@ class Debarcode(object):
         temp = dict()
         summary = dat[NAME_WELLCOLUMN].value_counts()
         try:
-            temp[db.KEY_BCINVALID]=summary[NAME_INVALID]
+            temp[db.images.bc_invalid.key]=summary[NAME_INVALID]
             del(summary[NAME_INVALID])
         except KeyError:
-            temp[db.KEY_BCINVALID]=0
+            temp[db.images.bc_invalid.key]=0
         try:
-            temp[db.KEY_CONDITIONID]=summary.keys()[0]
-            temp[db.KEY_BCVALID]=summary.sum()
-            temp[db.KEY_BCHIGHESTCOUNT]=summary[temp[db.KEY_CONDITIONID]]
+            temp[db.conditions.condition_id.key]=summary.keys()[0]
+            temp[db.images.bc_valid.key]=summary.sum()
+            temp[db.images.bc_highest_count.key]=summary[temp[db.conditions.condition_id.key]]
             if len(summary) > 1:
-                temp[db.KEY_BCSECONDCOUNT]=summary[summary.keys()[1]]
+                temp[db.images.bc_second_count.key]=summary[summary.keys()[1]]
             else:
-                temp[db.KEY_BCSECONDCOUNT]=0
+                temp[db.images.bc_second_count.key]=0
         except IndexError:
-            temp[db.KEY_CONDITIONID]='NAN'
-            temp[db.KEY_BCVALID]=0
-            temp[db.KEY_BCHIGHESTCOUNT]=0
-            temp[db.KEY_BCSECONDCOUNT]=0
+            temp[db.conditions.condition_id.key]='NAN'
+            temp[db.images.bc_valid.key]=0
+            temp[db.images.bc_highest_count.key]=0
+            temp[db.images.bc_second_count.key]=0
 
         return pd.Series(temp)
 
@@ -125,9 +125,9 @@ class Debarcode(object):
     def _get_bc_cells(self, key, dist):
         channels = key.columns.tolist()
         filtdict = {
-            db.KEY_STACKNAME: "DistStack",
-            db.KEY_CHANNEL_NAME: "dist-sphere",
-            db.KEY_MEASUREMENTNAME: "MeanIntensity"
+            db.stacks.stack_name.key: "DistStack",
+            db.ref_planes.channel_name.key: "dist-sphere",
+            db.measurement_names.measurement_name.key: "MeanIntensity"
         }
         bcfilt = self.filter.get_multifilter_statement([
             (filtdict, operator.lt, dist)
@@ -149,13 +149,13 @@ class Debarcode(object):
 
         df = measurements.copy()
         for i, channel in enumerate(df):
-            name = channel[db.KEY_CHANNEL_NAME].unique()[0]
-            df[i] = channel[[db.KEY_IMAGENUMBER,db.KEY_OBJECTNUMBER,db.KEY_VALUE]]
-            df[i].columns = [db.KEY_IMAGENUMBER,db.KEY_OBJECTNUMBER, name]
+            name = channel[db.ref_planes.channel_name.key].unique()[0]
+            df[i] = channel[[db.images.image_id.key,db.objects.object_number.key,db.object_measurements.value.key]]
+            df[i].columns = [db.images.image_id.key,db.objects.object_number.key, name]
             if i == 0:
                 concat = df[i]
             else:
-                concat = concat.merge(df[i], on=[db.KEY_IMAGENUMBER,db.KEY_OBJECTNUMBER])
+                concat = concat.merge(df[i], on=[db.images.image_id.key,db.objects.object_number.key])
 
-        concat = concat.set_index([db.KEY_IMAGENUMBER,db.KEY_OBJECTNUMBER])
+        concat = concat.set_index([db.images.image_id.key,db.objects.object_number.key])
         return concat

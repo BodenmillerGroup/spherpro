@@ -15,7 +15,7 @@ LABEL_CBAR = "# of all cells with valid barcodes"
 LABEL_Y = "# of cells with\nmost prominent barcode"
 LABEL_X = "# of cells with second most prominent barcode"
 PLT_TITLE = "Debarcoding Quality"
-CBAR_HUE = db.KEY_BCVALID
+CBAR_HUE = db.images.bc_valid.key
 
 
 class PlotDebarcodeQuality(plot_base.BasePlot):
@@ -73,8 +73,8 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         if cm is None:
             cm = plt.cm.get_cmap('winter')
 
-        y = data[db.KEY_BCHIGHESTCOUNT]
-        x = data[db.KEY_BCSECONDCOUNT]
+        y = data[db.images.bc_highest_count.key]
+        x = data[db.images.bc_second_count.key]
         sc = ax.scatter(x, y,
                    alpha=0.7, edgecolors='none', c=data[CBAR_HUE], cmap=cm)
         upper = max(x.max()*1.1, y.max()*1.1)

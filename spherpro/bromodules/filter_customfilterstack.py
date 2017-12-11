@@ -28,15 +28,15 @@ class CustomFilterStack(filter_base.BaseFilter):
         if exists == 0:
             # add to RefStack
             refstack = [{
-                db.KEY_REFSTACKNAME: FILTERSTACKNAME,
-                db.KEY_SCALE: 1
+                db.ref_Stacks.ref_stack_name.key: FILTERSTACKNAME,
+                db.ref_stacks.scale.key: 1
             }]
             refstack = pd.DataFrame(refstack)
             self.data._add_generic_tuple(refstack, db.ref_stacks)
             # add to Stack
             stack = [{
-                db.KEY_REFSTACKNAME: FILTERSTACKNAME,
-                db.KEY_STACKNAME: FILTERSTACKNAME
+                db.ref_Stacks.ref_stack_name.key: FILTERSTACKNAME,
+                db.stacks.stack_name.key: FILTERSTACKNAME
             }]
             stack = pd.DataFrame(stack)
             self.data._add_generic_tuple(stack, db.stacks)
@@ -50,7 +50,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         """
         q = self.data.main_session.query(db.objects)
         objects = pd.read_sql_query(q.statement, self.data.db_conn)
-        objects[db.KEY_STACKNAME] = FILTERSTACKNAME
+        objects[db.stacks.stack_name.key] = FILTERSTACKNAME
         return objects
 
 
@@ -69,7 +69,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         # # get all filter channels and the number of the largest from RefPlaneMeta
         # q = self.data.main_session.query(db.ref_planes.ref_plane_id).filter(db.ref_planes.RefStackName == "FilterStack")
         # channels = pd.read_sql_query(q.statement,self.data.db_conn)
-        # channels = list(channels[db.KEY_PLANEID])
+        # channels = list(channels[db.ref_planes.ref_plane_id.key])
         # nochannels = len(channels)
         # if nochannels == 0:
         #     channel = "c1"
@@ -79,28 +79,28 @@ class CustomFilterStack(filter_base.BaseFilter):
         #     channel = "c"+str(nex)
         # # create RefPlaneMeta for next higher channel using filtername
         # refplanemeta = [{
-        #     db.KEY_REFSTACKNAME: FILTERSTACKNAME,
-        #     db.KEY_PLANEID: channel,
-        #     db.KEY_CHANNEL_TYPE: FILTERTYPENAME,
-        #     db.KEY_CHANNEL_NAME: filtername
+        #     db.ref_Stacks.ref_stack_name.key: FILTERSTACKNAME,
+        #     db.ref_planes.ref_plane_id.key: channel,
+        #     db.ref_planes.channel_type.key: FILTERTYPENAME,
+        #     db.ref_planes.channel_name.key: filtername
         # }]
         # table = pd.DataFrame(refplanemeta)
         # self.data._bulkinsert(table, db.ref_planes)
         # # create PlaneMeta for next higher channel
         # planemeta = [{
-        #     db.KEY_STACKNAME: FILTERSTACKNAME,
-        #     db.KEY_PLANEID: channel,
-        #     db.KEY_REFSTACKNAME: FILTERSTACKNAME
+        #     db.stacks.stack_name.key: FILTERSTACKNAME,
+        #     db.ref_planes.ref_plane_id.key: channel,
+        #     db.ref_Stacks.ref_stack_name.key: FILTERSTACKNAME
         # }]
         # table = pd.DataFrame(planemeta)
         # self.data._bulkinsert(table, db.planes)
 
         #
         # select only database columns and write to the Database
-        filterdata = filterdata[[db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER, db.KEY_OBJECTID, db.KEY_FILTERVALUE]]
-        # filterdata[db.KEY_MEASUREMENTNAME] = FILTERTYPENAME
-        # filterdata[db.KEY_MEASUREMENTTYPE] = FILTERTYPENAME
-        filterdata[db.KEY_FILTERNAME] = filtername
-        # filterdata[db.KEY_STACKNAME] = FILTERSTACKNAME
+        filterdata = filterdata[[db.images.image_id.key, db.objects.object_number.key, db.objects.object_id.key, db.object_filters.filter_value.key]]
+        # filterdata[db.measurement_names.measurement_name.key] = FILTERTYPENAME
+        # filterdata[db.measurement_types.measurement_type.key] = FILTERTYPENAME
+        filterdata[db.object_filter_names.object_filter_name.key] = filtername
+        # filterdata[db.stacks.stack_name.key] = FILTERSTACKNAME
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)

@@ -38,11 +38,11 @@ class PlotHeatmask(plot_base.BasePlot):
         self.io_masks = self.bro.io.masks
         self.filter_measurements = self.bro.filters.measurements
         self.measure_idx =[ # idx_name, default
-            (db.KEY_OBJECTID, 'cell'),
-            (db.KEY_CHANNEL_NAME, None),
-            (db.KEY_STACKNAME, 'FullStack'),
-            (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
-            (db.KEY_MEASUREMENTTYPE, 'Intensity')]
+            (db.objects.object_id.key, 'cell'),
+            (db.ref_planes.channel_name.key, None),
+            (db.stacks.stack_name.key, 'FullStack'),
+            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
+            (db.measurement_types.measurement_type.key, 'Intensity')]
 
 
     def _prepare_masks(self, image_numbers):
@@ -89,11 +89,11 @@ class PlotHeatmask(plot_base.BasePlot):
         Assembles single cell data, masks and slices with the mask positions
         into one heatmap image
         """
-        cut_id_name = db.KEY_IMAGENUMBER
-        cell_id_name = db.KEY_OBJECTNUMBER
+        cut_id_name = db.images.image_id.key
+        cell_id_name = db.objects.object_number.key
 
         if value_var is None:
-            value_var = db.KEY_VALUE
+            value_var = db.object_measurements.value.key
 
         if image_numbers is None:
             image_numbers = dat_cells[cut_id_name].unique().tolist()
@@ -224,10 +224,10 @@ class PlotHeatmask(plot_base.BasePlot):
             imnr = [image_numbers[img_idx]]
         metal = pct.library.metal_from_name(channel)
         print('Start loading...')
-        data = self.get_heatmask_data({db.KEY_OBJECTID: 'cell',
-                                                db.KEY_CHANNEL_NAME: metal,
-                                                db.KEY_STACKNAME: stack,
-                                                db.KEY_MEASUREMENTNAME: stat},
+        data = self.get_heatmask_data({db.objects.object_id.key: 'cell',
+                                                db.ref_planes.channel_name.key: metal,
+                                                db.stacks.stack_name.key: stack,
+                                                db.measurement_names.measurement_name.key: stat},
                                                 image_numbers=imnr,
                                                 filters=fil
                                                )
@@ -244,8 +244,8 @@ class PlotHeatmask(plot_base.BasePlot):
     def ipw_heatplot(self, ax):
 
         sites = [ s[0] for s in self.data.main_session.query(db.images.site_name).distinct()]
-        name_dict = {m: n for m, n in self.data.main_session.query(db.pannel.Metal,
-                                                                  db.pannel.Target)}
+        name_dict = {m: n for m, n in self.data.main_session.query(db.pannel.metal,
+                                                                  db.pannel.target)}
         channel_names = [q[0] for q in
                          self.data.main_session.query(db.ref_planes.channel_name).distinct()]
         stack_names = [q[0] for q in

@@ -86,11 +86,11 @@ class StackHQ(filter_base.BaseFilter):
             )
         )
         data = self.custfilter._get_valueless_table()
-        data = data.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
+        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
         data = data.join(isambigous).join(issphere)
         data = data.reset_index(drop=False)
         # HQ Filter
-        data[db.KEY_FILTERVALUE] = pd.DataFrame(
+        data[db.object_filters.filter_value.key] = pd.DataFrame(
             data[outcol_issphere] & (data[outcol_ambigous] == False)
         )
         self.custfilter.write_filter_to_db(data, filname, drop=drop)
@@ -122,8 +122,8 @@ class StackHQ(filter_base.BaseFilter):
                          ))
                     )
         data = pd.read_sql_query(q.statement,self.data.db_conn)
-        data = data.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-        data[cname] = data[db.KEY_VALUE] * data[db.KEY_SCALE]
+        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
+        data[cname] = data[db.object_measurements.value.key] * data[db.ref_stacks.scale.key]
         data = pd.DataFrame(data[cname])
         for group in mdicts:
             sname, mname, cname = group
@@ -138,8 +138,8 @@ class StackHQ(filter_base.BaseFilter):
                              ))
                         )
             tmp = pd.read_sql_query(q.statement,self.data.db_conn)
-            tmp = tmp.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-            tmp[cname] = tmp[db.KEY_VALUE] * tmp[db.KEY_SCALE]
+            tmp = tmp.set_index([db.images.image_id.key, db.objects.object_number.key])
+            tmp[cname] = tmp[db.object_measurements.value.key] * tmp[db.ref_stacks.scale.key]
             tmp = pd.DataFrame(tmp[cname])
             data = data.join(tmp)
         return data

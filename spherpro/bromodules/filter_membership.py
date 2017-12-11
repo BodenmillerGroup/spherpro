@@ -43,25 +43,25 @@ class FilterMembership(filter_base.BaseFilter):
                     .join(db.ref_stacks)
                      ).statement,
             self._conn)
-        dat_filter[db.KEY_VALUE] = (dat_filter[db.KEY_VALUE] * dat_filter[db.KEY_SCALE])
+        dat_filter[db.object_measurements.value.key] = (dat_filter[db.object_measurements.value.key] * dat_filter[db.ref_stacks.scale.key])
         idx_cols = [c for c in dat_filter.columns
-                    if c not in [db.KEY_VALUE, db.KEY_CHANNEL_NAME,
-                                 db.KEY_PLANEID]]
-        dat_filter = dat_filter.pivot_table(values=db.KEY_VALUE,
-                               columns=[db.KEY_CHANNEL_NAME], index=idx_cols)
+                    if c not in [db.object_measurements.value.key, db.ref_planes.channel_name.key,
+                                 db.ref_planes.ref_plane_id.key]]
+        dat_filter = dat_filter.pivot_table(values=db.object_measurements.value.key,
+                               columns=[db.ref_planes.channel_name.key], index=idx_cols)
         dat_filter =  pd.DataFrame.from_dict({outcol_issphere: (
             (dat_filter[col_issphere]+non_zero_offset)/(
                 dat_filter[col_isother]+non_zero_offset) > minfrac)},
             orient='columns')
-        dat_filter.columns.names = [db.KEY_FILTERNAME]
+        dat_filter.columns.names = [db.object_filter_names.object_filter_name.key]
         dat_filter = dat_filter.stack()
-        dat_filter.name = db.KEY_FILTERVALUE
+        dat_filter.name = db.object_filters.filter_value.key
         dat_filter = dat_filter.reset_index(drop=False)
         dat_filter = dat_filter.loc[:,
-                       self.bro.data._get_table_columnnames(db.TABLE_FILTERS)]
+                       self.bro.data._get_table_columnnames(db.object_filters.__tablename__)]
         query = self.session.query(db.object_filters).filter(db.object_filters.FilterName ==
                                                       outcol_issphere)
-        table = self.bro.data._get_table_object(db.TABLE_FILTERS)
+        table = self.bro.data._get_table_object(db.object_filters.__tablename__)
         self.bro.data._add_generic_tuple(dat_filter,
         query=query, table=table, replace=True)
         return dat_filter

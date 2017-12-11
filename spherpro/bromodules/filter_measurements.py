@@ -16,11 +16,11 @@ class FilterMeasurements(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
         self.measure_idx =[ # idx_name, default
-            (db.KEY_OBJECTID, 'cell'),
-            (db.KEY_CHANNEL_NAME, None),
-            (db.KEY_STACKNAME, 'FullStack'),
-            (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
-            (db.KEY_MEASUREMENTTYPE, 'Intensity')]
+            (db.objects.object_id.key, 'cell'),
+            (db.ref_planes.channel_name.key, None),
+            (db.stacks.stack_name.key, 'FullStack'),
+            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
+            (db.measurement_types.measurement_type.key, 'Intensity')]
 
 
     def get_filter_statement(self, measurement_dict, logical_operator,
@@ -51,8 +51,8 @@ class FilterMeasurements(filter_base.BaseFilter):
         filter_statement = self.get_measurement_filter_statements(*[[
             measurement_dict.get(o,d)] for o, d in self.measure_idx ])
         filter_statement = sa.and_(filter_statement,
-                logical_operator(self.data._get_table_column(db.TABLE_MEASUREMENT,
-                                                             db.KEY_VALUE),
+                logical_operator(self.data._get_table_column(db.object_measurements.__tablename__,
+                                                             db.object_measurements.value.key),
                 treshold))
         return filter_statement
 
@@ -104,11 +104,11 @@ class FilterMeasurements(filter_base.BaseFilter):
             A dataframes with the selected measurements
         """
         constraint_columns = [
-                              (db.TABLE_OBJECT, db.KEY_OBJECTID),
-                              (db.TABLE_REFPLANEMETA, db.KEY_CHANNEL_NAME),
-                              (db.TABLE_PLANEMETA, db.KEY_STACKNAME),
-                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTNAME),
-                              (db.TABLE_MEASUREMENT, db.KEY_MEASUREMENTTYPE)]
+                              (db.objects.__tablename__, db.objects.object_id.key),
+                              (db.ref_planes.__tablename__, db.ref_planes.channel_name.key),
+                              (db.planes.__tablename__, db.stacks.stack_name.key),
+                              (db.object_measurements.__tablename__, db.measurement_names.measurement_name.key),
+                              (db.object_measurements.__tablename__, db.measurement_types.measurement_type.key)]
         constraint_columns = [self.data._get_table_column(t, c) for t, c in
                               constraint_columns]
 
@@ -128,9 +128,9 @@ class FilterMeasurements(filter_base.BaseFilter):
         """
         hq = [
                ({
-                    db.KEY_STACKNAME: "BinStack",
-                    db.KEY_CHANNEL_NAME: "is-sphere",
-                    db.KEY_MEASUREMENTNAME: "MeanIntensity"
+                    db.stacks.stack_name.key: "BinStack",
+                    db.ref_planes.channel_name.key: "is-sphere",
+                    db.measurement_names.measurement_name.key: "MeanIntensity"
                 }, operator.gt, 0)
             ]
         return hq
