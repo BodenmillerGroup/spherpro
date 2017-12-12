@@ -207,19 +207,21 @@ class DataStore(object):
         self._images_csv = images_csv
 
     def _read_relation_data(self):
+        conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
         cpdir = self.conf[conf.CP_DIR]
-        #col_map = {conf_rel[c]: target for c, target in [
-        #    (conf.OBJECTTYPE_FROM, db.KEY_OBJECTTYPE_FROM),
-        #    (conf.OBJECTTYPE_TO, db.KEY_OBJECTTYPE_TO),
-        #    (conf.OBJECTNUMBER_FROM, db.KEY_OBJCTNUMBER_FROM),
-        #    (conf.OBJECTNUMBER_TO, db.KEY_OBJECTNUMBER_TO),
-        #    (conf.IMAGENUMBER_FROM, db.KEY_IMAGENUMBER_FROM),
-        #    (conf.IMAGENUMBER_TO, db.KEY_IMAGENUMBER_TO),
-        #    (conf.RELATIONSHIP, db.object_relations.object_relationtype_name.key)]}
         relation_csv = lib.read_csv_from_config(
             self.conf[conf.CPOUTPUT][conf.RELATION_CSV],
             base_dir=cpdir)
-        self._relation_csv = relation_csv
+        col_map = {conf_rel[c]: target for c, target in [
+            (conf.OBJECTTYPE_FROM, conf.OBJECTTYPE_FROM),
+            (conf.OBJECTTYPE_TO, conf.OBJECTTYPE_TO),
+            (conf.OBJECTNUMBER_FROM, conf.OBJECTNUMBER_FROM),
+            (conf.OBJECTNUMBER_TO, conf.OBJECTNUMBER_TO),
+            (conf.IMAGENUMBER_FROM, conf.IMAGENUMBER_FROM),
+            (conf.IMAGENUMBER_TO, conf.IMAGENUMBER_TO),
+            (conf.RELATIONSHIP, db.object_relation_types.object_relationtype_name.key)]}
+
+        self._relation_csv = relation_csv.rename(columns=col_map)
 
     def _read_stack_meta(self):
         """
@@ -260,6 +262,9 @@ class DataStore(object):
         self._write_site_table()
         self._write_measurement_table(minimal)
         self._write_object_relations_table()
+        # vacuum after population in postgres
+        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            self.db_conn.execution_options(isolation_level="AUTOCOMMIT").execute('VACUUM ANALYZE;')
 
     ##########################################
     #        Database Table Generation:      #
@@ -717,16 +722,52 @@ class DataStore(object):
         masks = self._generate_masks()
         self._bulkinsert(masks, db.masks)
 
+    def _generate_object_relation_types(self):
+        dat_relations = (self._relation_csv)
+        dat_types =  pd.DataFrame(dat_relations.loc[:,
+                db.object_relation_types.object_relationtype_name.key]).drop_duplicates()
+        dat_types[db.object_relation_types.object_relationtype_id.key] = range(dat_types.shape[0])
+        return dat_types
+
     def _generate_object_relations(self):
-        conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
-        dat_relations = self._relation_csv[list(col_map.keys())]
-        dat_relations = (dat_relations.rename(columns=col_map)
-                         )
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        relation_dict = {n: i for n, i in
+                         self.main_session.query(db.object_relation_types.object_relationtype_name,
+                                                 db.object_relation_types.object_relationtype_id)}
+        obj_dict = {(imgid, objnr, objtype): objid
+                    for imgid, objnr, objtype, objid in
+                    self.main_session.query(db.objects.image_id,
+                                            db.objects.object_number,
+                                            db.objects.object_type,
+                                            db.objects.object_id)}
+
+        dat_relations = (self._relation_csv)
+        dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_FROM].replace(img_dict)
+        dat_relations[db.object_relations.object_id_parent.key] =\
+            dat_relations.loc[:,['timg',
+                                 conf.OBJECTNUMBER_FROM,
+                                 conf.OBJECTTYPE_FROM]].apply(
+                lambda x: obj_dict.get((x[0], x[1], x[2])), axis=1)
+        dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_TO].replace(img_dict)
+        dat_relations[db.object_relations.object_id_child.key] =\
+            dat_relations.loc[:,['timg',
+                                 conf.OBJECTNUMBER_TO,
+                                 conf.OBJECTTYPE_TO]].apply(
+                lambda x: obj_dict.get((x[0], x[1], x[2])), axis=1)
+        dat_relations[db.object_relations.object_relationtype_id.key] = \
+            dat_relations[db.object_relation_types.object_relationtype_name.key].replace(relation_dict)
         return dat_relations
 
     def _write_object_relations_table(self):
+        relation_types = self._generate_object_relation_types()
+        self._bulkinsert(relation_types, db.object_relation_types)
         relations = self._generate_object_relations()
-        self._bulkinsert(relations, db.object_relations)
+        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            self._bulk_pg_insert(relations, db.object_relations)
+        else:
+            self._bulkinsert(relations, db.object_relations)
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
@@ -870,13 +911,8 @@ class DataStore(object):
             session.query(table).delete()
             session.commit()
 
-        data_cols = data.columns
-        table_cols = table.__table__.columns.keys()
-        print('Insert table of dimension:', str(data.shape))
-        uniq = list(set(table_cols)-set(data_cols))
-        for un in uniq:
-            data[un] = None
-        data = data.loc[:, table_cols]
+        data = self._clean_columns(data, table)
+
         odo(data, dbtable)
         self.main_session.commit()
 
@@ -886,6 +922,7 @@ class DataStore(object):
             session.query(table).delete()
             session.commit()
         print('Insert table of dimension:', str(data.shape))
+        data = self._clean_columns(data, table)
         output = io.StringIO()
         # ignore the index
         data.to_csv(output, sep='\t', header=False, index=False)
@@ -900,6 +937,16 @@ class DataStore(object):
         cursor.copy_from(output, table_name, null="")
         connection.commit()
         cursor.close()
+
+    def _clean_columns(self, data, table):
+        data_cols = data.columns
+        table_cols = table.__table__.columns.keys()
+        print('Insert table of dimension:', str(data.shape))
+        uniq = list(set(table_cols)-set(data_cols))
+        data = data.loc[:, table_cols]
+        for un in uniq:
+            data[un] = None
+        return data
 
     def add_measurements(self, measurements, replace=False, backup=False,
         col_image = db.images.image_id.key,
