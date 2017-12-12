@@ -36,8 +36,9 @@ MEASUREMENT_CSV = 'measurement_csv'
 MODNAME = 'modname_col'
 MODPRE = 'modpre_col'
 NAME = 'name_col'
-OBJECTID_FROM = 'first_object_id_col'
-OBJECTID_TO = 'second_object_id_col'
+OBJECTTYPE = 'object_type'
+OBJECTTYPE_FROM = 'first_object_type_col'
+OBJECTTYPE_TO = 'second_object_type_col'
 OBJECTNUMBER = 'object_number_col'
 OBJECTNUMBER_FROM = 'first_object_number_col'
 OBJECTNUMBER_TO = 'second_object_number_col'
@@ -79,6 +80,10 @@ LAYOUT_CSV_CONTROL_NAME = 'control_col'
 LAYOUT_CSV_TIMEPOINT_NAME = 'timepoint_col'
 LAYOUT_CSV_BC_PLATE_NAME = 'bc_plate_col'
 LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
+LAYOUT_CSV_BARCODE = 'barcode_col'
+LAYOUT_CSV_COND_ID = 'condition_id_col'
+LAYOUT_CSV_BCX = 'BCX_col'
+LAYOUT_CSV_BCY = 'BCY_col'
 
 BC_CSV_PLATE_NAME = 'plate_col'
 BC_CSV_WELL_NAME = 'well_col'
@@ -92,12 +97,15 @@ PANEL_CSV_CONCENTRATION_NAME = 'concentration_name'
 PANEL_CSV_TUBE_NAME = 'tube_name'
 PANEL_CSV_TARGET_NAME = 'target'
 
+COLMAP = 'column_map'
+
 """
 Default settings
 """
 default_dict = {
     IMAGENUMBER: 'ImageNumber',
     OBJECTNUMBER: 'ObjectNumber',
+    OBJECTTYPE: 'ObjectID',
 
     STACK_RELATIONS: {
         PARENT: 'Parent',
@@ -124,6 +132,10 @@ default_dict = {
     LAYOUT_CSV_CONTROL_NAME: 'control',
     LAYOUT_CSV_TIMEPOINT_NAME: None,
     LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
+    LAYOUT_CSV_BARCODE: 'barcode',
+    LAYOUT_CSV_BCX: 'bcx',
+    LAYOUT_CSV_BCY: 'bcy',
+    LAYOUT_CSV_COND_ID: 'conditionID',
     SEP: ','
     },
 
@@ -143,8 +155,8 @@ default_dict = {
         },
         RELATION_CSV: {
             SEP: ',',
-            OBJECTID_FROM: 'First Object Name',
-            OBJECTID_TO: 'Second Object Name',
+            OBJECTTYPE_FROM: 'First Object Name',
+            OBJECTTYPE_TO: 'Second Object Name',
             OBJECTNUMBER_FROM: 'First Object Number',
             OBJECTNUMBER_TO: 'Second Object Number',
             IMAGENUMBER_FROM: 'First Image Number',
@@ -157,13 +169,13 @@ default_dict = {
             SCALING_PREFIX: 'Scaling_',
             META_REGEXP: (
                 '(?P({}.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-            .format(db.sites.site_name.key, db.masks.crop_number.key, db.maks.posx.key, db.masks.pos_y.key)),
+            .format(db.sites.site_name.key, db.masks.crop_number.key, db.masks.pos_x.key, db.masks.pos_y.key)),
             MASK_DIR: None, # default take cpoutput dir
             GROUP_CROPID: db.masks.crop_number.key,
             GROUP_SITE: db.sites.site_name.key,
             GROUP_SHAPEH: db.masks.shape_h.key,
             GROUP_SHAPEW: db.masks.shape_w.key,
-            GROUP_POSX: db.maks.posx.key,
+            GROUP_POSX: db.masks.pos_x.key,
             GROUP_POSY: db.masks.pos_y.key
         },
 

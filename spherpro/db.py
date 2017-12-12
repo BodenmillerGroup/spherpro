@@ -63,7 +63,7 @@ def connect_postgresql(conf):
     port = conf[conf_postgresql].get('port', '5432')
     user = conf[conf_postgresql]['user']
     password = conf[conf_postgresql]['pass']
-    database = conf[conf_postgresql]['database']
+    database = conf[conf_postgresql]['db']
     conn = 'postgresql+psycopg2://%s:%s@%s:%s/%s' % (user, password, host, port, database)
     engine = create_engine(conn)
     return engine
@@ -319,12 +319,11 @@ class mask_measurements(Base):
     image_id = Column(Integer(), primary_key=True)
     object_type = Column(String(200),
                        primary_key=True)
-    measurement_id = Column(String(200), primary_key=True)
+    measurement_id = Column(Integer(), primary_key=True)
     value = Column(Float())
-    __table_args__ = (ForeignKeyConstraint(
-        [image_id],
-        [images.image_id]), ForeignKeyConstraint(
-            [object_type], [masks.object_type]),
+    __table_args__ = (
+        ForeignKeyConstraint(
+            [image_id, object_type], [masks.image_id, masks.object_type]),
         ForeignKeyConstraint(
             [measurement_id], [measurements.measurement_id]),
         {})
@@ -333,14 +332,11 @@ class image_measurements(Base):
     """docstring for image_measurements."""
     __tablename__ = 'image_measurements'
     image_id = Column(Integer(), primary_key=True)
-    object_type = Column(String(200),
-                       primary_key=True)
-    measurement_id = Column(String(200), primary_key=True)
+    measurement_id = Column(Integer(), primary_key=True)
     value = Column(Float())
-    __table_args__ = (ForeignKeyConstraint(
-        [image_id],
-        [images.image_id]), ForeignKeyConstraint(
-            [object_type], [masks.object_type]),
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [image_id], [images.image_id]),
         ForeignKeyConstraint(
             [measurement_id], [measurements.measurement_id]),
         {})
