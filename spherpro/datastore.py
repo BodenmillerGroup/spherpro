@@ -594,6 +594,9 @@ class DataStore(object):
 
     def _generate_measurement_meta(self):
         measurements = self._measurement_csv
+        measurements = measurements.drop([db.objects.object_type.key,
+                                          db.images.image_number.key,
+                                          db.objects.object_number.key], axis=1)
         meta = pd.Series(measurements.columns.unique()).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
@@ -640,24 +643,26 @@ class DataStore(object):
             .statement, self.db_conn)
 
         measurements = measurements.merge(tab_obj)
-        measurements.drop([db.objects.object_id.key, db.images.image_id.key, db.objects.object_number.key,
-                           'Number_Object_Number'], axis=1)
+        measurements = measurements.drop([ db.images.image_id.key, db.images.image_number.key, db.objects.object_number.key,
+                           'Number_Object_Number', db.objects.object_type.key], axis=1)
         measurements = pd.melt(measurements,
                                id_vars=[db.objects.object_id.key],
                                var_name='variable', value_name=db.object_measurements.value.key)
 
         # Add the MeasurementID by merging the table
-        tab_meas = pd.read_sql(
-            self.main_session.query(db.measurements.measurement_id,
-                                   db.measurements.measurement_name,
-                                   db.measurements.measurement_type,
-                                   db.planes.ref_plane_id,
-                                   db.stacks.stack_name)
-            .join(db.planes)
-            .join(db.stacks)
-            .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
-            .statement, self.db_conn)
-        meta = meta.merge(tab_meas)
+        # -> currently not needed...
+        #tab_meas = pd.read_sql(
+        #    self.main_session.query(db.measurements.measurement_id,
+        #                           db.measurements.measurement_name,
+        #                           db.measurements.measurement_type,
+        #                           db.planes.ref_plane_id,
+        #                           db.stacks.stack_name)
+        #    .join(db.planes)
+        #    .join(db.stacks)
+        #    .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
+        #    .statement, self.db_conn)
+        #meta = meta.merge(tab_meas)
+        meta = meta.loc[:, ['variable', db.measurements.measurement_id.key]]
         measurements = measurements.merge(meta, how='inner', on='variable')
         measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
         measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
@@ -911,6 +916,7 @@ class DataStore(object):
             session.query(table).delete()
             session.commit()
 
+        print('Insert table of dimension:', str(data.shape))
         data = self._clean_columns(data, table)
 
         odo(data, dbtable)
@@ -941,7 +947,6 @@ class DataStore(object):
     def _clean_columns(self, data, table):
         data_cols = data.columns
         table_cols = table.__table__.columns.keys()
-        print('Insert table of dimension:', str(data.shape))
         uniq = list(set(table_cols)-set(data_cols))
         data = data.loc[:, table_cols]
         for un in uniq:
