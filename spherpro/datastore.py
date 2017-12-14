@@ -1454,3 +1454,23 @@ class DataStore(object):
         if self._session is None:
             self._session = self.session_maker()
         return self._session
+
+    def get_query_function(self):
+        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            from psycopg2 import connect
+            from sqlalchemy.dialects import postgresql
+            connection = connect(
+                        host=self.conf[conf.CON_POSTGRESQL]['host'],
+                        dbname = self.conf[conf.CON_POSTGRESQL]['db'],
+                        user = self.conf[conf.CON_POSTGRESQL]['user'],
+                        password = self.conf[conf.CON_POSTGRESQL]['pass']
+            )
+            def query_postgres(query):
+                comp = query.statement.compile(dialect=postgresql.dialect())
+                d = pd.read_sql(comp.string, connection,params=comp.params)
+                return d
+            return query_postgres
+        else:
+            def query_general(query):
+                d = pd.read_sql(query.statement, self.db_conn)
+                return d
