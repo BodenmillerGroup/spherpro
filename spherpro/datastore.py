@@ -251,8 +251,8 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
-        self._write_masks_table()
         self._write_image_table()
+        self._write_masks_table()
         self._write_objects_table()
         self._write_stack_tables()
         self._write_refplanes_table()
@@ -308,7 +308,8 @@ class DataStore(object):
         Modifications['tmp'] = stackrel[modpre_col]
         Modifications.columns = [db.modifications.modification_name.key,
                                  db.modifications.modification_prefix.key]
-        Modifications[db.modifications.modification_id.key] = range(Modifications.shape[0])
+        Modifications[db.modifications.modification_id.key] = \
+            self._query_new_ids(db.modifications.modification_id, Modifications.shape[0])
         return Modifications
 
     def _generate_stackmodification(self):
@@ -380,7 +381,8 @@ class DataStore(object):
             db.ref_stacks.ref_stack_name.key: OBJECTS_STACKNAME,
             db.ref_stacks.scale.key: 1}, index=[1]),ignore_index=True)
         # set uni id
-        ref_stack[db.ref_stacks.ref_stack_id.key] = range(ref_stack.shape[0])
+        ref_stack[db.ref_stacks.ref_stack_id.key] = \
+            self._query_new_ids(db.ref_stacks.ref_stack_id, (ref_stack.shape[0]))
         return ref_stack
 
 
@@ -410,7 +412,8 @@ class DataStore(object):
            .filter(db.ref_stacks.ref_stack_name.in_(stack[db.ref_stacks.ref_stack_name.key])))}
         stack[db.ref_stacks.ref_stack_id.key] = stack[db.ref_stacks.ref_stack_name.key].replace(refstackdict)
 
-        stack[db.stacks.stack_id.key] = range(stack.shape[0])
+        stack[db.stacks.stack_id.key] = \
+                self._query_new_ids(db.stacks.stack_id, (stack.shape[0]))
 
         return stack
 
@@ -480,7 +483,8 @@ class DataStore(object):
         planes = planes.loc[:,[db.stacks.stack_id.key,
                                db.ref_stacks.ref_stack_id.key,
                                db.ref_planes.ref_plane_id.key]]
-        planes[db.planes.plane_id.key] = range(planes.shape[0])
+        planes[db.planes.plane_id.key] = \
+            self._query_new_ids(db.planes.plane_id, (planes.shape[0]))
         return planes
 
     def _write_site_table(self):
@@ -523,8 +527,8 @@ class DataStore(object):
         table.
         """
         image = pd.DataFrame(self._images_csv[db.images.image_number.key])
-        # TODO: Generate the image id dynamically
-        image[db.images.image_id.key] = image[db.images.image_number.key]
+        image[db.images.image_id.key] = self._query_new_ids(db.images.image_id,
+                                                            image.shape[0])
         return image
 
     def _write_objects_table(self):
@@ -544,9 +548,13 @@ class DataStore(object):
                                                       db.images.image_number.key]])
 
 
-        objects[db.objects.object_id.key] = range(objects.shape[0])
+        objects[db.objects.object_id.key] = \
+            self._query_new_ids(db.objects.object_id, (objects.shape[0]))
         # TODO: fix this
-        objects[db.images.image_id.key] = objects[db.images.image_number.key]
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        objects[db.images.image_id.key] = objects[db.images.image_number.key].replace(img_dict)
         return objects
 
     def _write_measurement_table(self, minimal):
@@ -611,7 +619,9 @@ class DataStore(object):
             .join(db.planes).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
-        meta[db.measurements.measurement_id.key] = range(meta.shape[0])
+        meta[db.measurements.measurement_id.key] = \
+            self._query_new_ids(db.measurements.measurement_id,
+                                (meta.shape[0]))
         return meta
 
     def _generate_measurements(self, minimal, meta):
@@ -634,7 +644,10 @@ class DataStore(object):
             measurements = measurements.reset_index(drop=False)
 
         #TODO: query image id
-        measurements[db.images.image_id.key] = measurements[db.images.image_number.key]
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        measurements[db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
         # Query the objects table to join the measurements with it and add the numeric,
         # per object unique index 'ObjectUniID'
         tab_obj = pd.read_sql(
@@ -719,8 +732,10 @@ class DataStore(object):
             dat_mask[db.masks.pos_y.key] = 0
             dat_mask[db.masks.shape_h.key] = None
             dat_mask[db.masks.shape_w.key] = None
-        # TODO: retrieve the true image_id
-        dat_mask[db.masks.image_id.key] = dat_mask[db.images.image_number.key]
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        dat_mask[db.masks.image_id.key] = dat_mask[db.images.image_number.key].replace(img_dict)
         return dat_mask
 
     def _write_masks_table(self):
@@ -731,7 +746,8 @@ class DataStore(object):
         dat_relations = (self._relation_csv)
         dat_types =  pd.DataFrame(dat_relations.loc[:,
                 db.object_relation_types.object_relationtype_name.key]).drop_duplicates()
-        dat_types[db.object_relation_types.object_relationtype_id.key] = range(dat_types.shape[0])
+        dat_types[db.object_relation_types.object_relationtype_id.key] = \
+            self._query_new_ids(db.object_relations.object_relationtype_id, (dat_types.shape[0]))
         return dat_types
 
     def _generate_object_relations(self):
@@ -830,7 +846,8 @@ class DataStore(object):
                 barcodes = barcodes.to_frame()
                 barcodes.columns = [db.conditions.barcode.key]
                 #IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-                barcodes[db.conditions.condition_id.key] = range(barcodes.shape[0])
+                barcodes[db.conditions.condition_id.key] = \
+                    self._query_new_ids(db.conditions.condition_id, (barcodes.shape[0]))
                 barcodes = barcodes.reset_index(drop=False)
                 barcodes = barcodes.rename(columns={self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]:
                                  self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME]})
@@ -880,11 +897,27 @@ class DataStore(object):
 
 
 
-    #########################################################################
-    #########################################################################
-    #                       filter and dist functions:                      #
-    #########################################################################
-    #########################################################################
+    def _query_new_ids(self, id_col, n):
+        """
+        Queries non used id's from the database
+        Args:
+            id_col: a sqlalchemy column object corresponding
+                to a column in a table
+            n: how many id's are requested
+        """
+        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            session = self.session_maker()
+            str_seq = str(id_col).replace('.', '_')+'_seq'
+            session.execute('ALTER SEQUENCE ' + str_seq + ' INCREMENT ' + str(n))
+            i = session.execute(sa.schema.Sequence(str_seq))
+            session.execute('ALTER SEQUENCE ' + str_seq + ' INCREMENT ' + str(1))
+            session.commit()
+            return range(i-n+1, i+1)
+        else:
+            prev_max = self.db_conn.query(sa.func.max(id_col)).scalar()
+            return range(prev_max+1, prev_max+n+1)
+
+
 
 
 

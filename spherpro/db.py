@@ -89,7 +89,7 @@ def drop_all(conn):
 class conditions(Base):
     """docstring for images."""
     __tablename__ = 'conditions'
-    condition_id = Column(String(200), primary_key=True)
+    condition_id = Column(Integer(), primary_key=True, autoincrement=True)
     condition_name = Column(String(200), server_default='default')
     time_point = Column(Float(), server_default="0")
     barcode = Column(String(200))
@@ -118,7 +118,7 @@ class images(Base):
     bc_valid = Column(Integer())
     bc_highest_count = Column(Integer())
     bc_second_count = Column(Integer())
-    condition_id = Column(String(200))
+    condition_id = Column(Integer())
     site_name = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
@@ -143,6 +143,9 @@ class masks(Base):
     shape_w = Column(Integer())
     crop_number = Column(Integer())
     file_name = Column(String(200))
+    __table_args__ = (ForeignKeyConstraint(
+        [image_id],
+        [images.image_id]),)
 
 class objects(Base):
     """docstring for objects."""
