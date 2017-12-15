@@ -35,8 +35,19 @@ class CustomFilterStack(filter_base.BaseFilter):
         Args:
             filtername: a string
         """
-        is_present = (self.data.main_session.query(sa.exists())
-                      .where(db.object_filter_names.object_filter_name == filtername).scalar())
+        fil_id = (self.data.main_session.query(db.object_filter_names.object_filter_id)
+                      .filter(db.object_filter_names.object_filter_name == filtername).scalar())
+        if fil_id is None:
+            new_id = self.data._query_new_ids(db.object_filter_names.object_filter_id, 1)
+            new_id = list(new_id)
+            fil_id = new_id[0]
+            dat = pd.DataFrame({db.object_filter_names.object_filter_name.key: [filtername],
+                                db.object_filter_names.object_filter_id.key: new_id})
+            self.data._add_generic_tuple(dat, db.object_filter_names)
+
+        fil_id = int(fil_id)
+
+        return fil_id
 
     def write_filter_to_db(self, filterdata, filtername, drop=None):
         """
@@ -49,11 +60,10 @@ class CustomFilterStack(filter_base.BaseFilter):
         """
         if drop is None:
             drop=False
-        filterdata = filterdata[[db.objects.object_id, db.object_filters.filter_value.key]]
+        filterdata = filterdata[[db.objects.object_id.key, db.object_filters.filter_value.key]]
 
 
-        filterdata[db.object_filter_names.object_filter_name.key] = filtername
+        filterdata.loc[:,db.object_filter_names.object_filter_id.key] = self.add_filtername(filtername)
 
-        # filterdata[db.stacks.stack_name.key] = FILTERSTACKNAME
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)
