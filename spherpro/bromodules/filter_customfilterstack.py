@@ -63,7 +63,7 @@ class CustomFilterStack(filter_base.BaseFilter):
         filterdata = filterdata[[db.objects.object_id.key, db.object_filters.filter_value.key]]
 
 
-        filterdata.loc[:,db.object_filter_names.object_filter_id.key] = self.add_filtername(filtername)
+        filterdata.loc[:,db.object_filter_names.object_filter_id.key] = [self.add_filtername(filtername)]
 
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)

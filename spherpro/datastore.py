@@ -1394,16 +1394,20 @@ class DataStore(object):
         """
         if session is None:
             session = self.main_session
-        query = (session.query(db.ref_planes.channel_name,
+        query = (session.query(
+                               db.ref_planes.channel_name,
                                     db.ref_planes.channel_type,
                                     db.images.image_id,
-                                   db.objects.object_number,
                                    db.objects.object_type,
-                                   db.object_measurements.MeasurementName,
-                                   db.object_measurements.MeasurementType,
+                                   db.objects.object_id,
+                                   db.measurements.measurement_name,
+                                   db.measurements.measurement_type,
                                    db.object_measurements.value,
-                                   db.object_measurements.PlaneID)
+                                   db.planes.plane_id,
+                                   db.stacks.stack_name)
             .join(db.planes)
+            .join(db.stacks)
+            .join(db.measurements)
             .join(db.object_measurements)
             .join(db.objects)
             .join(db.images)

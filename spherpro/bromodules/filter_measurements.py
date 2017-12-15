@@ -17,7 +17,7 @@ class FilterMeasurements(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
         self.measure_idx =[ # idx_name, default
-            (db.objects.object_id.key, 'cell'),
+            (db.objects.object_type.key, 'cell'),
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
@@ -43,17 +43,17 @@ class FilterMeasurements(filter_base.BaseFilter):
         query_triplet = [(measurement_dict, logical_operator, treshold)]
         return self.get_multifilter_statement(query_triplet)
 
-    def _get_filter_statement(self, measurement_dict, logical_operator, treshold):
+    def _get_filter_statement(self, measurement_dict, logical_operator,
+                              treshold):
         """
         NEVER USE THIS ALONE BUT JUST THROUGH GET MULTIFILTER STATEMENT
         """
 
         measure_query = self.data.get_measurement_query()
         filter_statement = self.get_measurement_filter_statements(*[[
-            measurement_dict.get(o,d)] for o, d in self.measure_idx ])
+            measurement_dict.get(o,d)] for o, d in self.measure_idx])
         filter_statement = sa.and_(filter_statement,
-                logical_operator(self.data._get_table_column(db.object_measurements.__tablename__,
-                                                             db.object_measurements.value.key),
+                logical_operator(db.object_measurements.value,
                 treshold))
         return filter_statement
 
@@ -69,34 +69,31 @@ class FilterMeasurements(filter_base.BaseFilter):
                 These parameters are documented in get_filter_query.
         Returns:
             filter_statement: can be used in a filter operation
-                fitlers on the keys: ObjectID, ImageNumber and ObjectNumber
+                fitlers on the keys: object_id
         """
-        filters = [self._get_filter_statement(m, l, t) for m, l, t in query_triplets]
+        filters = [self._get_filter_statement(m, l, t)
+                   for m, l, t in query_triplets]
         meas_query = self.data.get_measurement_query()
         subquerys = [meas_query.filter(fil).subquery() for i, fil in
                      enumerate(filters)]
-        combined_filter_query = self.session.query(db.objects)
+        combined_filter_query = self.session.query(db.objects.object_id)
         for subquery in subquerys:
-            combined_filter_query = combined_filter_query.filter(sa.and_(
-                db.objects.object_type == subquery.c.ObjectID,
-                db.objects.image_id == subquery.c.ImageNumber,
-                db.objects.object_number == subquery.c.ObjectNumber))
+            combined_filter_query = combined_filter_query.filter(
+                db.objects.object_id == subquery.c.object_id)
 
         subquery_filter = combined_filter_query.subquery()
         filter_statement = sa.and_(
-            db.objects.object_type == subquery_filter.c.ObjectID,
-            db.objects.image_id == subquery_filter.c.ImageNumber,
-            db.objects.object_number == subquery_filter.c.ObjectNumber)
+            db.objects.object_id == subquery_filter.c.object_id)
         return filter_statement
 
-    def get_measurement_filter_statements(self, object_ids, channel_names,
+    def get_measurement_filter_statements(self, object_types, channel_names,
                                           stack_names, measurement_names, measurement_types):
         """
         Generates a filter expression to query for multiple channels, defined as channel_names,
         stack_names, measurement names and measurement types.
 
         Input:
-            object_ids: list of object_ids
+            object_types: list of object_types
             channel_names: list of channel names
             stack_names: list of stack_names
             measurement_names: list of measurement_names
@@ -104,19 +101,17 @@ class FilterMeasurements(filter_base.BaseFilter):
         Returns:
             A dataframes with the selected measurements
         """
-        constraint_columns = [
-                              (db.objects.__tablename__, db.objects.object_id.key),
-                              (db.ref_planes.__tablename__, db.ref_planes.channel_name.key),
-                              (db.planes.__tablename__, db.stacks.stack_name.key),
-                              (db.object_measurements.__tablename__, db.measurement_names.measurement_name.key),
-                              (db.object_measurements.__tablename__, db.measurement_types.measurement_type.key)]
-        constraint_columns = [self.data._get_table_column(t, c) for t, c in
-                              constraint_columns]
+        constraint_columns = [db.objects.object_type,
+                              db.ref_planes.channel_name,
+                              db.stacks.stack_name,
+                              db.measurements.measurement_name,
+                             db.measurement_types.measurement_type]
 
         constraints = [sa.and_(*[c == v for c, v in zip(constraint_columns,
                                                         values)])
-                       for values in zip(object_ids, channel_names, stack_names, measurement_names,
-                       measurement_types)]
+                       for values in zip(object_types, channel_names,
+                                         stack_names, measurement_names,
+                                         measurement_types)]
         if len(constraints) > 1:
             measure_filter = sa.or_(*constraints)
         else:
