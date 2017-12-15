@@ -2,70 +2,90 @@ import spherpro.bromodules.filter_base as filter_base
 import pandas as pd
 import numpy as np
 import re
-
-import spherpro as sp
-import spherpro.datastore as datastore
-import spherpro.db as db
 import sqlalchemy as sa
 
 import plotnine as gg
 
+import spherpro as sp
+import spherpro.datastore as datastore
+import spherpro.db as db
+import spherpro.bromodules.filter_customfilterstack as custfilter
 
 CHANNEL_DISTSPHERE = 'dist-sphere'
 
 class FilterMembership(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
+        self.filter_custom = custfilter.CustomFilterStack(bro)
 
-    def add_issphere(self, minfrac=0.01):
+    def add_issphere(self, minfrac=0.01, name=None, drop=True):
+        if name is None:
+            name = 'is-sphere'
         col_issphere = 'is-sphere'
         col_isother = 'is-other'
         col_measure = 'MeanIntensity'
         col_stack = 'BinStack'
         outcol_issphere = 'is-sphere'
         non_zero_offset = 1/100000
-        dat_filter = pd.read_sql(
+        dat_filter = self.doquery(
                 (self.session
                      .query(
-                                 db.object_measurements.ImageNumber,
-                                 db.object_measurements.ObjectID,
-                                 db.object_measurements.ObjectNumber,
+                         db.ref_stacks.scale,
+                         db.object_measurements.object_id,
                                  db.object_measurements.value,
-                                 db.ref_planes,
-                                 db.ref_stacks.scale
+                                 db.ref_planes.channel_name
                                    )
-                    .filter(db.object_measurements.MeasurementName==col_measure)
-                    .filter(db.object_measurements.StackName==col_stack)
-                    .filter(db.ref_planes.channel_name.in_(
-                        [col_isother,col_issphere]))
-                    .join(db.planes)
                     .join(db.ref_planes)
-                    .join(db.ref_stacks)
-                     ).statement,
-            self._conn)
+                    .join(db.planes)
+                    .join(db.measurements)
+                    .join(db.object_measurements)
+                     )
+                    .filter(db.measurements.measurement_name==col_measure)
+                    .filter(db.stacks.stack_name==col_stack)
+                    .filter(db.ref_planes.channel_name.in_(
+                        [col_isother,col_issphere])))
         dat_filter[db.object_measurements.value.key] = (dat_filter[db.object_measurements.value.key] * dat_filter[db.ref_stacks.scale.key])
-        idx_cols = [c for c in dat_filter.columns
-                    if c not in [db.object_measurements.value.key, db.ref_planes.channel_name.key,
-                                 db.ref_planes.ref_plane_id.key]]
         dat_filter = dat_filter.pivot_table(values=db.object_measurements.value.key,
-                               columns=[db.ref_planes.channel_name.key], index=idx_cols)
+                               columns=[db.ref_planes.channel_name.key],
+                                            index=db.objects.object_id.key)
         dat_filter =  pd.DataFrame.from_dict({outcol_issphere: (
             (dat_filter[col_issphere]+non_zero_offset)/(
-                dat_filter[col_isother]+non_zero_offset) > minfrac)},
+                dat_filter[col_isother]+non_zero_offset) > minfrac).map(int)},
             orient='columns')
         dat_filter.columns.names = [db.object_filter_names.object_filter_name.key]
         dat_filter = dat_filter.stack()
         dat_filter.name = db.object_filters.filter_value.key
         dat_filter = dat_filter.reset_index(drop=False)
-        dat_filter = dat_filter.loc[:,
-                       self.bro.data._get_table_columnnames(db.object_filters.__tablename__)]
-        query = self.session.query(db.object_filters).filter(db.object_filters.FilterName ==
-                                                      outcol_issphere)
-        table = self.bro.data._get_table_object(db.object_filters.__tablename__)
-        self.bro.data._add_generic_tuple(dat_filter,
-        query=query, table=table, replace=True)
+        self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
 
-    @property
-    def _conn(self):
-        return self.session.connection()
+    def add_isambiguous(self, distother=10, name=None, drop=True):
+        if name is None:
+            name = 'is-ambiguous'
+        col_measure = 'MeanIntensity'
+        col_stack = 'DistStack'
+        col_distother = 'dist-other'
+        dat_filter = self.doquery(
+                (self.session
+                     .query(
+                         db.ref_stacks.scale,
+                         db.object_measurements.object_id,
+                                 db.object_measurements.value,
+                                 db.ref_planes.channel_name
+                                   )
+                    .join(db.ref_planes)
+                    .join(db.planes)
+                    .join(db.measurements)
+                    .join(db.object_measurements)
+                     )
+                    .filter(db.measurements.measurement_name==col_measure)
+                    .filter(db.stacks.stack_name==col_stack)
+                    .filter(db.ref_planes.channel_name == col_distother))
+        dat_filter[db.object_measurements.value.key] = (dat_filter[db.object_measurements.value.key]
+                                                        * dat_filter[db.ref_stacks.scale.key])
+        dat_filter[db.object_filters.filter_value.key] = (
+           (dat_filter[db.object_measurements.value.key] > distother) & (
+           dat_filter[db.object_measurements.value.key] < (2**16-2))).map(int)
+
+        self.filter_custom.write_filter_to_db(dat_filter, name, drop)
+        return dat_filter

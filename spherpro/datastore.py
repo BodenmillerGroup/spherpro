@@ -982,7 +982,7 @@ class DataStore(object):
         uniq = list(set(table_cols)-set(data_cols))
         data = data.loc[:, table_cols]
         for un in uniq:
-            data[un] = None
+            data.loc[:, un] = None
         return data
 
     def add_measurements(self, measurements, replace=False, backup=False,

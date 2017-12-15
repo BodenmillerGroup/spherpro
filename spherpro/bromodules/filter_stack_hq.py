@@ -5,6 +5,7 @@ conditions.
 """
 import spherpro.bromodules.filter_base as filter_base
 import spherpro.bromodules.filter_customfilterstack as filter_customfilterstack
+import spherpro.bromodules.filter_measurements as filter_measurements
 import pandas as pd
 import numpy as np
 import re
@@ -20,7 +21,9 @@ import sqlalchemy as sa
 class StackHQ(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.custfilter = filter_customfilterstack.CustomFilterStack(bro)
+        self.filter_custom = filter_customfilterstack.CustomFilterStack(bro)
+        self.filter_measurements = filter_measurements.FilterMeasurements(bro)
+        self.doquery = self.data.get_query_function()
 
         self.col_issphere_issphere = 'is-sphere'
         self.col_isother_issphere = 'is-other'
@@ -60,13 +63,17 @@ class StackHQ(filter_base.BaseFilter):
         # Check Cells to be spherical
             # get MI issphere
             # get MI isother
-        issphere = self._get_joined_measurements([(col_stack_issphere,col_measure_issphere,col_issphere_issphere),
-                                                  (col_stack_issphere,col_measure_issphere,col_isother_issphere)])
-        issphere[outcol_issphere] = pd.DataFrame(
+        issphere = self._get_joined_measurements(
+           [{db.ref_planes.channel_name.key: cn,
+             db.stacks.stack_name.key: col_stack_issphere,
+             db.measurements.measurement_name: col_measure_issphere}
+            for cn in (col_issphere_issphere, col_isother_issphere)
+            ])
+        issphere.loc[:, outcol_issphere] = (
             (((issphere[col_issphere_issphere]+non_zero_offset) >=
              (issphere[col_isother_issphere]+non_zero_offset))) &
             (issphere[col_issphere_issphere] >  minfrac))
-    
+
         # Check if cells are on rim touching another spheroid
         # get MinI dist-other
 
@@ -75,8 +82,11 @@ class StackHQ(filter_base.BaseFilter):
         col_stack = self.col_stack
         outcol_ambigous = self.outcol_ambigous
 
-        isambigous = self._get_joined_measurements([(col_stack,col_measure,col_distother)])
-        isambigous[outcol_ambigous] = pd.DataFrame(
+        isambigous = self._get_joined_measurements([
+            {db.ref_planes.channel_name.key: col_distother,
+             db.stacks.stack_name.key: col_stack,
+             db.measurements.measurement_name: col_measure}])
+        isambigous.loc[:, outcol_ambigous] = (
             (
                 isambigous[col_distother] > distother
             )
@@ -85,61 +95,38 @@ class StackHQ(filter_base.BaseFilter):
                 isambigous[col_distother] < (2**16-2)
             )
         )
-        data = self.custfilter._get_valueless_table()
-        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
-        data = data.join(isambigous).join(issphere)
-        data = data.reset_index(drop=False)
+        data = isambigous.join(issphere)
         # HQ Filter
-        data[db.object_filters.filter_value.key] = pd.DataFrame(
+        data.loc[:, db.object_filters.filter_value.key] = (
             data[outcol_issphere] & (data[outcol_ambigous] == False)
-        )
-        self.custfilter.write_filter_to_db(data, filname, drop=drop)
+        ).map(int)
+        data = data.reset_index(drop=False)
+        self.filter_custom.write_filter_to_db(data, filname, drop=drop)
         return data
 
-    def _get_joined_measurements(self, mdicts):
+    def _get_joined_measurements(self, measurement_dicts):
         """
         gets the joined tables according to the names in list
         """
-        sname, mname, cname = mdicts.pop(0)
-        base_query = (self.session.query(
-                                db.objects.image_id,
-                                db.objects.object_type,
-                                db.objects.object_number,
-                                db.object_measurements.value,
-                                db.ref_stacks.scale
-                               )
-                    .join(db.object_measurements)
-                    .join(db.planes)
-                    .join(db.ref_planes)
-                    .join(db.ref_stacks))
-        q  = (base_query.filter(
-                         self.bro.filters.measurements.get_measurement_filter_statements(
-                             channel_names=[cname],
-                             object_ids=['cell'],
-                             stack_names=[sname],
-                             measurement_names=[mname],
-                             measurement_types=['Intensity'],
-                         ))
-                    )
-        data = pd.read_sql_query(q.statement,self.data.db_conn)
-        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
-        data[cname] = data[db.object_measurements.value.key] * data[db.ref_stacks.scale.key]
-        data = pd.DataFrame(data[cname])
-        for group in mdicts:
-            sname, mname, cname = group
-            q  = (base_query
-                         .filter(
-                             self.bro.filters.measurements.get_measurement_filter_statements(
-                                 channel_names=[cname],
-                                 object_ids=['cell'],
-                                 stack_names=[sname],
-                                 measurement_names=[mname],
-                                 measurement_types=['Intensity'],
-                             ))
-                        )
-            tmp = pd.read_sql_query(q.statement,self.data.db_conn)
-            tmp = tmp.set_index([db.images.image_id.key, db.objects.object_number.key])
-            tmp[cname] = tmp[db.object_measurements.value.key] * tmp[db.ref_stacks.scale.key]
-            tmp = pd.DataFrame(tmp[cname])
-            data = data.join(tmp)
-        return data
+        data_list = list()
+        for mdict in measurement_dicts:
+            cname = mdict[db.ref_planes.channel_name.key]
+            fil = self.filter_measurements.get_measurement_filter_statements(
+            *[[mdict.get(o,d)] for o, d in self.filter_measurements.measure_idx])
+            base_query = (self.session.query(
+                                    db.objects.object_id,
+                                    db.object_measurements.value,
+                                    db.ref_stacks.scale
+                                )
+                        .join(db.object_measurements)
+                        .join(db.measurements)
+                        .join(db.planes)
+                        .join(db.ref_planes)
+                        .join(db.ref_stacks))
+            q  = (base_query.filter(fil))
+            data = self.doquery(q)
+            data.loc[:, cname] = data[db.object_measurements.value.key] * data[db.ref_stacks.scale.key]
+            data = data.set_index(db.objects.object_id.key)
+            data_list.append(data[cname])
+        outdat = pd.DataFrame(data_list).T
+        return outdat
