@@ -264,7 +264,7 @@ class DataStore(object):
         self._write_object_relations_table()
         # vacuum after population in postgres
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            self.db_conn.execution_options(isolation_level="AUTOCOMMIT").execute('VACUUM ANALYZE;')
+            self._pg_vacuum()
 
     ##########################################
     #        Database Table Generation:      #
@@ -643,7 +643,6 @@ class DataStore(object):
             measurements = measurements[filtered_names]
             measurements = measurements.reset_index(drop=False)
 
-        #TODO: query image id
         img_dict = {n: i for n, i in
                     self.main_session.query(db.images.image_number,
                                             db.images.image_id)}
@@ -747,7 +746,7 @@ class DataStore(object):
         dat_types =  pd.DataFrame(dat_relations.loc[:,
                 db.object_relation_types.object_relationtype_name.key]).drop_duplicates()
         dat_types[db.object_relation_types.object_relationtype_id.key] = \
-            self._query_new_ids(db.object_relations.object_relationtype_id, (dat_types.shape[0]))
+            self._query_new_ids(db.object_relationstype.object_relationtype_id, (dat_types.shape[0]))
         return dat_types
 
     def _generate_object_relations(self):
@@ -1444,6 +1443,9 @@ class DataStore(object):
         d = {n: i for n, i in (self.main_session.query(namecol, idcol)
                                .filter(namecol.in_(names)))}
         return d
+
+    def _pg_vacuum(self):
+        self.db_conn.execution_options(isolation_level="AUTOCOMMIT").execute('VACUUM ANALYZE;')
 
     #Properties:
     @property
