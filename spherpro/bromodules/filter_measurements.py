@@ -107,7 +107,8 @@ class FilterMeasurements(filter_base.BaseFilter):
                               db.measurements.measurement_name,
                              db.measurement_types.measurement_type]
 
-        constraints = [sa.and_(*[c == v for c, v in zip(constraint_columns,
+        constraints = [sa.and_(*[c.in_(v) if isinstance(v, tuple) else c==v
+                                 for c, v in zip(constraint_columns,
                                                         values)])
                        for values in zip(object_types, channel_names,
                                          stack_names, measurement_names,
