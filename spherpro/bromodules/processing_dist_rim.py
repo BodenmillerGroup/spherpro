@@ -1,5 +1,5 @@
 import spherpro.bromodules.filter_base as filter_base
-import spherpro.bromodules.filter_customfilterstack as filter_objectfilters
+import spherpro.bromodules.filter_objectfilters as filter_objectfilters
 import pandas as pd
 import numpy as np
 import re
@@ -20,7 +20,7 @@ class CalculateDistRim(object):
         self.bro = bro
         self.session = self.bro.data.main_session
         self.data = self.bro.data
-        self.custfilter = filter_objectfilters.CustomFilterStack(bro)
+        self.custfilter = filter_objectfilters.ObjectFilterLib(bro)
 
     def include_dist_rim(self, ass_diam=None):
         """

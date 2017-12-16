@@ -9,14 +9,14 @@ import plotnine as gg
 import spherpro as sp
 import spherpro.datastore as datastore
 import spherpro.db as db
-import spherpro.bromodules.filter_customfilterstack as custfilter
+import spherpro.bromodules.filter_objectfilters as custfilter
 
 CHANNEL_DISTSPHERE = 'dist-sphere'
 
 class FilterMembership(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.filter_custom = custfilter.CustomFilterStack(bro)
+        self.filter_custom = custfilter.ObjectFilterLib(bro)
 
     def add_issphere(self, minfrac=0.01, name=None, drop=True):
         if name is None:

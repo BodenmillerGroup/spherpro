@@ -60,10 +60,50 @@ class ObjectFilterLib(filter_base.BaseFilter):
         """
         if drop is None:
             drop=False
-        filterdata = filterdata[[db.objects.object_id.key, db.object_filters.filter_value.key]]
 
-
+        filterdata = filterdata.loc[:, [db.objects.object_id.key, db.object_filters.filter_value.key]]
         filterdata.loc[:,db.object_filter_names.object_filter_id.key] = [self.add_filtername(filtername)]
 
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)
+
+    def get_combined_filterquery(self, object_filters):
+        """
+        Get a filter query for the requested filters:
+        Args:
+            object_filters: list of format [(filtername1, filtervalue1),
+                                            (filtername2, filtervalue2), ... ]
+            image_filters: list of same format as object_filters
+        returns: a subquery that can be joined to another query
+        """
+
+        subquerys = [self.data.main_session.query(db.object_filters.object_id)
+            .join(db.object_filter_names)
+            .filter(db.object_filter_names.object_filter_name == filname)
+            .filter(db.object_filters.filter_value == filval)
+            .subquery(filname+str(filval))
+         for filname, filval in object_filters]
+        subquery = subquerys.pop()
+        for sq in subquerys:
+            subquery.join(sq, subquery.c.object_id == sq.c.object_id)
+        return subquery
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

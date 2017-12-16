@@ -115,7 +115,7 @@ class Debarcode(object):
     def _get_barcode_key(self):
         cond = pd.read_sql_query(self.data.main_session.query(db.conditions).statement, self.data.db_conn)
         i = []
-        cond["BarCode"].apply(lambda x: i.append(eval(x)))
+        cond[db.conditions.barcode.key].apply(lambda x: i.append(eval(x)))
         key = pd.DataFrame(i)
         cond = pd.concat([cond, key], axis=1)
         return cond, key
@@ -138,7 +138,7 @@ class Debarcode(object):
                          .filter(
                              self.bro.filters.measurements.get_measurement_filter_statements(
                                  channel_names=[metal],
-                                 object_ids=['cell'],
+                                 object_types=['cell'],
                                  stack_names=['FullStack'],
                                  measurement_names=['MeanIntensity'],
                                  measurement_types=['Intensity'],
