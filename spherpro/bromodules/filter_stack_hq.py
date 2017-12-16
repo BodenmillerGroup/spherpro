@@ -4,7 +4,7 @@ this filter is a composition from diffrent silent (as in not saved to the db)
 conditions.
 """
 import spherpro.bromodules.filter_base as filter_base
-import spherpro.bromodules.filter_customfilterstack as filter_customfilterstack
+import spherpro.bromodules.filter_customfilterstack as filter_objectfilters
 import spherpro.bromodules.filter_measurements as filter_measurements
 import pandas as pd
 import numpy as np
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 class StackHQ(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.filter_custom = filter_customfilterstack.CustomFilterStack(bro)
+        self.filter_custom = filter_objectfilters.CustomFilterStack(bro)
         self.filter_measurements = filter_measurements.FilterMeasurements(bro)
         self.doquery = self.data.get_query_function()
 

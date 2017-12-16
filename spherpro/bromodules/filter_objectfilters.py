@@ -15,7 +15,7 @@ FILTERSTACKNAME = "FilterStack"
 FILTERTYPENAME = "filter"
 
 
-class CustomFilterStack(filter_base.BaseFilter):
+class ObjectFilterLib(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
 

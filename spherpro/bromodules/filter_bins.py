@@ -3,7 +3,7 @@ TODO: NON WORKING!!
 
 """
 import spherpro.bromodules.filter_base as filter_base
-import spherpro.bromodules.filter_customfilterstack as filter_customfilterstack
+import spherpro.bromodules.filter_customfilterstack as filter_objectfilters
 import pandas as pd
 import numpy as np
 import re
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 class Bins(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.custfilter = filter_customfilterstack.CustomFilterStack(bro)
+        self.custfilter = filter_objectfilters.CustomFilterStack(bro)
 
     def create(self, binwidth=10):
         """
