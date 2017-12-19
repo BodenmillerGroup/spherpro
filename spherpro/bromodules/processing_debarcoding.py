@@ -114,48 +114,40 @@ class Debarcode(object):
 
     def _get_barcode_key(self):
         cond = pd.read_sql_query(self.data.main_session.query(db.conditions).statement, self.data.db_conn)
-        i = []
-        cond[db.conditions.barcode.key].apply(lambda x: i.append(eval(x)))
-        key = pd.DataFrame(i)
-        cond = pd.concat([cond, key], axis=1)
+        cond = cond.set_index(db.conditions.condition_id.key, drop=False)
+        key = cond[db.conditions.barcode.key].apply(lambda x: pd.Series(eval(x)))
         return cond, key
 
 
 
-    def _get_bc_cells(self, key, dist):
-        channels = key.columns.tolist()
+    def _get_bc_cells(self, key, dist, fils=None, borderdist=0):
+        channels = tuple(key.columns.tolist())
         filtdict = {
             db.stacks.stack_name.key: "DistStack",
             db.ref_planes.channel_name.key: "dist-sphere",
             db.measurement_names.measurement_name.key: "MeanIntensity"
         }
         bcfilt = self.filter.get_multifilter_statement([
-            (filtdict, operator.lt, dist)
+            (filtdict, operator.lt, -borderdist),
+            (filtdict, operator.gt, -dist)
         ])
-        measurements = []
-        for metal in channels:
-            bc_q  = (self.data.get_measurement_query()
+        bc_query  = (self.data.get_measurement_query()
                          .filter(
                              self.bro.filters.measurements.get_measurement_filter_statements(
-                                 channel_names=[metal],
+                                 channel_names=[channels],
                                  object_types=['cell'],
                                  stack_names=['FullStack'],
                                  measurement_names=['MeanIntensity'],
                                  measurement_types=['Intensity'],
                              ))
+                         .filter(bcfilt)
                         )
-            bccells = pd.read_sql_query(bc_q.filter(bcfilt).statement, self.data.db_conn)
-            measurements.append(bccells)
-
-        df = measurements.copy()
-        for i, channel in enumerate(df):
-            name = channel[db.ref_planes.channel_name.key].unique()[0]
-            df[i] = channel[[db.images.image_id.key,db.objects.object_number.key,db.object_measurements.value.key]]
-            df[i].columns = [db.images.image_id.key,db.objects.object_number.key, name]
-            if i == 0:
-                concat = df[i]
-            else:
-                concat = concat.merge(df[i], on=[db.images.image_id.key,db.objects.object_number.key])
-
-        concat = concat.set_index([db.images.image_id.key,db.objects.object_number.key])
-        return concat
+        if fils is not None:
+            bc_query = bc_query.join(fils)
+        bc_query = bc_query.add_column(db.images.site_name)
+        dat = self.bro.doquery(bc_query)
+        dat = dat.pivot_table(values=db.object_measurements.value.key,
+                                        columns=db.ref_planes.channel_name.key,
+                        index=[db.objects.image_id.key,
+                               db.object_measurements.object_id.key, db.images.site_name.key])
+        return dat

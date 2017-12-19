@@ -40,6 +40,7 @@ class Bro(object):
         self.io = io.Io(self)
         self.plots = plots.Plots(self)
         self.processing = processing.Processing(self)
+        self.doquery = self.data.get_query_function()
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
