@@ -50,15 +50,15 @@ class PlotHeatmask(plot_base.BasePlot):
         return masks
 
     def _prepare_slices(self, image_numbers):
-        dat = (self.session.query(db.masks.image_id, db.masks.pos_x,
-                                  db.masks.pos_y, db.masks.shape_w,
-                                  db.masks.shape_h)
-                    .filter(db.masks.image_id.in_(image_numbers))).all()
+        dat = (self.session.query(db.images.image_id, db.images.image_pos_x,
+                                  db.images.image_pos_y, db.images.image_shape_w,
+                                  db.images.image_shape_h)
+                    .filter(db.images.image_id.in_(image_numbers))).all()
         slice_dict = {i: (np.s_[x:(x+w)], np.s_[y:(y + h)])
-                          for i, x, y, w, h in dat}
+                          for i, x, y, h, w in dat}
         slices = [slice_dict[i] for i in image_numbers]
         return slices
-    
+
     def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None):
 
         if filters is None:
@@ -80,7 +80,7 @@ class PlotHeatmask(plot_base.BasePlot):
             # This needs to be done with subqueries!
             query = query.filter(fil)
 
-        data = pd.read_sql(query.statement, self.data.db_conn)
+        data = self.bro.doquery(query.statement, self.data.db_conn)
         return data
 
     def assemble_heatmap_image(self, dat_cells, image_numbers=None, cut_slices=None,
@@ -195,7 +195,7 @@ class PlotHeatmask(plot_base.BasePlot):
         #fig.canvas.draw()
         return ax
 
-    def plt_heatplot(self, site, img_idx, stat, stack, channel, transform, censor_min,
+    def plt_heatplot(self, site, roi_idx, img_idx, stat, stack, channel, transform, censor_min,
                      censor_max, keepRange, filter_hq, ax=None):
         """
         Retrieves images form the database and maps then on masks
@@ -203,7 +203,7 @@ class PlotHeatmask(plot_base.BasePlot):
             site: sitename
             img_idx: 0: all images from the site are ploted
                      #: the #th image form this site
-            stat: The KEY_MEASUREMENTNAME 
+            stat: The KEY_MEASUREMENTNAME
             stack: the Stackname
             channel: the ChannelName
             transform: a transform
@@ -212,16 +212,32 @@ class PlotHeatmask(plot_base.BasePlot):
         if ax is None:
             ax = self._ax
 
-        image_numbers = [q[0] for q in (self.data.main_session.query(db.images.image_id)
-                                         .filter(db.images.site_name == site).distinct())]
-        if filter_hq:
-             fil = [sa.and_(db.object_filters.FilterName=='is-hq', db.object_filters.filter_value==True)]
-        else:
-             fil = None
+        q = (self.data.main_session.query(db.images.image_id)
+                .join(db.rois)
+                .filter(db.rois.site_id == site))
+        if roi_idx > 0:
+            r_id = (self.data.main_session.query(db.rois.roi_id)
+                    .filter(db.rois.site_id == site)
+                    .order_by(db.rois.roi_id)
+                    .offset(roi_idx-1)).first()
+            if r_id is None:
+                return
+            q = q.filter(db.rois.roi_id == r_id)
+
+
         if img_idx == 0:
-            imnr = image_numbers
+            imnr = [r for r in q.distinct()]
         else:
-            imnr = [image_numbers[img_idx]]
+            imnr = [q.order_by(db.images.image_id).offset(img_idx-1).first()]
+
+        if imnr[0] is None:
+            return
+
+        #if filter_hq:
+        #     fil = [sa.and_(db.object_filters.=='is-hq', db.object_filters.filter_value==True)]
+        #else:
+        #     fil = None
+        fil=None
         metal = pct.library.metal_from_name(channel)
         print('Start loading...')
         data = self.get_heatmask_data({db.objects.object_id.key: 'cell',
@@ -231,33 +247,36 @@ class PlotHeatmask(plot_base.BasePlot):
                                                 image_numbers=imnr,
                                                 filters=fil
                                                )
+        print(data.shape)
         print('Finished loading!')
-        data['Value'] = transf_dict[transform](data['Value'])
+        col_val = db.object_measurements.value.key
+        data[col_val] = transf_dict[transform](data[col_val])
         img = self.assemble_heatmap_image(data)
-        crange = ( np.percentile(data['Value'],censor_min*100),
-                  np.percentile(data['Value'],censor_max*100))
+        crange = ( np.percentile(data[col_val],censor_min*100),
+                  np.percentile(data[col_val],censor_max*100))
 
         self.do_heatplot(img,  title=channel,
                    crange=crange, ax=ax, update_axrange=keepRange==False)
         plt.axis('off')
-        
+
     def ipw_heatplot(self, ax):
 
-        sites = [ s[0] for s in self.data.main_session.query(db.images.site_name).distinct()]
+        sites = [ s[0] for s in self.data.main_session.query(db.sites.site_id).all()]
         name_dict = {m: n for m, n in self.data.main_session.query(db.pannel.metal,
-                                                                  db.pannel.target)}
+                                                                  db.pannel.target).all()}
         channel_names = [q[0] for q in
-                         self.data.main_session.query(db.ref_planes.channel_name).distinct()]
+                         self.data.main_session.query(db.ref_planes.channel_name).all()]
         stack_names = [q[0] for q in
-                       self.data.main_session.query(db.object_measurements.StackName).distinct()]
-        object_names = [q[0] for q in self.data.main_session.query(db.object.ObjectID).distinct()]
+                       self.data.main_session.query(db.stacks.stack_name).all()]
+        object_names = [q[0] for q in self.data.main_session.query(db.masks.object_type).distinct()]
         measurement_names = [q[0] for q in
-                             self.data.main_session.query(db.MeasurementName.MeasurementName).distinct()]
+                             self.data.main_session.query(db.measurement_names.measurement_name).all()]
         channel_names_info = [pct.library.name_from_metal(c, name_dict) for c in channel_names]
 
         ipw.interact(self.plt_heatplot,
             site=sites,
-            img_idx=ipw.IntSlider(min=0, max=137, continuous_update=False),
+            roi_idx=ipw.IntSlider(min=0, max=30, continuous_update=False),
+            img_idx=ipw.IntSlider(min=0, max=30, continuous_update=False),
             stat=measurement_names,
             stack=stack_names,
             channel=channel_names_info,
