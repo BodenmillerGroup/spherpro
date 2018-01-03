@@ -516,11 +516,19 @@ class DataStore(object):
         cpconf = self.conf[conf.CPOUTPUT]
         imgconf = cpconf[conf.IMAGES_CSV]
         objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        obj = objects[0]
         prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
         #use any object to get a filename
-        obj = objects[0]
-        dat_fn = (self._images_csv.loc[:, [db.images.image_number.key, prefix+obj]]
-                    .rename(columns={prefix+obj: 'fn'}))
+        rename_dict = {
+            prefix+obj: 'fn',
+            imgconf[conf.IMAGE_HEIGHT_PREFIX]+obj: db.images.image_shape_h.key,
+            imgconf[conf.IMAGE_WIDTH_PREFIX]+obj: db.images.image_shape_w.key,
+        }
+        dat_fn = self._images_csv.loc[:,
+                                       [db.images.image_number.key] +
+                                       list(rename_dict.keys())]
+        dat_fn = dat_fn.rename(columns=rename_dict)
+
 
         re_meta = imgconf[conf.META_REGEXP]
         img_meta = lib.map_group_re(dat_fn['fn'], re_meta)
@@ -531,8 +539,6 @@ class DataStore(object):
             (conf.GROUP_POSX, db.images.image_pos_x.key),
                   (conf.GROUP_POSY, db.images.image_pos_y.key),
                   (conf.GROUP_CROPID, db.images.crop_number.key),
-                  (conf.GROUP_SHAPEH, db.images.image_shape_h.key),
-                  (conf.GROUP_SHAPEW, db.images.image_shape_w.key),
                   (conf.GROUP_BASENAME, conf.GROUP_BASENAME)]
                   }
         img_meta = img_meta.rename(columns=colmap)

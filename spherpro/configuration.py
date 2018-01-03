@@ -64,8 +64,6 @@ GROUP_SITE = 'group_site'
 GROUP_CROPID = 'group_cropid'
 GROUP_POSX = 'group_x'
 GROUP_POSY = 'group_y'
-GROUP_SHAPEH = 'group_h'
-GROUP_SHAPEW = 'group_w'
 GROUP_SLIDEAC = 'group_slideac'
 GROUP_PANORMAID = 'group_panoid'
 GROUP_ACID = 'group_acid'
@@ -77,6 +75,9 @@ META_REGEXP = 're_meta'
 IMAGE_OME_FOLDER_DIRS = 'ome_folder_dirs'
 IMAGE_OME_META_REGEXP = 'ome_meta_regexp'
 IMAGE_SLIDE_REGEXP = 'slide_regexp'
+IMAGE_HEIGHT_PREFIX = 'image_height_col_prefix'
+IMAGE_WIDTH_PREFIX = 'image_width_col_prefix'
+
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
 CON_POSTGRESQL = 'postgresql'
@@ -176,6 +177,8 @@ default_dict = {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
+            IMAGE_HEIGHT_PREFIX: 'Height_',
+            IMAGE_WIDTH_PREFIX: 'Width_',
             META_REGEXP: (
                 '(?P<{}>.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
             .format('basename', db.images.crop_number.key,
@@ -184,8 +187,6 @@ default_dict = {
             GROUP_BASENAME: 'basename',
             GROUP_CROPID: db.images.crop_number.key,
             GROUP_SITE: db.sites.site_name.key,
-            GROUP_SHAPEH: db.images.image_shape_h.key,
-            GROUP_SHAPEW: db.images.image_shape_w.key,
             GROUP_POSX: db.images.image_pos_x.key,
             GROUP_POSY: db.images.image_pos_y.key,
             IMAGE_OME_FOLDER_DIRS: [],
