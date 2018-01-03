@@ -506,7 +506,7 @@ class DataStore(object):
         self._bulkinsert(dat_slide, db.slides)
         self._bulkinsert(dat_slideac, db.slideacs)
         self._bulkinsert(dat_site, db.sites)
-        self._bulkinsert(dat_roi, db.rois)
+        self._bulkinsert(dat_roi, db.acquisitions)
         self._bulkinsert(dat_image, db.images)
 
     def _generate_image_table(self):
@@ -561,15 +561,15 @@ class DataStore(object):
         colmap = {imgconf[g]: v for g, v in [
             (conf.GROUP_SLIDEAC, db.slideacs.slideac_name.key),
                   (conf.GROUP_PANORMAID, db.sites.site_mcd_panoramaid.key),
-                  (conf.GROUP_ACID, db.rois.roi_mcd_acid.key),
-                  (conf.GROUP_ROIID, db.rois.roi_mcd_roiid.key)]
+                  (conf.GROUP_ACID, db.acquisitions.acquisition_mcd_acid.key),
+                  (conf.GROUP_ROIID, db.acquisitions.acquisition_mcd_roiid.key)]
                   }
         roi_meta = roi_meta.rename(columns=colmap)
-        roi_meta[db.rois.roi_id.key] =\
-            self._query_new_ids(db.rois.roi_id,
+        roi_meta[db.acquisitions.acquisition_id.key] =\
+            self._query_new_ids(db.acquisitions.acquisition_id,
                                 roi_meta.shape[0])
         img_meta = pd.merge(img_meta,
-                    roi_meta.loc[:, [db.rois.roi_id.key,
+                    roi_meta.loc[:, [db.acquisitions.acquisition_id.key,
                                      conf.GROUP_BASENAME]],
                             on=conf.GROUP_BASENAME)
         return img_meta, roi_meta

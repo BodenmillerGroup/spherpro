@@ -72,16 +72,16 @@ class InteractiveHeatplot(object):
     def _selector_basic_plot(self, site, roi_idx, img_idx, stat, stack, channel, transform, censor_min,
                      censor_max, keepRange, filter_hq, ax):
         q = (self.session.query(db.images.image_id)
-                .join(db.rois)
-                .filter(db.rois.site_id == site))
+                .join(db.acquisitions)
+                .filter(db.acquisitions.site_id == site))
         if roi_idx > 0:
-            r_id = (self.session.query(db.rois.roi_id)
-                    .filter(db.rois.site_id == site)
-                    .order_by(db.rois.roi_id)
+            r_id = (self.session.query(db.acquisitions.acquisition_id)
+                    .filter(db.acquisitions.site_id == site)
+                    .order_by(db.acquisitions.acquisition_id)
                     .offset(roi_idx-1)).first()
             if r_id is None:
                 return
-            q = q.filter(db.rois.roi_id == r_id)
+            q = q.filter(db.acquisitions.acquisition_id == r_id)
 
         if img_idx == 0:
             imnr = [r for r in q.distinct()]
@@ -137,16 +137,16 @@ class InteractiveHeatplot(object):
         )
 
     def get_roi_ids(self, site_id):
-        q_rois = (self.session.query(db.rois.roi_id)
-                    .filter(db.rois.site_id == site)
-                    .order_by(db.rois.roi_id)
+        q_rois = (self.session.query(db.acquisitions.acquisition_id)
+                    .filter(db.acquisitions.site_id == site)
+                    .order_by(db.acquisitions.acquisition_id)
                     .all())
         rois = [r[0] for r in q_rois]
         return rois
     def get_img_ids(self, roi_id):
-        q_rois = (self.session.query(db.rois.roi_id)
-                    .filter(db.rois.site_id == site)
-                    .order_by(db.rois.roi_id)
+        q_rois = (self.session.query(db.acquisitions.acquisition_id)
+                    .filter(db.acquisitions.site_id == site)
+                    .order_by(db.acquisitions.acquisition_id)
                     .all())
         rois = [r[0] for r in q_rois]
         return rois

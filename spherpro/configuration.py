@@ -177,8 +177,9 @@ default_dict = {
             MASKFILENAME_PEFIX: 'ObjectsFileName_',
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
-            IMAGE_HEIGHT_PREFIX: 'Height_',
-            IMAGE_WIDTH_PREFIX: 'Width_',
+            # in CP width and height seem to be switched
+            IMAGE_HEIGHT_PREFIX: 'Width_',
+            IMAGE_WIDTH_PREFIX: 'Height_',
             META_REGEXP: (
                 '(?P<{}>.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
             .format('basename', db.images.crop_number.key,
@@ -193,12 +194,12 @@ default_dict = {
             IMAGE_OME_META_REGEXP: ('(?P<{}>.*)_s0_p(?P<{}>[0-9]+)_r(?P<{}>[0-9]+)_a(?P<{}>[0-9]+)_ac.*'
             .format(db.slideacs.slideac_name.key,
                     db.sites.site_mcd_panoramaid.key,
-                    db.rois.roi_mcd_roiid.key,
-                    db.rois.roi_mcd_acid.key)),
+                    db.acquisitions.acquisition_mcd_roiid.key,
+                    db.acquisitions.acquisition_mcd_acid.key)),
             GROUP_SLIDEAC: db.slideacs.slideac_name.key,
             GROUP_PANORMAID: db.sites.site_mcd_panoramaid.key,
-            GROUP_ACID: db.rois.roi_mcd_acid.key,
-            GROUP_ROIID: db.rois.roi_mcd_roiid.key,
+            GROUP_ACID: db.acquisitions.acquisition_mcd_acid.key,
+            GROUP_ROIID: db.acquisitions.acquisition_mcd_roiid.key,
             IMAGE_SLIDE_REGEXP: '.*_slide(?P<{}>[0-9]+)_'.format(
                 db.slides.slide_number.key),
             GROUP_SLIDENUMBER: db.slides.slide_number.key

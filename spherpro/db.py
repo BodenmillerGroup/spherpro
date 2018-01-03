@@ -134,19 +134,19 @@ class sites(Base):
         [slideacs.slideac_id]),
             {})
 
-class rois(Base):
-    __tablename__ = 'rois'
-    roi_id = Column(Integer(), primary_key=True, autoincrement=True)
+class acquisitions(Base):
+    __tablename__ = 'acquisitions'
+    acquisition_id = Column(Integer(), primary_key=True, autoincrement=True)
     site_id = Column(Integer())
-    roi_mcd_acid = Column(Integer())
-    roi_mcd_roiid = Column(Integer())
-    roi_pos_x = Column(Integer())
-    roi_pos_y = Column(Integer())
-    roi_shape_h = Column(Integer())
-    roi_shape_w = Column(Integer())
-    roi_image_before = Column(String(200))
-    roi_image_after = Column(String(200))
-    roi_image_file = Column(String(200))
+    acquisition_mcd_acid = Column(Integer())
+    acquisition_mcd_roiid = Column(Integer())
+    acquisition_pos_x = Column(Integer())
+    acquisition_pos_y = Column(Integer())
+    acquisition_shape_h = Column(Integer())
+    acquisition_shape_w = Column(Integer())
+    acquisition_image_before = Column(String(200))
+    acquisition_image_after = Column(String(200))
+    acquisition_image_file = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
         [site_id],
@@ -163,7 +163,7 @@ class images(Base):
     image_shape_h = Column(Integer())
     image_shape_w = Column(Integer())
     crop_number = Column(Integer())
-    roi_id = Column(Integer())
+    acquisition_id = Column(Integer())
     bc_depth = Column(Float())
     bc_invalid = Column(Integer())
     bc_valid = Column(Integer())
@@ -175,8 +175,8 @@ class images(Base):
         [condition_id],
         [conditions.condition_id]),
         ForeignKeyConstraint(
-        [roi_id],
-        [rois.roi_id]),
+        [acquisition_id],
+        [acquisitions.acquisition_id]),
             {})
 
 TABLE_IMAGE = images.__tablename__
