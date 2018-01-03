@@ -66,8 +66,17 @@ GROUP_POSX = 'group_x'
 GROUP_POSY = 'group_y'
 GROUP_SHAPEH = 'group_h'
 GROUP_SHAPEW = 'group_w'
-META_REGEXP = 're_meta'
+GROUP_SLIDEAC = 'group_slideac'
+GROUP_PANORMAID = 'group_panoid'
+GROUP_ACID = 'group_acid'
+GROUP_ROIID = 'group_roiid'
+GROUP_SLIDENUMBER = 'group_slidenumber'
+GROUP_BASENAME = 'group_basename'
 
+META_REGEXP = 're_meta'
+IMAGE_OME_FOLDER_DIRS = 'ome_folder_dirs'
+IMAGE_OME_META_REGEXP = 'ome_meta_regexp'
+IMAGE_SLIDE_REGEXP = 'slide_regexp'
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
 CON_POSTGRESQL = 'postgresql'
@@ -168,15 +177,30 @@ default_dict = {
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
             META_REGEXP: (
-                '(?P({}.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-            .format(db.sites.site_name.key, db.masks.crop_number.key, db.masks.pos_x.key, db.masks.pos_y.key)),
+                '(?P<{}>.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
+            .format('basename', db.images.crop_number.key,
+                    db.images.image_pos_x.key, db.images.image_pos_y.key)),
             MASK_DIR: None, # default take cpoutput dir
-            GROUP_CROPID: db.masks.crop_number.key,
+            GROUP_BASENAME: 'basename',
+            GROUP_CROPID: db.images.crop_number.key,
             GROUP_SITE: db.sites.site_name.key,
-            GROUP_SHAPEH: db.masks.shape_h.key,
-            GROUP_SHAPEW: db.masks.shape_w.key,
-            GROUP_POSX: db.masks.pos_x.key,
-            GROUP_POSY: db.masks.pos_y.key
+            GROUP_SHAPEH: db.images.image_shape_h.key,
+            GROUP_SHAPEW: db.images.image_shape_w.key,
+            GROUP_POSX: db.images.image_pos_x.key,
+            GROUP_POSY: db.images.image_pos_y.key,
+            IMAGE_OME_FOLDER_DIRS: [],
+            IMAGE_OME_META_REGEXP: ('(?P<{}>.*)_s0_p(?P<{}>[0-9]+)_r(?P<{}>[0-9]+)_a(?P<{}>[0-9]+)_ac.*'
+            .format(db.slideacs.slideac_name.key,
+                    db.sites.site_mcd_panoramaid.key,
+                    db.rois.roi_mcd_roiid.key,
+                    db.rois.roi_mcd_acid.key)),
+            GROUP_SLIDEAC: db.slideacs.slideac_name.key,
+            GROUP_PANORMAID: db.sites.site_mcd_panoramaid.key,
+            GROUP_ACID: db.rois.roi_mcd_acid.key,
+            GROUP_ROIID: db.rois.roi_mcd_roiid.key,
+            IMAGE_SLIDE_REGEXP: '.*_slide(?P<{}>[0-9]+)_'.format(
+                db.slides.slide_number.key),
+            GROUP_SLIDENUMBER: db.slides.slide_number.key
         },
 
     },

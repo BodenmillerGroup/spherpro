@@ -251,7 +251,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
-        self._write_image_table()
+        self._write_imagemeta_tables()
         self._write_masks_table()
         self._write_objects_table()
         self._write_stack_tables()
@@ -259,7 +259,6 @@ class DataStore(object):
         self._write_planes_table()
         self._write_pannel_table()
         self._write_condition_table()
-        self._write_site_table()
         self._write_measurement_table(minimal)
         self._write_object_relations_table()
         # vacuum after population in postgres
@@ -269,6 +268,7 @@ class DataStore(object):
     ##########################################
     #        Database Table Generation:      #
     ##########################################
+
 
     def _write_stack_tables(self):
         """
@@ -487,49 +487,168 @@ class DataStore(object):
             self._query_new_ids(db.planes.plane_id, (planes.shape[0]))
         return planes
 
-    def _write_site_table(self):
-        (table,links) = self._generate_site()
-        self._bulkinsert(table, db.sites)
-        session = self.main_session
-        for image in links.iterrows():
-            img = image[1]
-            session.query(db.images).\
-                filter(db.images.image_id == img[db.images.image_id.key]).\
-                update({db.sites.site_name.key: img[db.sites.site_name.key]})
-        session.commit()
+    def _write_imagemeta_tables(self):
+        """
+        Write the tables containing the image metadata
+        This contains:
+            - the acquisition ROI 'roi': original acquisition where the image
+                was cropped from
+            - the site: the site on the slide where the acquisition ROI was made
+                -> corresponds to a panroma in the MCD
+            - the slide: the physical slide
+        """
+        dat_image = self._generate_image_table()
+        dat_image, dat_roi = self._generate_roi_table(dat_image)
+        dat_roi, dat_site = self._generate_site_table(dat_roi)
+        dat_site, dat_slideac = self._generate_slideac_table(dat_site)
+        dat_slideac, dat_slide = self._generate_slide_table(dat_slideac)
 
-    def _generate_site(self):
-        """
-        generates the Site Table and a dataframe linking ImageNumber to site
-        """
-        names = self._generate_masks()
-        rege = \
-            re.compile(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.META_REGEXP])
-        names[db.sites.site_name.key] = names[db.masks.file_name.key].apply(lambda x:
-                                                              rege.match(x).group(self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.GROUP_SITE]))
+        self._bulkinsert(dat_slide, db.slides)
+        self._bulkinsert(dat_slideac, db.slideacs)
+        self._bulkinsert(dat_site, db.sites)
+        self._bulkinsert(dat_roi, db.rois)
+        self._bulkinsert(dat_image, db.images)
 
-        links = names[[db.images.image_id.key, db.sites.site_name.key]]
-        table = names[db.sites.site_name.key].drop_duplicates().to_frame()
-        return table, links
+    def _generate_image_table(self):
+        """
+        Generates the slide, site and roi metadata from the filenames or ome folders.
+        """
+        cpconf = self.conf[conf.CPOUTPUT]
+        imgconf = cpconf[conf.IMAGES_CSV]
+        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        #use any object to get a filename
+        obj = objects[0]
+        dat_fn = (self._images_csv.loc[:, [db.images.image_number.key, prefix+obj]]
+                    .rename(columns={prefix+obj: 'fn'}))
 
+        re_meta = imgconf[conf.META_REGEXP]
+        img_meta = lib.map_group_re(dat_fn['fn'], re_meta)
+        img_meta.index = dat_fn.index
+        img_meta = img_meta.join(dat_fn)
 
-    def _write_image_table(self):
-        """
-        Generates the Image
-        table and writes it to the database.
-        """
-        image = self._generate_image()
-        self._bulkinsert(image, db.images)
+        colmap = {imgconf[g]: v for g, v in [
+            (conf.GROUP_POSX, db.images.image_pos_x.key),
+                  (conf.GROUP_POSY, db.images.image_pos_y.key),
+                  (conf.GROUP_CROPID, db.images.crop_number.key),
+                  (conf.GROUP_SHAPEH, db.images.image_shape_h.key),
+                  (conf.GROUP_SHAPEW, db.images.image_shape_w.key),
+                  (conf.GROUP_BASENAME, conf.GROUP_BASENAME)]
+                  }
+        img_meta = img_meta.rename(columns=colmap)
+        img_meta[db.images.image_id.key] =\
+            self._query_new_ids(db.images.image_id,
+                                img_meta.shape[0])
+        return img_meta
 
-    def _generate_image(self):
+    def _generate_roi_table(self, img_meta):
         """
-        Generates the Image
-        table.
+        Generates the ROi metadata table and updates the img_meta table to link
+        to the roi_table
         """
-        image = pd.DataFrame(self._images_csv[db.images.image_number.key])
-        image[db.images.image_id.key] = self._query_new_ids(db.images.image_id,
-                                                            image.shape[0])
-        return image
+        imgconf = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV]
+        roi_basenames = img_meta[conf.GROUP_BASENAME]
+        roi_basenames = roi_basenames.drop_duplicates().values
+        re_ome = imgconf[conf.IMAGE_OME_META_REGEXP]
+        roi_meta = lib.map_group_re(roi_basenames, re_ome)
+        roi_meta[conf.GROUP_BASENAME] = roi_basenames
+        colmap = {imgconf[g]: v for g, v in [
+            (conf.GROUP_SLIDEAC, db.slideacs.slideac_name.key),
+                  (conf.GROUP_PANORMAID, db.sites.site_mcd_panoramaid.key),
+                  (conf.GROUP_ACID, db.rois.roi_mcd_acid.key),
+                  (conf.GROUP_ROIID, db.rois.roi_mcd_roiid.key)]
+                  }
+        roi_meta = roi_meta.rename(columns=colmap)
+        roi_meta[db.rois.roi_id.key] =\
+            self._query_new_ids(db.rois.roi_id,
+                                roi_meta.shape[0])
+        img_meta = pd.merge(img_meta,
+                    roi_meta.loc[:, [db.rois.roi_id.key,
+                                     conf.GROUP_BASENAME]],
+                            on=conf.GROUP_BASENAME)
+        return img_meta, roi_meta
+
+    def _generate_site_table(self, roi_meta):
+        idvars = [db.slideacs.slideac_name.key,
+                                     db.sites.site_mcd_panoramaid.key]
+        site_meta = roi_meta.loc[:, idvars]
+        site_meta = site_meta.drop_duplicates()
+
+        site_meta[db.sites.site_id.key] =\
+            self._query_new_ids(db.sites.site_id,
+                                site_meta.shape[0])
+        roi_meta = pd.merge(roi_meta,
+                            site_meta.loc[:, idvars+[db.sites.site_id.key]],
+                            on=idvars)
+        return roi_meta, site_meta
+
+    def _generate_slideac_table(self, site_meta):
+        slideacs = site_meta[db.slideacs.slideac_name.key]
+        slideacs = slideacs.drop_duplicates().values
+        imgconf = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV]
+        re_slide = imgconf[conf.IMAGE_SLIDE_REGEXP]
+        slideac_meta = lib.map_group_re(slideacs, re_slide)
+        colmap = {imgconf[g]: v for g, v in [
+            (conf.GROUP_SLIDENUMBER, db.slides.slide_number.key)]
+                  }
+        slideac_meta = slideac_meta.rename(columns=colmap)
+        slideac_meta[db.slideacs.slideac_name.key] = slideacs
+
+        slideac_meta[db.slideacs.slideac_id.key] =\
+            self._query_new_ids(db.slideacs.slideac_id,
+                                slideac_meta.shape[0])
+        site_meta = pd.merge(site_meta,
+                slideac_meta.loc[:, [db.slideacs.slideac_id.key,
+                                     db.slideacs.slideac_name.key]],
+                             on=db.slideacs.slideac_name.key)
+
+        return site_meta, slideac_meta
+
+    def _generate_slide_table(self, slideac_meta):
+        slide_meta = slideac_meta.loc[:, [db.slides.slide_number.key]]
+        slide_meta = slide_meta.drop_duplicates()
+        slide_meta[db.slides.slide_id.key] =\
+            self._query_new_ids(db.slides.slide_id, slide_meta.shape[0])
+        slideac_meta = pd.merge(slideac_meta,
+                                slide_meta.loc[:, [db.slides.slide_number.key,
+                                                   db.slides.slide_id.key]],
+                                on=db.slides.slide_number.key)
+        return slideac_meta, slide_meta
+
+    def _generate_masks(self):
+        cpconf = self.conf[conf.CPOUTPUT]
+        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        dat_mask = {obj:
+                    self._images_csv[
+                        [db.images.image_number.key, prefix+obj]
+                    ].rename(columns={prefix+obj: db.masks.file_name.key})
+         for obj in objects}
+        dat_mask = pd.concat(dat_mask, names=[db.objects.object_type.key, 'idx'])
+        dat_mask = dat_mask.reset_index(level=db.objects.object_type.key, drop=False)
+        dat_mask = dat_mask.reset_index(drop=True)
+
+        #    if all(dat_mask[db.masks.shape_w.key].isnull()):
+        #        """
+        #        If the width and height are not in the regexp, load all the
+        #        mask and check the width
+        #        """
+        #        cpconf = self.conf[conf.CPOUTPUT]
+        #        basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
+        #        if basedir is None:
+        #            basedir = self.conf[conf.CP_DIR]
+        #        dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key] = \
+        #                zip(*dat_mask[db.masks.file_name.key].map(lambda fn:
+        #                        tif.imread(os.path.join(basedir, fn)).shape))
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        dat_mask[db.masks.image_id.key] = dat_mask[db.images.image_number.key].replace(img_dict)
+        return dat_mask
+
+    def _write_masks_table(self):
+        masks = self._generate_masks()
+        self._bulkinsert(masks, db.masks)
 
     def _write_objects_table(self):
         """
@@ -685,68 +804,12 @@ class DataStore(object):
 
         return measurements
 
-
-
-    def _generate_masks(self):
-        cpconf = self.conf[conf.CPOUTPUT]
-        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
-        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
-        dat_mask = {obj:
-                    self._images_csv[
-                        [db.images.image_number.key, prefix+obj]
-                    ].rename(columns={prefix+obj: db.masks.file_name.key})
-         for obj in objects}
-        dat_mask = pd.concat(dat_mask, names=[db.objects.object_type.key, 'idx'])
-        dat_mask = dat_mask.reset_index(level=db.objects.object_type.key, drop=False)
-        dat_mask = dat_mask.reset_index(drop=True)
-        mask_regexp = cpconf[conf.IMAGES_CSV][conf.META_REGEXP]
-        if mask_regexp is not None:
-            """
-            Try to get the crop information from the provided regexp
-            """
-            (dat_mask[db.masks.crop_number.key], dat_mask[db.masks.pos_x.key],
-            dat_mask[db.masks.pos_y.key], dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key]) = \
-            zip(*dat_mask[db.masks.file_name.key].map(lambda x:
-                                               [re.match(mask_regexp, x).groupdict()
-                                               .get(col, None) for col in
-                                                [db.masks.crop_number.key, db.masks.pos_x.key,
-                                                 db.masks.pos_y.key, db.masks.shape_w.key,
-                                                 db.masks.shape_h.key]]))
-
-            if all(dat_mask[db.masks.shape_w.key].isnull()):
-                """
-                If the width and height are not in the regexp, load all the
-                mask and check the width
-                """
-                cpconf = self.conf[conf.CPOUTPUT]
-                basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
-                if basedir is None:
-                    basedir = self.conf[conf.CP_DIR]
-                dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key] = \
-                        zip(*dat_mask[db.masks.file_name.key].map(lambda fn:
-                                tif.imread(os.path.join(basedir, fn)).shape))
-        else:
-            dat_mask[db.masks.crop_number.key] = None
-            dat_mask[db.masks.pos_x.key] = 0
-            dat_mask[db.masks.pos_y.key] = 0
-            dat_mask[db.masks.shape_h.key] = None
-            dat_mask[db.masks.shape_w.key] = None
-        img_dict = {n: i for n, i in
-                    self.main_session.query(db.images.image_number,
-                                            db.images.image_id)}
-        dat_mask[db.masks.image_id.key] = dat_mask[db.images.image_number.key].replace(img_dict)
-        return dat_mask
-
-    def _write_masks_table(self):
-        masks = self._generate_masks()
-        self._bulkinsert(masks, db.masks)
-
     def _generate_object_relation_types(self):
         dat_relations = (self._relation_csv)
         dat_types =  pd.DataFrame(dat_relations.loc[:,
                 db.object_relation_types.object_relationtype_name.key]).drop_duplicates()
         dat_types[db.object_relation_types.object_relationtype_id.key] = \
-            self._query_new_ids(db.object_relationstype.object_relationtype_id, (dat_types.shape[0]))
+            self._query_new_ids(db.object_relation_types.object_relationtype_id, (dat_types.shape[0]))
         return dat_types
 
     def _generate_object_relations(self):
@@ -907,6 +970,12 @@ class DataStore(object):
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             session = self.session_maker()
             str_seq = str(id_col).replace('.', '_')+'_seq'
+            # this will instantiate the sequence if it is not
+            # done so yet
+            # otherwise it will lead to a gap of 1 between the ids
+            #which should not matter
+            _ = session.execute(sa.schema.Sequence(str_seq))
+
             session.execute('ALTER SEQUENCE ' + str_seq + ' INCREMENT ' + str(n))
             i = session.execute(sa.schema.Sequence(str_seq))
             session.execute('ALTER SEQUENCE ' + str_seq + ' INCREMENT ' + str(1))

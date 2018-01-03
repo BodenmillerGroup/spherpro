@@ -99,34 +99,84 @@ class conditions(Base):
     bc_x = Column(Integer())
     bc_y = Column(String(200))
 
+class slides(Base):
+    __tablename__ = 'slides'
+    slide_id = Column(Integer(), primary_key=True, autoincrement=True)
+    slide_number = Column(String(200))
+
+class slideacs(Base):
+    __tablename__ = 'slideacs'
+    slideac_id = Column(Integer(), primary_key=True, autoincrement=True)
+    slide_id = Column(Integer())
+    slideac_name = Column(String(200))
+    slideac_folder = Column(String(200))
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [slide_id],
+        [slides.slide_id]),
+            {})
 
 class sites(Base):
     """docstring for images."""
     __tablename__ = 'sites'
-    site_name = Column(String(200), primary_key=True)
+    site_id = Column(Integer(), primary_key = True, autoincrement=True)
+    slideac_id = Column(Integer())
+    site_mcd_panoramaid = Column(Integer())
+    site_name = Column(String(200))
+    site_pos_x = Column(Integer())
+    site_pos_y = Column(Integer())
+    site_shape_h = Column(Integer())
+    site_shape_w = Column(Integer())
+    site_panorama = Column(String(200))
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [slideac_id],
+        [slideacs.slideac_id]),
+            {})
 
-sites.__tablename__ = 'sites'
-sites.site_name.key = sites.site_name.key
+class rois(Base):
+    __tablename__ = 'rois'
+    roi_id = Column(Integer(), primary_key=True, autoincrement=True)
+    site_id = Column(Integer())
+    roi_mcd_acid = Column(Integer())
+    roi_mcd_roiid = Column(Integer())
+    roi_pos_x = Column(Integer())
+    roi_pos_y = Column(Integer())
+    roi_shape_h = Column(Integer())
+    roi_shape_w = Column(Integer())
+    roi_image_before = Column(String(200))
+    roi_image_after = Column(String(200))
+    roi_image_file = Column(String(200))
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [site_id],
+        [sites.site_id]),
+            {})
 
 class images(Base):
     """docstring for images."""
     __tablename__ = 'images'
-    image_id = Column(Integer(), primary_key=True)
+    image_id = Column(Integer(), primary_key=True, autoincrement=True)
     image_number = Column(Integer())
+    image_pos_x = Column(Integer())
+    image_pos_y = Column(Integer())
+    image_shape_h = Column(Integer())
+    image_shape_w = Column(Integer())
+    crop_number = Column(Integer())
+    roi_id = Column(Integer())
     bc_depth = Column(Float())
     bc_invalid = Column(Integer())
     bc_valid = Column(Integer())
     bc_highest_count = Column(Integer())
     bc_second_count = Column(Integer())
     condition_id = Column(Integer())
-    site_name = Column(String(200))
     __table_args__ = (
         ForeignKeyConstraint(
         [condition_id],
         [conditions.condition_id]),
         ForeignKeyConstraint(
-        [site_name],
-        [sites.site_name]),
+        [roi_id],
+        [rois.roi_id]),
             {})
 
 TABLE_IMAGE = images.__tablename__
@@ -137,11 +187,6 @@ class masks(Base):
     object_type = Column(String(200),
                        primary_key=True)
     image_id = Column(Integer(),  primary_key=True)
-    pos_x = Column(Integer())
-    pos_y = Column(Integer())
-    shape_h = Column(Integer())
-    shape_w = Column(Integer())
-    crop_number = Column(Integer())
     file_name = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
         [image_id],
@@ -159,7 +204,7 @@ class objects(Base):
         [images.image_id]),
         ForeignKeyConstraint(
         [object_type, image_id],
-        [masks.object_type, masks.image_id]),{})
+        [masks.object_type, masks.image_id]), {})
 
 class ref_stacks(Base):
     """docstring for ref_stacks."""
