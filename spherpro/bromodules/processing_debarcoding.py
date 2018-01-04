@@ -21,7 +21,7 @@ class Debarcode(object):
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
-    def debarcode(self, dist=40):
+    def debarcode(self, dist=40, fils=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -29,7 +29,7 @@ class Debarcode(object):
         # get information from conditions and build the barcode key
         cond, key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        cells = self._get_bc_cells(key, dist)
+        cells = self._get_bc_cells(key, dist, fils=fils)
         # threshold them
         cells = self._treshold_data(cells)
         # debarcode them
@@ -142,12 +142,12 @@ class Debarcode(object):
                              ))
                          .filter(bcfilt)
                         )
+        bc_query = bc_query.join(db.acquisitions).join(db.sites).add_column(db.sites.site_id)
         if fils is not None:
-            bc_query = bc_query.join(fils)
-        bc_query = bc_query.add_column(db.images.site_name)
+            bc_query = bc_query.filter(fils)
         dat = self.bro.doquery(bc_query)
         dat = dat.pivot_table(values=db.object_measurements.value.key,
                                         columns=db.ref_planes.channel_name.key,
                         index=[db.objects.image_id.key,
-                               db.object_measurements.object_id.key, db.images.site_name.key])
+                               db.object_measurements.object_id.key, db.sites.site_id.key])
         return dat

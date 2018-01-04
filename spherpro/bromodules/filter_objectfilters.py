@@ -83,27 +83,22 @@ class ObjectFilterLib(filter_base.BaseFilter):
             .filter(db.object_filters.filter_value == filval)
             .subquery(filname+str(filval))
          for filname, filval in object_filters]
-        subquery = subquerys.pop()
+        query = self.data.main_session.query(db.objects.object_id)
         for sq in subquerys:
-            subquery.join(sq, subquery.c.object_id == sq.c.object_id)
-        return subquery
+            query.filter(db.objects.object_id == sq.c.object_id)
+        return query.subquery()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def get_combined_filterstatement(self, object_filters):
+        """
+        Get a filter statement for the requested filters:
+        Args:
+            object_filters: list of format [(filtername1, filtervalue1),
+                                            (filtername2, filtervalue2), ... ]
+        returns: a subquery that can be joined to another query
+        """
+        subquery = self.get_combined_filterquery(object_filters)
+        fil = sa.and_(db.objects.object_id == subquery.c.object_id)
+        return fil
 
 

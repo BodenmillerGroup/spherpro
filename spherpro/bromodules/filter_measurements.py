@@ -57,6 +57,18 @@ class FilterMeasurements(filter_base.BaseFilter):
                 treshold))
         return filter_statement
 
+    def get_multifilter_query(self, query_triplets):
+        filters = [self._get_filter_statement(m, l, t)
+                   for m, l, t in query_triplets]
+        meas_query = self.data.get_measurement_query()
+        subquerys = [meas_query.filter(fil).subquery() for i, fil in
+                     enumerate(filters)]
+        combined_filter_query = self.session.query(db.objects.object_id)
+        for subquery in subquerys:
+            combined_filter_query = (combined_filter_query.filter(db.objects.object_id == subquery.c.object_id))
+
+        subquery_filter = combined_filter_query.subquery()
+        return subquery_filter
 
     def get_multifilter_statement(self, query_triplets):
         """
@@ -71,20 +83,11 @@ class FilterMeasurements(filter_base.BaseFilter):
             filter_statement: can be used in a filter operation
                 fitlers on the keys: object_id
         """
-        filters = [self._get_filter_statement(m, l, t)
-                   for m, l, t in query_triplets]
-        meas_query = self.data.get_measurement_query()
-        subquerys = [meas_query.filter(fil).subquery() for i, fil in
-                     enumerate(filters)]
-        combined_filter_query = self.session.query(db.objects.object_id)
-        for subquery in subquerys:
-            combined_filter_query = combined_filter_query.filter(
-                db.objects.object_id == subquery.c.object_id)
-
-        subquery_filter = combined_filter_query.subquery()
+        subquery = self.get_multifilter_query(query_triplets)
         filter_statement = sa.and_(
-            db.objects.object_id == subquery_filter.c.object_id)
+            db.objects.object_id == subquery.c.object_id)
         return filter_statement
+
 
     def get_measurement_filter_statements(self, object_types, channel_names,
                                           stack_names, measurement_names, measurement_types):
