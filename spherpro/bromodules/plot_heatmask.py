@@ -175,7 +175,7 @@ class PlotHeatmask(plot_base.BasePlot):
                                   db.images.image_shape_h)
                     .filter(db.images.image_id.in_(image_numbers))).all()
         slice_dict = {i: (np.s_[x:(x+w)], np.s_[y:(y + h)])
-                          for i, x, y, h, w in dat}
+                          for i, x, y, w, h in dat}
         slices = [slice_dict[i] for i in image_numbers]
         return slices
 

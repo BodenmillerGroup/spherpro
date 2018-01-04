@@ -289,6 +289,11 @@ class object_filters(Base):
         [objects.object_id]),
         ForeignKeyConstraint([object_filter_id], [object_filter_names.object_filter_id]), {})
 
+class object_relation_types(Base):
+    __tablename__ = 'object_relation_types'
+    object_relationtype_id = Column(Integer(), primary_key=True, autoincrement=True)
+    object_relationtype_name = Column(String(200), index=True, unique=True)
+
 class object_relations(Base):
     __tablename__ = 'object_relations'
     object_id_parent = Column(Integer(),
@@ -301,12 +306,12 @@ class object_relations(Base):
         [objects.object_id]),
         ForeignKeyConstraint(
         [object_id_child],
-            [objects.object_id]),{})
+            [objects.object_id]),
+        ForeignKeyConstraint(
+        [object_relationtype_id],
+            [object_relation_types.object_relationtype_id]),
+            {})
 
-class object_relation_types(Base):
-    __tablename__ = 'object_relation_types'
-    object_relationtype_id = Column(Integer(), primary_key=True, autoincrement=True)
-    object_relationtype_name = Column(String(200), index=True, unique=True)
 
 class measurement_names(Base):
     """

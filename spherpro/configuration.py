@@ -178,8 +178,8 @@ default_dict = {
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
             # in CP width and height seem to be switched
-            IMAGE_HEIGHT_PREFIX: 'Width_',
-            IMAGE_WIDTH_PREFIX: 'Height_',
+            IMAGE_HEIGHT_PREFIX: 'Height_',
+            IMAGE_WIDTH_PREFIX: 'Width_',
             META_REGEXP: (
                 '(?P<{}>.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
             .format('basename', db.images.crop_number.key,
