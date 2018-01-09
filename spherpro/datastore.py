@@ -777,7 +777,7 @@ class DataStore(object):
             chunck = measurements.shape[0]
         all_measurements = measurements
         for pos in range(0, measurements.shape[0], chunck):
-            measurements = all_measurements.iloc[pos:pos:chunck,:]
+            measurements = all_measurements.iloc[pos:pos+chunck,:]
             measurements[db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
             # Query the objects table to join the measurements with it and add the numeric,
             # per object unique index 'ObjectUniID'
