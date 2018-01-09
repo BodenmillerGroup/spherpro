@@ -765,8 +765,8 @@ class DataStore(object):
             meta = meta_filt
 
             measurements = measurements.set_index([db.images.image_number.key,
-                     db.objects.object_number.key,'Number_Object_Number',
-                    db.objects.object_type.key])
+                     db.objects.object_number.key, db.objects.object_type.key])
+
             measurements = measurements[filtered_names]
             measurements = measurements.reset_index(drop=False)
 
@@ -777,8 +777,8 @@ class DataStore(object):
             chunck = measurements.shape[0]
         all_measurements = measurements
         for pos in range(0, measurements.shape[0], chunck):
-            measurements = all_measurements.iloc[pos:pos+chunck,:]
-            measurements[db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
+            measurements = all_measurements.iloc[pos:pos+chunck,:].copy()
+            measurements.loc[:,db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
             # Query the objects table to join the measurements with it and add the numeric,
             # per object unique index 'ObjectUniID'
             tab_obj = pd.read_sql(
@@ -788,7 +788,7 @@ class DataStore(object):
 
             measurements = measurements.merge(tab_obj)
             measurements = measurements.drop([ db.images.image_id.key, db.images.image_number.key, db.objects.object_number.key,
-                            'Number_Object_Number', db.objects.object_type.key], axis=1)
+                            'Number_Object_Number', db.objects.object_type.key], axis=1, errors='ignore')
             measurements = pd.melt(measurements,
                                 id_vars=[db.objects.object_id.key],
                                 var_name='variable', value_name=db.object_measurements.value.key)
