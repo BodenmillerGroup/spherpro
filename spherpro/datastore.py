@@ -697,20 +697,22 @@ class DataStore(object):
         self._bulkinsert(
             measurement_meta,
             db.measurements)
-
-        measurements = self._generate_measurements(minimal, measurement_meta)
+        chunck = 30000
+        measurements = self._generate_measurements(minimal, measurement_meta, chunck=chunck)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
             self.db_conn.execute('SET UNIQUE_CHECKS = 0')
-            self._bulkinsert(measurements, db.object_measurements)
+            for meas in measurements:
+                self._bulkinsert(meas, db.object_measurements)
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
             self.db_conn.execute('SET UNIQUE_CHECKS = 1')
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_pkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_object_id_fkey;')
-            self._bulk_pg_insert(measurements, db.object_measurements)
+            for meas in measurements:
+                self._bulk_pg_insert(meas, db.object_measurements)
             self.db_conn.execute('''ALTER TABLE public.object_measurements
                                    ADD CONSTRAINT object_measurements_pkey PRIMARY KEY(object_id, measurement_id);''')
             self.db_conn.execute('''ALTER TABLE public.object_measurements
@@ -749,7 +751,7 @@ class DataStore(object):
                                 (meta.shape[0]))
         return meta
 
-    def _generate_measurements(self, minimal, meta):
+    def _generate_measurements(self, minimal, meta, chunck=None):
         measurements = self._measurement_csv
 
         if minimal:
@@ -771,44 +773,49 @@ class DataStore(object):
         img_dict = {n: i for n, i in
                     self.main_session.query(db.images.image_number,
                                             db.images.image_id)}
-        measurements[db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
-        # Query the objects table to join the measurements with it and add the numeric,
-        # per object unique index 'ObjectUniID'
-        tab_obj = pd.read_sql(
-            self.main_session.query(db.objects)
-            .filter(db.objects.image_id.in_(measurements[db.images.image_id.key].unique().tolist()))
-            .statement, self.db_conn)
+        if chunck is None:
+            chunck = measurements.shape[0]
+        all_measurements = measurements
+        for pos in range(0, measurements.shape[0], chunck):
+            measurements = all_measurements.iloc[pos:pos:chunck,:]
+            measurements[db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
+            # Query the objects table to join the measurements with it and add the numeric,
+            # per object unique index 'ObjectUniID'
+            tab_obj = pd.read_sql(
+                self.main_session.query(db.objects)
+                .filter(db.objects.image_id.in_(measurements[db.images.image_id.key].unique().tolist()))
+                .statement, self.db_conn)
 
-        measurements = measurements.merge(tab_obj)
-        measurements = measurements.drop([ db.images.image_id.key, db.images.image_number.key, db.objects.object_number.key,
-                           'Number_Object_Number', db.objects.object_type.key], axis=1)
-        measurements = pd.melt(measurements,
-                               id_vars=[db.objects.object_id.key],
-                               var_name='variable', value_name=db.object_measurements.value.key)
+            measurements = measurements.merge(tab_obj)
+            measurements = measurements.drop([ db.images.image_id.key, db.images.image_number.key, db.objects.object_number.key,
+                            'Number_Object_Number', db.objects.object_type.key], axis=1)
+            measurements = pd.melt(measurements,
+                                id_vars=[db.objects.object_id.key],
+                                var_name='variable', value_name=db.object_measurements.value.key)
 
-        # Add the MeasurementID by merging the table
-        # -> currently not needed...
-        #tab_meas = pd.read_sql(
-        #    self.main_session.query(db.measurements.measurement_id,
-        #                           db.measurements.measurement_name,
-        #                           db.measurements.measurement_type,
-        #                           db.planes.ref_plane_id,
-        #                           db.stacks.stack_name)
-        #    .join(db.planes)
-        #    .join(db.stacks)
-        #    .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
-        #    .statement, self.db_conn)
-        #meta = meta.merge(tab_meas)
-        meta = meta.loc[:, ['variable', db.measurements.measurement_id.key]]
-        measurements = measurements.merge(meta, how='inner', on='variable')
-        measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
-        measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
-        measurements.dropna(inplace=True)
-        measurements = measurements.loc[:,[db.objects.object_id.key,
-                                                 db.measurements.measurement_id.key,
-                                          db.object_measurements.value.key]]
+            # Add the MeasurementID by merging the table
+            # -> currently not needed...
+            #tab_meas = pd.read_sql(
+            #    self.main_session.query(db.measurements.measurement_id,
+            #                           db.measurements.measurement_name,
+            #                           db.measurements.measurement_type,
+            #                           db.planes.ref_plane_id,
+            #                           db.stacks.stack_name)
+            #    .join(db.planes)
+            #    .join(db.stacks)
+            #    .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
+            #    .statement, self.db_conn)
+            #meta = meta.merge(tab_meas)
+            meta = meta.loc[:, ['variable', db.measurements.measurement_id.key]]
+            measurements = measurements.merge(meta, how='inner', on='variable')
+            measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
+            measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
+            measurements.dropna(inplace=True)
+            measurements = measurements.loc[:,[db.objects.object_id.key,
+                                                    db.measurements.measurement_id.key,
+                                            db.object_measurements.value.key]]
 
-        return measurements
+            yield measurements
 
     def _generate_object_relation_types(self):
         dat_relations = (self._relation_csv)
