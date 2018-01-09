@@ -21,7 +21,7 @@ class Debarcode(object):
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
-    def debarcode(self, dist=40, fils=None):
+    def debarcode(self, dist=40, borderdist=0, fils=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -29,7 +29,7 @@ class Debarcode(object):
         # get information from conditions and build the barcode key
         cond, key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        cells = self._get_bc_cells(key, dist, fils=fils)
+        cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0)
         # threshold them
         cells = self._treshold_data(cells)
         # debarcode them
@@ -128,8 +128,8 @@ class Debarcode(object):
             db.measurement_names.measurement_name.key: "MeanIntensity"
         }
         bcfilt = self.filter.get_multifilter_statement([
-            (filtdict, operator.lt, -borderdist),
-            (filtdict, operator.gt, -dist)
+            (filtdict, operator.gt, borderdist),
+            (filtdict, operator.lt, dist)
         ])
         bc_query  = (self.data.get_measurement_query()
                          .filter(
