@@ -21,7 +21,7 @@ class Debarcode(object):
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
-    def debarcode(self, dist=40, borderdist=0, fils=None):
+    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -29,7 +29,7 @@ class Debarcode(object):
         # get information from conditions and build the barcode key
         cond, key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0)
+        cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack)
         # threshold them
         cells = self._treshold_data(cells)
         # debarcode them
@@ -37,6 +37,8 @@ class Debarcode(object):
         # summarize them
         bc_dic = self._summarize_singlecell_barcodes(data)
         # update them to the Database
+        bc_sec = db.images.bc_second_count.key
+        bc_dic.loc[:, bc_sec]  = bc_dic[bc_sec].fillna(0)
         session = self.data.main_session
         for image in bc_dic.iterrows():
             img = dict(image[1])
@@ -120,7 +122,9 @@ class Debarcode(object):
 
 
 
-    def _get_bc_cells(self, key, dist, fils=None, borderdist=0):
+    def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None):
+        if stack is None:
+            stack = 'FullStack'
         channels = tuple(key.columns.tolist())
         filtdict = {
             db.stacks.stack_name.key: "DistStack",
@@ -136,7 +140,7 @@ class Debarcode(object):
                              self.bro.filters.measurements.get_measurement_filter_statements(
                                  channel_names=[channels],
                                  object_types=['cell'],
-                                 stack_names=['FullStack'],
+                                 stack_names=[stack],
                                  measurement_names=['MeanIntensity'],
                                  measurement_types=['Intensity'],
                              ))
