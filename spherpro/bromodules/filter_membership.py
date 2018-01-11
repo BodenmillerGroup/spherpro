@@ -59,7 +59,7 @@ class FilterMembership(filter_base.BaseFilter):
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
 
-    def add_isambiguous(self, distother=10, name=None, drop=True):
+    def add_isambiguous(self, distother=-10, name=None, drop=True):
         if name is None:
             name = 'is-ambiguous'
         col_measure = 'MeanIntensity'
