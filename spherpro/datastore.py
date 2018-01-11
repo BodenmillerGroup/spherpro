@@ -130,9 +130,10 @@ class DataStore(object):
         """
         if self.conf[conf.LAYOUT_CSV][conf.PATH] is not None:
             sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
-            self.experiment_layout = pd.read_csv(
+            experiment_layout = pd.read_csv(
                 self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
             )
+            self.experiment_layout = experiment_layout.fillna(0)
         else:
             self.experiment_layout = None
 
