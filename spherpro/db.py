@@ -98,6 +98,7 @@ class conditions(Base):
     bc_plate = Column(Integer())
     bc_x = Column(Integer())
     bc_y = Column(String(200))
+    well_name = Column(String(200))
 
 class slides(Base):
     __tablename__ = 'slides'

@@ -92,8 +92,6 @@ LAYOUT_CSV_BC_PLATE_NAME = 'bc_plate_col'
 LAYOUT_CSV_CONCENTRATION_NAME = 'concentration_col'
 LAYOUT_CSV_BARCODE = 'barcode_col'
 LAYOUT_CSV_COND_ID = 'condition_id_col'
-LAYOUT_CSV_BCX = 'BCX_col'
-LAYOUT_CSV_BCY = 'BCY_col'
 
 BC_CSV_PLATE_NAME = 'plate_col'
 BC_CSV_WELL_NAME = 'well_col'
@@ -143,8 +141,6 @@ default_dict = {
     LAYOUT_CSV_TIMEPOINT_NAME: None,
     LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
     LAYOUT_CSV_BARCODE: 'barcode',
-    LAYOUT_CSV_BCX: 'bcx',
-    LAYOUT_CSV_BCY: 'bcy',
     LAYOUT_CSV_COND_ID: 'conditionID',
     SEP: ','
     },

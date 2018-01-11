@@ -908,8 +908,6 @@ class DataStore(object):
                 (conf.LAYOUT_CSV_CONCENTRATION_NAME, db.conditions.concentration.key),
                 (conf.LAYOUT_CSV_BC_PLATE_NAME, db.conditions.bc_plate.key),
                 (conf.LAYOUT_CSV_PLATE_NAME, db.conditions.plate_id.key),
-                (conf.LAYOUT_CSV_BCX, db.conditions.bc_x.key),
-                (conf.LAYOUT_CSV_BCY, db.conditions.bc_y.key)
             ] if target is not None
         }
         if rename_dict.get(None) is not None:
@@ -945,10 +943,11 @@ class DataStore(object):
                 data.loc[pd.isnull(data[tw_name]),tw_name] = data.loc[pd.isnull(data[tw_name])][we_name]
                 data[db.conditions.bc_y.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
                 data[db.conditions.bc_x.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
+                data[db.conditions.well_name.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]]
 
                 data = data.rename(columns=rename_dict)
                 if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME] is None:
-                    data[db.conditions.time_point.key] = 0.0
+                    data[db.conditions.time_point.key] = 0.-1
                 if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME] is None:
                     data[db.conditions.condition_name.key] = 'default'
 
@@ -963,6 +962,7 @@ class DataStore(object):
                 barcodes = barcodes.reset_index(drop=False)
 
                 barcodes = lib.fill_null(barcodes, db.conditions)
+                barcodes[db.conditions.well_name.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]]
                 barcodes[db.conditions.bc_y.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
                 barcodes[db.conditions.bc_x.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
                 barcodes[db.conditions.bc_plate.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
