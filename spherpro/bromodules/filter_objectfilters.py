@@ -80,12 +80,12 @@ class ObjectFilterLib(filter_base.BaseFilter):
         subquerys = [self.data.main_session.query(db.object_filters.object_id)
             .join(db.object_filter_names)
             .filter(db.object_filter_names.object_filter_name == filname)
-            .filter(db.object_filters.filter_value == filval)
+            .filter(db.object_filters.filter_value == int(filval))
             .subquery(filname+str(filval))
          for filname, filval in object_filters]
         query = self.data.main_session.query(db.objects.object_id)
         for sq in subquerys:
-            query.filter(db.objects.object_id == sq.c.object_id)
+            query = query.filter(db.objects.object_id == sq.c.object_id)
         return query.subquery()
 
 
