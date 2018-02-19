@@ -310,14 +310,16 @@ class PlotHeatmask(plot_base.BasePlot):
 
         if hasattr(img, 'mask'):
             mask_img = np.isnan(img)
-            mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
-            ax.imshow(mask_img, alpha=0.2)
+            if np.any(mask_img):
+                mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
+                ax.imshow(mask_img, alpha=0.2)
 
         #fig.canvas.draw()
         return ax
 
-    def plt_heatplot(self, img_ids, stat, stack, channel, transform, censor_min,
-                     censor_max, keepRange, filter_hq, ax=None, title=None):
+    def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
+                     censor_max=1, keepRange=False, filters=None, filter_hq=None,
+                     ax=None, title=None, colorbar=True):
         """
         Retrieves images form the database and maps then on masks
         Args:
@@ -335,7 +337,10 @@ class PlotHeatmask(plot_base.BasePlot):
         #     fil = [sa.and_(db.object_filters.=='is-hq', db.object_filters.filter_value==True)]
         #else:
         #     fil = None
-        fil=None
+        if transform is None:
+            transform = 'none'
+
+        fil=filters
         print('Start loading...')
         data = self.get_heatmask_data({db.objects.object_type.key: 'cell',
                                                 db.ref_planes.channel_name.key: channel,
@@ -354,6 +359,6 @@ class PlotHeatmask(plot_base.BasePlot):
         if title is None:
             title=channel
         self.do_heatplot(img,  title=title,
-                   crange=crange, ax=ax, update_axrange=keepRange==False)
+                   crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar)
         plt.axis('off')
 
