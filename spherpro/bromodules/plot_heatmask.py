@@ -10,6 +10,7 @@ import spherpro.datastore as datastore
 import spherpro.db as db
 
 import pycytools as pct
+import pycytools.library
 
 import sqlalchemy as sa
 import matplotlib.pyplot as plt
@@ -494,4 +495,3 @@ class PlotHeatmask(plot_base.BasePlot):
         self.do_heatplot(img,  title=title,
                    crange=crange, ax=ax, update_axrange=keepRange==False)
         plt.axis('off')
-
