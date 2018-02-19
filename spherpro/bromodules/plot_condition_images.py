@@ -1,6 +1,3 @@
-import spherpro.bromodules.plot_base as plot_base
-import spherpro.bromodules.plot_heatmask as plot_heatmask
-import spherpro.bromodules.filter_measurements as multifilters
 import pandas as pd
 import numpy as np
 import re
@@ -27,6 +24,7 @@ class PlotConditionImages(plot_base.BasePlot):
         self.heatmask = bro.plots.heatmask
         self.measurement_filters = bro.filters.measurements
         self.objectfilterlib = bro.filters.objectfilterlib
+        self.imcimage = bro.io.imcimg
 
 
     def get_target_by_channel(self, channel_name):
@@ -37,10 +35,30 @@ class PlotConditionImages(plot_base.BasePlot):
         return target[0]
 
 
-    def plot_hm_conditions(self, condition_name, channel_name, minmax=(0,1)):
+    def plot_hm_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
 
         cond_list = self.get_cond_id_im_id(condition_name)
         im_dict = self.get_dict_imgs(cond_list,channel_name)
+        if transf is not None:
+            for key, val in im_dict.items():
+                im_dict[key] = transf(val)
+
+        target = self.get_target_by_channel(channel_name)
+        title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
+
+        hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+
+        return hm
+
+
+    def plot_imc_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
+
+        cond_list = self.get_cond_id_im_id(condition_name)
+        im_dict = self.get_dict_imc_imgs(cond_list,channel_name)
+        if transf is not None:
+            for key, val in im_dict.items():
+                im_dict[key] = transf(val)
+
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
@@ -128,6 +146,12 @@ class PlotConditionImages(plot_base.BasePlot):
         return imgids
 
 
+    def get_dict_imc_imgs(self, cond_list, channelname):
+        imac = {img: self.imcimage.get_imcimg(int(img)) for c, imgs in cond_list for img in imgs}
+        for key, val in imac.items():
+            imac[key] = val.get_img_by_metal(channelname)
+        return imac
+
 
     def get_im_data(self, im_num, channelname):
 
@@ -143,6 +167,13 @@ class PlotConditionImages(plot_base.BasePlot):
         img = self.heatmask.assemble_heatmap_image(pdat)
 
         return img
+
+
+    @staticmethod
+    def logvalue(val):
+        new_val = np.log10(val + 0.00001)
+
+        return new_val
 
 
 
