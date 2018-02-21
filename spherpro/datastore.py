@@ -1142,7 +1142,7 @@ class DataStore(object):
         return (bak_t, un_t)
 
 
-    def _add_generic_tuple(self, data, table, query=None, replace=False, backup=False):
+    def _add_generic_tuple(self, data, table, query=None, replace=False, backup=False, pg=False):
         """add_generic_tuple
         adds tuples from date to the database and returns non stored or
         deleted values.
@@ -1180,7 +1180,10 @@ class DataStore(object):
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
-            self._bulkinsert(data, table)
+            if pg:
+                self._bulk_pg_insert(data,table)
+            else:
+                self._bulkinsert(data, table)
 
             return backup, None
         else:
@@ -1200,7 +1203,10 @@ class DataStore(object):
                 stri += 'maybe you tried to readd some rows.'
                 warnings.warn(stri, UserWarning)
 
-            self._bulkinsert(storable, table)
+            if pg:
+                self._bulk_pg_insert(storable,table)
+            else:
+                self._bulkinsert(storable, table)
 
             unstored = data.merge(zw, how='outer')
 
