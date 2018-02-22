@@ -4,6 +4,7 @@ import re
 import spherpro as sp
 import spherpro.datastore as datastore
 import spherpro.db as db
+import spherpro.bromodules.plot_base as plot_base
 import sqlalchemy as sa
 import matplotlib.pyplot as plt
 import matplotlib_scalebar as scalebar
@@ -46,9 +47,9 @@ class PlotConditionImages(plot_base.BasePlot):
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
-        hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
 
-        return hm
+        return fig
 
 
     def plot_imc_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
@@ -62,9 +63,9 @@ class PlotConditionImages(plot_base.BasePlot):
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
-        hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
 
-        return hm
+        return fig
 
 
     def plot_layout(self, cond_list, im_dict, title, pltfkt=None, minmax=(0,1)):
@@ -79,7 +80,11 @@ class PlotConditionImages(plot_base.BasePlot):
 
         cond_id, image_id = zip(*cond_list)
 
-        fig, ax = plt.subplots(nrows, ncols, sharex=True, sharey=True, squeeze=True)
+        shape = [(np.shape(i)) for i in im_dict.values()]
+        x_shape = max(shape, key=lambda x:x[0])[0]
+        y_shape = max(shape, key=lambda x:x[1])[1]
+
+        fig, ax = plt.subplots(nrows, ncols,  figsize= ( 2*ncols+2,2*nrows+2), squeeze=True)
 
         for i, axrow in enumerate(ax):
             cond, images = cond_list[i]
@@ -100,10 +105,9 @@ class PlotConditionImages(plot_base.BasePlot):
                 else:
                     a.set_visible(False)
 
-
         plt.colorbar(cax, ax=ax.ravel().tolist())
         plt.suptitle(title)
-        return ax
+        return fig, ax
 
 
     @staticmethod
