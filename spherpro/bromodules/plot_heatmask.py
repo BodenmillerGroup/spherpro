@@ -93,7 +93,7 @@ class InteractiveHeatplot(object):
             return
         metal = pct.library.metal_from_name(channel)
         self.plotter.plt_heatplot(imnr, stat, stack, metal, transform, censor_min,
-                     censor_max, keepRange, filter_hq, ax, title=channel)
+                     censor_max, keepRange, None, ax, title=channel)
 
     def get_dynamic_selector(self, plotfkt):
         ALL = 'all'
