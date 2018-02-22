@@ -41,6 +41,7 @@ class Bro(object):
         self.plots = plots.Plots(self)
         self.processing = processing.Processing(self)
         self.doquery = self.data.get_query_function()
+        self.session = self.data.main_session
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
