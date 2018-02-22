@@ -11,9 +11,6 @@ import sqlalchemy as sa
 import matplotlib.pyplot as plt
 import matplotlib_scalebar as scalebar
 
-from spherpert import helpers
-
-
 
 LABEL_Y = "Condition ID number"
 LABEL_X = "Image ID number"
