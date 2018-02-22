@@ -85,7 +85,7 @@ class ObjectFilterLib(filter_base.BaseFilter):
          for filname, filval in object_filters]
         query = self.data.main_session.query(db.objects.object_id)
         for sq in subquerys:
-            query = query.filter(db.objects.object_id == sq.c.object_id)
+            query = query.join(sq, db.objects.object_id == sq.c.object_id)
         return query.subquery()
 
 
