@@ -23,6 +23,10 @@ class AggregateNeightbours(object):
         self.bro = bro
         self.session = self.bro.data.main_session
         self.data = self.bro.data
+        self.mm = self.bro.processing.measurement_maker
+        self._register_measurement_name = self.mm.register_measurement_name
+        self._register_measurement_type = self.mm.register_measurement_type
+
 
     def add_nb_measurement(self, nb_meas_prefix, nb_agg_fkt,
                         nb_relationtype=None,
@@ -130,29 +134,8 @@ class AggregateNeightbours(object):
         measure_meta[db.measurements.measurement_name.key] = \
                 measure_meta[db.measurements.measurement_name.key].replace(dic_meas_name)
         measure_meta = measure_meta.rename(columns={MEAS_ID: OLD_ID})
-        measure_meta[MEAS_ID] = [l[0] if l is not None else None
-            for l in [self.session.query(db.measurements.measurement_id)
-            .filter(db.measurements.measurement_name == row[db.measurements.measurement_name.key],
-                db.measurements.measurement_type == row[db.measurements.measurement_type.key],
-                db.measurements.plane_id == row[db.measurements.plane_id.key]).one_or_none()
-                for idx, row in measure_meta.iterrows()]]
-        fil = measure_meta[MEAS_ID].isnull()
-        if sum(fil) > 0:
-            measure_meta.loc[fil, MEAS_ID] = self.bro.data._query_new_ids(
-                db.measurements.measurement_id, sum(fil))
-            self.bro.data._bulk_pg_insert(measure_meta.loc[fil, :], db.measurements)
+        measure_meta = self.mm.register_measurements(meaure_meta)
         id_dict = {old: new for old, new in zip(measure_meta[OLD_ID], measure_meta[MEAS_ID])
                     if old != new}
         return id_dict
 
-    def _register_measurement_name(self, new_measname):
-        x = db.measurement_names()
-        x.measurement_name = new_measname
-        self.session.merge(x)
-        self.session.commit()
-
-    def _register_measurement_type(self, new_meastype):
-        x = db.measurement_types()
-        x.measurement_type = new_meastype
-        self.session.merge(x)
-        self.session.commit()
