@@ -40,8 +40,10 @@ class Bro(object):
         self.helpers = helpers.Helpers(self)
         self.filters = filters.Filters(self)
         self.io = io.Io(self)
-        self.plots = plots.Plots(self)
-        self.processing = processing.Processing(self)
+        self.plots = plots.Plots()
+        self.plots.load_modules(self)
+        self.processing = processing.Processing()
+        self.processing.load_modules(self)
         self.doquery = self.data.get_query_function()
         self.session = self.data.main_session
     #########################################################################
