@@ -7,7 +7,7 @@ import spherpro.db as db
 import spherpro.bromodules.plot_base as plot_base
 import sqlalchemy as sa
 import matplotlib.pyplot as plt
-import matplotlib_scalebar as scalebar
+import matplotlib_scalebar.scalebar as scalebar
 
 
 LABEL_Y = "Condition ID number"
@@ -23,15 +23,7 @@ class PlotConditionImages(plot_base.BasePlot):
         self.measurement_filters = bro.filters.measurements
         self.objectfilterlib = bro.filters.objectfilterlib
         self.imcimage = bro.io.imcimg
-
-
-    def get_target_by_channel(self, channel_name):
-        target = (self.session.query(db.pannel.target)
-            .filter(db.pannel.metal == channel_name).one_or_none())
-        if target is None:
-            target = [channel_name]
-        return target[0]
-
+        self.get_target_by_channel = bro.helpers.dbhelp.get_target_by_channel
 
     def plot_hm_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
 
@@ -91,7 +83,7 @@ class PlotConditionImages(plot_base.BasePlot):
                     image = images[j]
                     img = im_dict[image]
                     cax = pltfkt(img, ax=a, crange = crange)
-                    sb = scalebar.scalebar.ScaleBar(1, units='um', location=4)
+                    sb = scalebar.ScaleBar(1, units='um', location=4)
                     a.add_artist(sb)
                     a.set_xticks([])
                     a.set_yticks([])
@@ -122,7 +114,7 @@ class PlotConditionImages(plot_base.BasePlot):
         else:
             fig = ax.get_figure()
 
-        cax = ax.imshow(img, cmap=cmap)
+        cax = ax.imshow(img, cmap=cmap, interpolation="nearest")
 
         if hasattr(img, 'mask'):
             mask_img = np.isnan(img)
