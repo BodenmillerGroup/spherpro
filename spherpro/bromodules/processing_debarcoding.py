@@ -9,10 +9,12 @@ import spherpro.datastore as datastore
 import spherpro.db as db
 import sqlalchemy as sa
 
+import plotnine as gg
 
 NAME_BARCODE = "BCString"
 NAME_WELLCOLUMN = "CondID"
 NAME_INVALID = "Invalid"
+KEY_SECOND =  db.images.bc_second_count.key
 
 class Debarcode(object):
     """docstring for Debarcode."""
@@ -21,7 +23,7 @@ class Debarcode(object):
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
-    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None):
+    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -31,16 +33,37 @@ class Debarcode(object):
         # get all intensities where dist-sphere<dist
         cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack)
         # threshold them
-        cells = self._treshold_data(cells)
+        cells = self._treshold_data(cells, bc_treshs)
         # debarcode them
         data = self._debarcode_data(key, cond, cells)
         # summarize them
         bc_dic = self._summarize_singlecell_barcodes(data)
         # update them to the Database
-        bc_sec = db.images.bc_second_count.key
-        bc_dic.loc[:, bc_sec]  = bc_dic[bc_sec].fillna(0)
+        self._write_bc(bc_dic, dist)
+
+    def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None):
+        """
+        Plot the histograms of the raw data
+        """
+        cond, key = self._get_barcode_key()
+        # get all intensities where dist-sphere<dist
+        bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack)
+        bcvals = bcdat.stack()
+        bcvals.name ='value'
+        bcvals = bcvals.reset_index('channel_name')
+        bcvals['site'] = bcvals.index.get_level_values('site_id').map(str)
+        p = (gg.ggplot(bcvals,gg.aes(x='np.log10(value+0.01)', color='site'))+
+          gg.facet_wrap('channel_name', scales='free')+
+          gg.geom_density())
+        return(p)
+
+    def _write_bc(self, bc_dict, dist):
+        """
+        Writes the barcodes to the database
+        """
+        bc_dict.loc[:, KEY_SECOND]  = bc_dict[KEY_SECOND].fillna(0)
         session = self.data.main_session
-        for image in bc_dic.iterrows():
+        for image in bc_dict.iterrows():
             img = dict(image[1])
             dic = {str(i): str(img[i]) if str(img[i]) != 'NAN' else None for i in img}
             dic[db.images.bc_depth.key] = dist
@@ -49,17 +72,20 @@ class Debarcode(object):
                 update(dic)
         session.commit()
 
-
-
-    def _treshold_data(self, bc_dat):
+    def _treshold_data(self, bc_dat, bc_tresh=None):
         bc_dat = bc_dat.copy()
-        bc_dat = bc_dat.apply(lambda x: (x-np.mean(x))/np.std(x),)
-        bc_dat[bc_dat > 0] = 1
-        bc_dat[bc_dat < 0] = 0
+        if bc_tresh is None:
+            bc_dat = bc_dat.apply(lambda x: (x-np.mean(x))/np.std(x),)
+            bc_dat[bc_dat > 0] = 1
+            bc_dat[bc_dat < 0] = 0
+        else:
+            t = np.array([bc_tresh[c] for c in bc_dat.columns])
+            bc_dat = bc_dat.apply(lambda x: x > t, axis=1)
         return bc_dat
 
     def _debarcode_data(self, bc_key, cond, bc_dat):
         metals = list(bc_key.columns)
+        bc_key = bc_key.copy()
         bc_key[NAME_BARCODE] = bc_key.apply(lambda x: ''.join([str(int(v)) for v in x]),axis=1)
         bc_key = bc_key.reset_index(drop=False)
         bc_dict = cond.merge(bc_key)
