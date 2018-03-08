@@ -10,6 +10,8 @@ import sqlalchemy as sa
 
 import plotnine as gg
 
+VAL_COL = db.object_measurements.value.key
+
 class PlotScatter(plot_base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
@@ -44,7 +46,7 @@ class PlotScatter(plot_base.BasePlot):
         dat = self.get_marker_data([measure_x, measure_y],
                                                image_ids=image_ids,
                                                filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
+        p = (gg.ggplot(dat, gg.aes(x="0_"+VAL_COL, y='1_'+VAL_COL)) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
           gg.xlab(' - '.join([measure_x.get(o,d) for o, d in
@@ -78,7 +80,7 @@ class PlotScatter(plot_base.BasePlot):
         dat = self.get_marker_data([measure_x, measure_y],
                                                image_ids=image_ids,
                                                filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
+        p = (gg.ggplot(dat, gg.aes(x='0_'+VAL_COL, y='1_'+VAL_COL)) +
           gg.geom_point()+
           gg.geom_smooth(method='lm') +
           gg.xlab(' - '.join([measure_x.get(o,d) for o, d in
@@ -100,17 +102,11 @@ class PlotScatter(plot_base.BasePlot):
         query = self._get_measurement_query()
         if image_ids is not None:
             query = query.filter(db.images.image_id.in_(image_ids))
-        if filters is not None:
-            # TODO: this NEEDs to be fixed as it wont work for multiple filters!
-            # This needs to be done with subqueries!
-            for filtername, filtervalue in filters:
-                query = (query.filter(sa.and_(db.object_filters.FilterName == filtername,
-                                         db.object_filters.filter_value ==
-                                          filtervalue)))
-            query = query.join(db.object_filters)
-
         query_joins = self._get_joined_filtered_queries(query,
                                                         filters_measurement)
+        if filters is not None:
+            # TODO: This needs to be fixed!
+           query = query.filter(filters)
         dat = pd.read_sql(query_joins.statement, self.data.db_conn)
         return dat
 
