@@ -50,7 +50,7 @@ class AggregateNeightbours(object):
         old_ids = [int(i) for i in dat[MEAS_ID].unique()]
         id_dict = self.update_measurement_ids(old_ids, nb_meas_prefix)
         nb_dat[MEAS_ID] = nb_dat[MEAS_ID].replace(id_dict)
-        self.data._add_generic_tuple(nb_dat, db.object_measurements, replace=True, pg=True)
+        self.mm.add_object_measurements(nb_dat)
 
     def agg_data(self, data, nb_dict, fkt):
         tdat = data.pivot(index=OBJ_ID, columns=MEAS_ID, values=VALUE)
@@ -134,7 +134,7 @@ class AggregateNeightbours(object):
         measure_meta[db.measurements.measurement_name.key] = \
                 measure_meta[db.measurements.measurement_name.key].replace(dic_meas_name)
         measure_meta = measure_meta.rename(columns={MEAS_ID: OLD_ID})
-        measure_meta = self.mm.register_measurements(meaure_meta)
+        measure_meta = self.mm.register_measurements(measure_meta)
         id_dict = {old: new for old, new in zip(measure_meta[OLD_ID], measure_meta[MEAS_ID])
                     if old != new}
         return id_dict
