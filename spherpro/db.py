@@ -182,6 +182,7 @@ class images(Base):
 
 TABLE_IMAGE = images.__tablename__
 
+
 class masks(Base):
     """ a table describing the masks."""
     __tablename__ = 'masks'
@@ -396,3 +397,16 @@ class image_measurements(Base):
         {})
 
 
+class valid_images(Base):
+    __tablename__ = 'valid_images'
+    image_id = Column(Integer(), primary_key=True)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            [image_id], [images.image_id]),{})
+
+class valid_objects(Base):
+    __tablename__ = 'valid_objects'
+    object_id = Column(Integer(), primary_key=True)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            [object_id], [objects.object_id]),{})
