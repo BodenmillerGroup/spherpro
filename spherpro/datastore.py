@@ -1478,7 +1478,7 @@ class DataStore(object):
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
 
-    def get_measurement_query(self, session=None):
+    def get_measurement_query(self, session=None, valid_objects=True, valid_images=True):
         """
         Returns a query object that queries table with the most important
         information do identify a measurement
@@ -1505,6 +1505,10 @@ class DataStore(object):
             .join(db.objects)
             .join(db.images)
                 )
+        if valid_objects:
+            query = query.join(db.valid_objects)
+        if valid_images:
+            query = query.join(db.valid_images)
         return query
 
 
