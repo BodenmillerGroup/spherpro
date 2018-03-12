@@ -58,7 +58,7 @@ class InteractiveHeatplot(object):
         ipw.interact(self._selector_basic_plot,
             site=sites,
             roi_idx=ipw.IntSlider(min=0, max=30, continuous_update=False),
-            img_idx=ipw.IntSlider(min=0, max=30, continuous_update=False),
+            img_idx=ipw.IntSlider(min=0, max=70, continuous_update=False),
             stat=measurement_names,
             stack=stack_names,
             channel=channel_names_info,
@@ -73,6 +73,7 @@ class InteractiveHeatplot(object):
     def _selector_basic_plot(self, site, roi_idx, img_idx, stat, stack, channel, transform, censor_min,
                      censor_max, keepRange, filter_hq, ax):
         q = (self.session.query(db.images.image_id)
+                .join(db.valid_images)
                 .join(db.acquisitions)
                 .filter(db.acquisitions.site_id == site))
         if roi_idx > 0:
@@ -87,7 +88,8 @@ class InteractiveHeatplot(object):
         if img_idx == 0:
             imnr = [r for r in q.distinct()]
         else:
-            imnr = [q.order_by(db.images.image_id).offset(img_idx-1).first()]
+            imnr = [q.order_by(db.images.image_id).offset(img_idx-1).first()[0]]
+            print(imnr)
 
         if imnr[0] is None:
             return

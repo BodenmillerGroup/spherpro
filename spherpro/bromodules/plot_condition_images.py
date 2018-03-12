@@ -148,11 +148,12 @@ class PlotConditionImages(plot_base.BasePlot):
 
     def get_im_data(self, im_num, channelname):
 
-        fil_hq = self.objectfilterlib.get_combined_filterstatement([('is-sphere', True), ('is-ambiguous', False)])
+        #fil_hq = self.objectfilterlib.get_combined_filterstatement([('is-sphere', True), ('is-ambiguous', False)])
 
-        q = (self.data.get_measurement_query().filter(fil_hq,
+        q = (self.data.get_measurement_query().filter(
                                 db.stacks.stack_name == 'FullStackFiltered',
                                 db.measurements.measurement_name == 'MeanIntensity',
+                                db.objects.object_type == 'cell',
                                 db.images.image_id == im_num,
                                 db.ref_planes.channel_name == channelname))
 
@@ -172,16 +173,14 @@ class PlotConditionImages(plot_base.BasePlot):
 
     def get_cond_id_im_id(self, condition_name):
 
-        sq =(self.session.query(db.images.image_id)
-        .filter(sa.and_(db.images.bc_highest_count > 10,db.images.bc_highest_count/(db.images.bc_second_count+1) > 2 ))).subquery()
-        fil_db = db.images.image_id == sq.c.image_id
 
         p = (self.session.query(db.objects.image_id,
                                      db.conditions.condition_id,
                                     )
                          .join(db.images)
+                         .join(db.valid_images)
                          .join(db.conditions)
-                         .filter(fil_db,
+                         .filter(
                                  db.conditions.condition_name == condition_name)
                          )
 
