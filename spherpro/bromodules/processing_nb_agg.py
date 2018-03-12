@@ -66,7 +66,8 @@ class AggregateNeightbours(object):
                                       db.object_relations.object_id_child)
            .join(db.object_relation_types)
            .filter(db.object_relation_types.object_relationtype_name == relationtype_name)
-                   )
+        .filter(db.object_relations.object_id_child == db.valid_objects.object_id)
+        .filter(db.object_relations.object_id_parent == db.valid_objects.object_id))
         if obj_type is not None:
             nbquery = (nbquery
                        .join(db.objects,
@@ -87,7 +88,8 @@ class AggregateNeightbours(object):
               .join(db.planes)
               .join(db.stacks)
              .join(db.objects)
-              .join(db.images))
+              .join(db.images)
+             .join(db.valid_objects))
         if object_type is not None:
             q = q.filter(db.objects.object_type == object_type)
         if measurement_name is not None:
