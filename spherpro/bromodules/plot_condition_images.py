@@ -74,6 +74,10 @@ class PlotConditionImages(plot_base.BasePlot):
         y_shape = max(shape, key=lambda x:x[1])[1]
 
         fig, ax = plt.subplots(nrows, ncols,  figsize= ( 2*ncols+2,2*nrows+2), squeeze=True)
+        if nrows == 1:
+            ax = np.array([ax])
+        if ncols == 1:
+            ax = np.array([[a] for a in ax])
 
         for i, axrow in enumerate(ax):
             cond, images = cond_list[i]
