@@ -18,7 +18,7 @@ class FilterMembership(filter_base.BaseFilter):
         super().__init__(bro)
         self.filter_custom = custfilter.ObjectFilterLib(bro)
 
-    def add_issphere(self, minfrac=0.01, name=None, drop=True):
+    def add_issphere(self, minfrac=0.6, name=None, drop=True):
         if name is None:
             name = 'is-sphere'
         col_issphere = 'is-sphere'
@@ -50,7 +50,7 @@ class FilterMembership(filter_base.BaseFilter):
                                             index=db.objects.object_id.key)
         dat_filter =  pd.DataFrame.from_dict({outcol_issphere: (
             (dat_filter[col_issphere]+non_zero_offset)/(
-                dat_filter[col_isother]+non_zero_offset) > minfrac).map(int)},
+                dat_filter[col_isother]+non_zero_offset+dat_filter[col_issphere]+non_zero_offset) > minfrac).map(int)},
             orient='columns')
         dat_filter.columns.names = [db.object_filter_names.object_filter_name.key]
         dat_filter = dat_filter.stack()
