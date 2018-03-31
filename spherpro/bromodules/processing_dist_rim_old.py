@@ -29,7 +29,9 @@ class CalculateDistRim(object):
         and needs to be FIXED! to be added to the measurements!
         """
         dist_sphere = self._get_dists()
-        dist_sphere[db.object_measurements.value.key] = dist_sphere.groupby(db.images.image_id.key)[db.object_measurements.value.key].apply(lambda x:self._calc_dist_rim(x, max(x), ass_diam))
+        dist_sphere[db.object_measurements.value.key] = (dist_sphere
+                                                         .groupby(db.images.image_id.key)[db.object_measurements.value.key]
+                                                         .apply(lambda x:self._calc_dist_rim(x, max(x), ass_diam)))
 
         self._write_tables(dist_sphere)
 
