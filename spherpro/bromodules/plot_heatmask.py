@@ -322,7 +322,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
-                     ax=None, title=None, colorbar=True):
+                     ax=None, title=None, colorbar=True, transform_fkt=None):
         """
         Retrieves images form the database and maps then on masks
         Args:
@@ -344,7 +344,7 @@ class PlotHeatmask(plot_base.BasePlot):
             transform = 'none'
 
         fil=filters
-        print('Start loading...')
+        #print('Start loading...')
         data = self.get_heatmask_data({db.objects.object_type.key: 'cell',
                                                 db.ref_planes.channel_name.key: channel,
                                                 db.stacks.stack_name.key: stack,
@@ -352,10 +352,12 @@ class PlotHeatmask(plot_base.BasePlot):
                                                 image_numbers=img_ids,
                                                 filters=fil
                                                )
-        print(data.shape)
-        print('Finished loading!')
+        #print(data.shape)
+        #print('Finished loading!')
         col_val = db.object_measurements.value.key
-        data[col_val] = transf_dict[transform](data[col_val])
+        if transform_fkt is None:
+            transform_fkt = transf_dict[transform]
+        data[col_val] = transform_fkt(data[col_val])
         img = self.assemble_heatmap_image(data)
         crange = ( np.percentile(data[col_val],censor_min*100),
                   np.percentile(data[col_val],censor_max*100))
