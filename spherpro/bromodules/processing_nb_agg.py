@@ -62,12 +62,14 @@ class AggregateNeightbours(object):
 
 
     def get_nb_dat(self, relationtype_name, obj_type=None, fil_query=None):
+        c = sa.alias(db.valid_objects)
+        p = sa.alias(db.valid_objects)
         nbquery = (self.session.query(db.object_relations.object_id_parent,
                                       db.object_relations.object_id_child)
            .join(db.object_relation_types)
            .filter(db.object_relation_types.object_relationtype_name == relationtype_name)
-        .filter(db.object_relations.object_id_child == db.valid_objects.object_id)
-        .filter(db.object_relations.object_id_parent == db.valid_objects.object_id))
+        .filter(db.object_relations.object_id_child == c.c.object_id)
+        .filter(db.object_relations.object_id_parent == p.c.object_id))
         if obj_type is not None:
             nbquery = (nbquery
                        .join(db.objects,
