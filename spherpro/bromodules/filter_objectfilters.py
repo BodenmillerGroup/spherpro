@@ -53,9 +53,8 @@ class ObjectFilterLib(filter_base.BaseFilter):
         """
         Writes a dataframe containing Filterdata to the DB.
         Args:
-            filterdata: DataFrame containing the filterdata. needs to be in the
-                        format returned by _get_valueless_table, just with an
-                        added value table.
+            filterdata: DataFrame containing the filterdata. Needs to contain a column filter_value
+                and object_id
             filtername: String stating the Filtername
         """
         if drop is None:
@@ -65,6 +64,7 @@ class ObjectFilterLib(filter_base.BaseFilter):
         filterdata.loc[:,db.object_filter_names.object_filter_id.key] = [self.add_filtername(filtername)]
 
         filterdata = filterdata.dropna()
+        filterdata[db.object_filters.filter_value.key] = filterdata[db.object_filters.filter_value.key].astype(int)
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)
 
     def get_combined_filterquery(self, object_filters):
