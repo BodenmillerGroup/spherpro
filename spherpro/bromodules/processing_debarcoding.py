@@ -15,6 +15,7 @@ NAME_BARCODE = "BCString"
 NAME_WELLCOLUMN = "CondID"
 NAME_INVALID = "Invalid"
 KEY_SECOND =  db.images.bc_second_count.key
+DEFAULT_MEASURENAME = 'MeanIntensity'
 
 class Debarcode(object):
     """docstring for Debarcode."""
@@ -23,7 +24,8 @@ class Debarcode(object):
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
-    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None):
+    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None,
+                  measurement_name=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -31,7 +33,8 @@ class Debarcode(object):
         # get information from conditions and build the barcode key
         cond, key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack)
+        cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack,
+                                   measurement_name=measurement_name)
         # threshold them
         cells = self._treshold_data(cells, bc_treshs)
         # debarcode them
@@ -41,13 +44,15 @@ class Debarcode(object):
         # update them to the Database
         self._write_bc(bc_dic, dist)
 
-    def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None):
+    def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None,
+                        measurement_name=None):
         """
         Plot the histograms of the raw data
         """
         cond, key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack)
+        bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=0,
+                                   stack=stack, measurement_name=measurement_name)
         bcvals = bcdat.stack()
         bcvals.name ='value'
         bcvals = bcvals.reset_index('channel_name')
@@ -148,7 +153,9 @@ class Debarcode(object):
 
 
 
-    def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None):
+    def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
+        if measurement_name is None:
+            measurement_name = 'MeanIntensity'
         if stack is None:
             stack = 'FullStack'
         channels = tuple(key.columns.tolist())
@@ -167,7 +174,7 @@ class Debarcode(object):
                                  channel_names=[channels],
                                  object_types=['cell'],
                                  stack_names=[stack],
-                                 measurement_names=['MeanIntensity'],
+                                 measurement_names=[measurement_name],
                                  measurement_types=['Intensity'],
                              ))
                          .filter(bcfilt)
