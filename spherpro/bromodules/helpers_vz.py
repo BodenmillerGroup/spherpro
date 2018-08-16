@@ -35,9 +35,10 @@ class HelperVZ(pltbase.BasePlot):
         dat_pannelcsv = self.bro.data.pannel.drop_duplicates(subset='metal')
         return dat_pannelcsv
 
-    def get_measuremeta(self, dat_pannelcsv, measurement_names=None):
+    def get_measuremeta(self, dat_pannelcsv, measurement_names=None, additional_measfilt=None):
         if measurement_names is None:
             measurement_names = ['MeanIntensityComp', 'NbMeanMeanIntensityComp']
+
         fil_measurements = sa.or_(
             sa.and_(db.stacks.stack_name == 'FullStackFiltered',
                 db.measurements.measurement_name.in_(measurement_names)),
@@ -45,7 +46,8 @@ class HelperVZ(pltbase.BasePlot):
                 db.measurements.measurement_name == 'dist-rim',
                 db.ref_planes.channel_name == 'object')
         )
-
+        if additional_measfilt is not None:
+            fil_measurements = sa.or_(fil_measurements,additional_measfilt)
         q = (self.bro.session.query(db.measurements, db.ref_planes.channel_name, db.stacks.stack_name,
                         db.pannel)
             .join(db.planes)
@@ -75,7 +77,7 @@ class HelperVZ(pltbase.BasePlot):
         )
         dat_imgmeta = self.bro.doquery(q)
         dat_imgmeta = dat_imgmeta.set_index(COL_IMID, drop=False)
-        dat_imgmeta[COL_SITE_LEVEL]= dat_imgmeta[COL_SITE]
+        dat_imgmeta[COL_SITE_LEVEL]= dat_imgmeta[COL_SITE].map(str)
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
@@ -119,11 +121,21 @@ class HelperVZ(pltbase.BasePlot):
         cg.fig.subplots_adjust(right=0.7)
         return cg
 
+    def transf_intensities(self, dat, dat_measmeta):
+        COL_VALUE = db.object_measurements.value.key
+        ids = dat_measmeta.loc[dat_measmeta[COL_MEASTYPE] == 'Intensity', COL_MEASID]
+        fil = dat[COL_MEASID].isin(ids)
+        dat.loc[fil, COL_VALUE] = cur_transf(
+            dat.loc[fil, COL_VALUE].values)
+        return dat
+
     def plt_clustmatp_pearson(self, dat_meas_raw, dat_measmeta):
-        dat_meas = dat_meas_raw.pivot_table(values=COL_VALUES,
+        dat_meas = dat_meas_raw.copy()
+        dat_meas = self.transf_intensities(dat_meas, dat_measmeta)
+        dat_meas = dat_meas.pivot_table(values=COL_VALUES,
                             index=COL_OBJID,
                             columns=COL_MEASID)
-        dat_meas = dat_meas.dropna().apply(cur_transf)
+        dat_meas = dat_meas.dropna()
         corrdat = np.corrcoef(dat_meas.T)
         colnames = dat_measmeta.loc[dat_meas.columns.values,:].apply(
             lambda x: ' - '.join([x[COL_ISNB], x[COL_GOODNAME], x[COL_CHANNELN]]), axis=1)

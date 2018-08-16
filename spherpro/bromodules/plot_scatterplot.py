@@ -105,7 +105,7 @@ class PlotScatter(plot_base.BasePlot):
         query_joins = self._get_joined_filtered_queries(query,
                                                         filters_measurement)
         if filters is not None:
-            # TODO: This needs to be fixed!
+           # TODO: This needs to be fixed!
            query = query.filter(filters)
         dat = pd.read_sql(query_joins.statement, self.data.db_conn)
         return dat

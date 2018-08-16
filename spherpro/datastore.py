@@ -114,6 +114,8 @@ class DataStore(object):
         self._read_stack_meta()
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            self._bulkinsert = self._bulk_pg_insert
 
     def drop_all(self):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
@@ -567,6 +569,9 @@ class DataStore(object):
                   (conf.GROUP_ROIID, db.acquisitions.acquisition_mcd_roiid.key)]
                   }
         roi_meta = roi_meta.rename(columns=colmap)
+        # set default values
+        roi_meta = roi_meta.reindex(columns=list(colmap.values())+[conf.GROUP_BASENAME],
+                                    fill_value=np.NAN)
         roi_meta[db.acquisitions.acquisition_id.key] =\
             self._query_new_ids(db.acquisitions.acquisition_id,
                                 roi_meta.shape[0])
@@ -600,6 +605,9 @@ class DataStore(object):
             (conf.GROUP_SLIDENUMBER, db.slides.slide_number.key)]
                   }
         slideac_meta = slideac_meta.rename(columns=colmap)
+        # set default values
+        slideac_meta = slideac_meta.reindex(columns=list(colmap.values()),
+                                    fill_value=np.NAN)
         slideac_meta[db.slideacs.slideac_name.key] = slideacs
 
         slideac_meta[db.slideacs.slideac_id.key] =\

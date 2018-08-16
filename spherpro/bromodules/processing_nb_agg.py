@@ -32,7 +32,8 @@ class AggregateNeightbours(object):
                         nb_relationtype=None,
         object_type=None, measurement_name=None,
         stack_name=None, plane_id=None, measurement_type=None,
-        filter_query=None, filter_statement=None, image_id=None):
+        filter_query=None, filter_statement=None, image_id=None,
+                           drop_all_old=False):
         if nb_relationtype is None:
             nb_relationtype = DEFAULT_RELATION
         nb_dic_dat = self.get_nb_dat(nb_relationtype, filter_query)
@@ -50,7 +51,7 @@ class AggregateNeightbours(object):
         old_ids = [int(i) for i in dat[MEAS_ID].unique()]
         id_dict = self.update_measurement_ids(old_ids, nb_meas_prefix)
         nb_dat[MEAS_ID] = nb_dat[MEAS_ID].replace(id_dict)
-        self.mm.add_object_measurements(nb_dat)
+        self.mm.add_object_measurements(nb_dat, drop_all_old=True)
 
     def agg_data(self, data, nb_dict, fkt):
         tdat = data.pivot(index=OBJ_ID, columns=MEAS_ID, values=VALUE)
