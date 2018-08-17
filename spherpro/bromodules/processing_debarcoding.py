@@ -15,6 +15,7 @@ NAME_BARCODE = "BCString"
 NAME_WELLCOLUMN = "CondID"
 NAME_INVALID = "Invalid"
 KEY_SECOND =  db.images.bc_second_count.key
+KEY_HIGHEST =  db.images.bc_highest_count.key
 DEFAULT_MEASURENAME = 'MeanIntensity'
 
 class Debarcode(object):
@@ -66,11 +67,21 @@ class Debarcode(object):
         """
         Writes the barcodes to the database
         """
-        bc_dict.loc[:, KEY_SECOND]  = bc_dict[KEY_SECOND].fillna(0)
         session = self.data.main_session
+        all_imgs = [i[0] for i in session.query(db.images.image_id).all()]
+        bc_dict = bc_dict.reindex(all_imgs, axis=0, fill_value=0)
+        bc_dict.loc[:, KEY_SECOND]  = bc_dict[KEY_SECOND].fillna(0)
+        bc_dict.loc[:, KEY_HIGHEST]  = bc_dict[KEY_HIGHEST].fillna(0)
+
         for image in bc_dict.iterrows():
             img = dict(image[1])
-            dic = {str(i): str(img[i]) if str(img[i]) != 'NAN' else None for i in img}
+            dic = {str(i): int(img[i]) for i in img}
+
+            if dic[db.images.condition_id.key] == 0:
+                # FIXTHIS: coding the invalid condition_id as 0 is dangerous!
+                # However I do not know any better way to do this at the moment...
+                dic[db.images.condition_id.key] = None
+
             dic[db.images.bc_depth.key] = dist
             session.query(db.images).\
                 filter(db.images.image_id == int(image[0])).\
