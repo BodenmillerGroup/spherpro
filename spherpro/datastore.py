@@ -941,7 +941,7 @@ class DataStore(object):
                              self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
                     right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
                               self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
-                    how='left'
+                    how='inner'
                 )
                 data = data.dropna()
                 tp_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME]
@@ -1199,8 +1199,15 @@ class DataStore(object):
         else:
             backup =  pd.read_sql(query.statement, self.db_conn)
             current = backup.copy()
-            zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
-            storable = data.merge(zw)
+            if current.shape[0] == 0:
+                # if nothing already in the database (=current empty), store everything
+                storable = data
+                # unstored will be an empty dataframe
+                unstored = current
+            else:
+                zw = data[key_cols].append(current[key_cols]).drop_duplicates(keep=False)
+                storable = data.merge(zw)
+                unstored = data.merge(zw, how='outer')
 
             lm, ls = len(data), len(storable)
             if lm != ls:
@@ -1218,7 +1225,6 @@ class DataStore(object):
             else:
                 self._bulkinsert(storable, table)
 
-            unstored = data.merge(zw, how='outer')
 
             return None, unstored
 

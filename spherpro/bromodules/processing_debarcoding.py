@@ -46,7 +46,7 @@ class Debarcode(object):
         self._write_bc(bc_dic, dist)
 
     def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None,
-                        measurement_name=None):
+                        measurement_name=None, transform='value'):
         """
         Plot the histograms of the raw data
         """
@@ -55,10 +55,10 @@ class Debarcode(object):
         bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=0,
                                    stack=stack, measurement_name=measurement_name)
         bcvals = bcdat.stack()
-        bcvals.name ='value'
+        bcvals.name = 'value'
         bcvals = bcvals.reset_index('channel_name')
         bcvals['site'] = bcvals.index.get_level_values('site_id').map(str)
-        p = (gg.ggplot(bcvals,gg.aes(x='np.log10(value+0.01)', color='site'))+
+        p = (gg.ggplot(bcvals, gg.aes(x=transform, color='site'))+
           gg.facet_wrap('channel_name', scales='free')+
           gg.geom_density())
         return(p)
@@ -147,7 +147,7 @@ class Debarcode(object):
             else:
                 temp[db.images.bc_second_count.key]=0
         except IndexError:
-            temp[db.conditions.condition_id.key]='NAN'
+            temp[db.conditions.condition_id.key]='0'
             temp[db.images.bc_valid.key]=0
             temp[db.images.bc_highest_count.key]=0
             temp[db.images.bc_second_count.key]=0

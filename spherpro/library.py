@@ -164,7 +164,7 @@ def map_group_re(x, re_str):
 
     """
     qre = re.compile(re_str)
-    m_list = map(lambda x: pd.DataFrame.from_dict(
-            [m.groupdict() for m in qre.finditer(x)]), x)
+    m_list = [pd.DataFrame.from_dict(
+            [m.groupdict() for m in qre.finditer(s)]) for s in x]
     return pd.concat(m_list, ignore_index=True)
 

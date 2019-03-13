@@ -1,5 +1,6 @@
 import spherpro.bromodules.plot_base as pltbase
 import spherpro.db as db
+import spherpro.configuration as conf
 import pandas as pd
 import numpy as np
 import plotnine as gg
@@ -35,12 +36,15 @@ class HelperVZ(pltbase.BasePlot):
         dat_pannelcsv = self.bro.data.pannel.drop_duplicates(subset='metal')
         return dat_pannelcsv
 
-    def get_measuremeta(self, dat_pannelcsv, measurement_names=None, additional_measfilt=None):
+    def get_measuremeta(self, dat_pannelcsv, measurement_names=None, additional_measfilt=None,
+                        stack_names = None):
         if measurement_names is None:
             measurement_names = ['MeanIntensityComp', 'NbMeanMeanIntensityComp']
+        if stack_names is None:
+            stack_names = ['FullStackFiltered']
 
         fil_measurements = sa.or_(
-            sa.and_(db.stacks.stack_name == 'FullStackFiltered',
+            sa.and_(db.stacks.stack_name.in_(stack_names),
                 db.measurements.measurement_name.in_(measurement_names)),
             sa.and_(db.stacks.stack_name == 'ObjectStack',
                 db.measurements.measurement_name == 'dist-rim',
@@ -81,7 +85,7 @@ class HelperVZ(pltbase.BasePlot):
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
-                 meas_ids=None):
+                 meas_ids=None, object_type=None):
         q = (self.bro.session.query(db.object_measurements, db.images.image_id)
             .join(db.measurements)
             .join(db.objects)
@@ -102,6 +106,8 @@ class HelperVZ(pltbase.BasePlot):
             q = q.filter(fil_good_meas)
         if meas_ids is not None:
             q = q.filter(db.measurements.measurement_id.in_(meas_ids))
+        if object_type is not None:
+            q = q.filter(db.objects.object_type==object_type)
 
         return self.bro.doquery(q)
 
