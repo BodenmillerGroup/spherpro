@@ -13,7 +13,10 @@ import tifffile as tif
 import spherpro as spp
 import spherpro.library as lib
 import spherpro.db as db
+import spherpro.bro as bro
 import spherpro.configuration as conf
+import spherpro.bromodules.processing
+
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
 import sqlalchemy as sa
@@ -93,7 +96,7 @@ class DataStore(object):
         # Read the data based on the config
         self._read_experiment_layout()
         self._read_barcode_key()
-        self._read_measurement_data()
+        #self._read_measurement_data()
         self._read_image_data()
         self._read_relation_data()
         self._read_stack_meta()
@@ -116,6 +119,7 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self._bulkinsert = self._bulk_pg_insert
+        self.bro = bro.Bro(self)
 
     def drop_all(self):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
@@ -185,20 +189,22 @@ class DataStore(object):
         reads the measurement data as stated in the config
         and saves it in the datastore
         """
+        raise NotImplementedError
+
+    def _read_objtype_measurements(self, object_type):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         sep = conf_meas[conf.SEP]
         cpdir = self.conf[conf.CP_DIR]
         filetype = conf_meas[conf.FILETYPE]
-        objids = conf_meas[conf.OBJECTS]
-        cellmeas ={objid: pd.read_csv(os.path.join(cpdir, objid+filetype),
-                                      sep=sep) for objid in objids}
-        cellmeas = pd.concat(cellmeas, names=[db.objects.object_type.key, 'idx'] )
-        cellmeas = cellmeas.reset_index(level=db.objects.object_type.key, drop=False)
-        # do renaming
+        dat_objmeas = pd.read_csv(os.path.join(cpdir, object_type+filetype),
+                                      sep=sep)
+
         rename_dict = {
             self.conf[conf.OBJECTNUMBER]: db.objects.object_number.key,
             self.conf[conf.IMAGENUMBER]: db.images.image_number.key}
-        self._measurement_csv = cellmeas.rename(columns=rename_dict)
+        dat_objmeas.rename(columns=rename_dict, inplace=True)
+        dat_objmeas[db.objects.object_type.key] = object_type
+        return dat_objmeas
 
     def _read_image_data(self):
         cpdir = self.conf[conf.CP_DIR]
@@ -254,9 +260,10 @@ class DataStore(object):
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
+
+        self.bro = bro.Bro(self)
         self._write_imagemeta_tables()
         self._write_masks_table()
-        self._write_objects_table()
         self._write_stack_tables()
         self._write_refplanes_table()
         self._write_planes_table()
@@ -701,15 +708,7 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        measurement_meta = self._generate_measurement_meta()
-
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.measurement_names.measurement_name.key]).drop_duplicates(), db.measurement_names)
-        self._bulkinsert(pd.DataFrame(measurement_meta[db.measurement_types.measurement_type.key]).drop_duplicates(), db.measurement_types)
-        self._bulkinsert(
-            measurement_meta,
-            db.measurements)
-        chunck = 30000
-        measurements = self._generate_measurements(minimal, measurement_meta, chunck=chunck)
+        measurements = self._generate_measurements(minimal)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
@@ -738,11 +737,11 @@ class DataStore(object):
 
         del self._measurement_csv
 
-    def _generate_measurement_meta(self):
-        measurements = self._measurement_csv
-        measurements = measurements.drop([db.objects.object_type.key,
-                                          db.images.image_number.key,
-                                          db.objects.object_number.key], axis=1)
+    def _register_measurement_meta(self, dat_meas):
+        measurements = dat_meas.loc[:, ~dat_meas.columns.isin(
+            [ db.objects.object_type.key,
+              db.images.image_number.key,
+              db.objects.object_number.key])]
         meta = pd.Series(measurements.columns.unique()).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
@@ -757,80 +756,54 @@ class DataStore(object):
             .join(db.planes).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
-        meta[db.measurements.measurement_id.key] = \
-            self._query_new_ids(db.measurements.measurement_id,
-                                (meta.shape[0]))
+        meta = self.bro.processing.measurement_maker.register_measurements(meta)
         return meta
 
-    def _generate_measurements(self, minimal, meta, chunck=None):
-        measurements = self._measurement_csv
+    def _register_objects(self, dat_meas):
+        """
+        registers the objects
+        """
+        obj_metavars = [db.objects.object_number.key,
+                db.objects.object_type.key,
+                db.images.image_number.key]
+        dat_objmeta = dat_meas.loc[:, obj_metavars]
+        dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta)
+        return dat_objmeta
 
-        if minimal:
-            stackrel = self._stack_relation_csv
-            stackconf = self.conf[conf.STACK_RELATIONS]
-            stackrel = stackrel.loc[stackrel[stackconf[conf.REF]]=='0']
-            refstacks = list(stackrel[stackconf[conf.STACK]])
-            meta_filt = meta.loc[(meta[db.stacks.stack_name.key].isin(refstacks)) & (meta[db.measurement_types.measurement_type.key]!="Location")]
-            filtered_names = meta_filt['variable'].unique()
-            filtered_names = filtered_names[filtered_names!='']
-            meta = meta_filt
+    def _generate_measurements(self, minimal):
+        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
+        for obj_type in conf_meas[conf.OBJECTS]:
+            dat_meas = self._read_objtype_measurements(obj_type)
 
-            measurements = measurements.set_index([db.images.image_number.key,
-                     db.objects.object_number.key, db.objects.object_type.key])
+            # register the measurements
+            measurement_meta = self._register_measurement_meta(dat_meas)
 
-            measurements = measurements[filtered_names]
-            measurements = measurements.reset_index(drop=False)
+            # register the objects
+            object_meta = self._register_objects(dat_meas)
 
-        img_dict = {n: i for n, i in
-                    self.main_session.query(db.images.image_number,
-                                            db.images.image_id)}
-        if chunck is None:
-            chunck = measurements.shape[0]
-        all_measurements = measurements
-        for pos in range(0, measurements.shape[0], chunck):
-            measurements = all_measurements.iloc[pos:pos+chunck,:].copy()
-            measurements.loc[:,db.images.image_id.key] = measurements[db.images.image_number.key].replace(img_dict)
-            # Query the objects table to join the measurements with it and add the numeric,
-            # per object unique index 'ObjectUniID'
-            tab_obj = pd.read_sql(
-                self.main_session.query(db.objects)
-                .filter(db.objects.image_id.in_(measurements[db.images.image_id.key].unique().tolist()))
-                .statement, self.db_conn)
+            # get the measurement data
+            variables = measurement_meta['variable']
+            dat_measvals = dat_meas.loc[:, variables]
+            value_col = dat_measvals.values.flatten(order='C')
+            meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
+            meas_id = np.tile(meas_id, dat_meas.shape[0])
 
-            measurements = measurements.merge(tab_obj)
-            measurements = measurements.drop([ db.images.image_id.key, db.images.image_number.key, db.objects.object_number.key,
-                            'Number_Object_Number', db.objects.object_type.key], axis=1, errors='ignore')
-            measurements = pd.melt(measurements,
-                                id_vars=[db.objects.object_id.key],
-                                var_name='variable', value_name=db.object_measurements.value.key)
+            obj_id = object_meta[db.object_measurements.object_id.key].values
+            obj_id = np.repeat(obj_id, len(variables))
 
-            # Add the MeasurementID by merging the table
-            # -> currently not needed...
-            #tab_meas = pd.read_sql(
-            #    self.main_session.query(db.measurements.measurement_id,
-            #                           db.measurements.measurement_name,
-            #                           db.measurements.measurement_type,
-            #                           db.planes.ref_plane_id,
-            #                           db.stacks.stack_name)
-            #    .join(db.planes)
-            #    .join(db.stacks)
-            #    .filter(db.stacks.stack_name.in_(meta[db.stacks.stack_name.key].unique()))
-            #    .statement, self.db_conn)
-            #meta = meta.merge(tab_meas)
-            meta = meta.loc[:, ['variable', db.measurements.measurement_id.key]]
-            measurements = measurements.merge(meta, how='inner', on='variable')
+            measurements = pd.DataFrame({
+                db.object_measurements.object_id.key: obj_id,
+                db.object_measurements.measurement_id.key: meas_id,
+                db.object_measurements.value.key: value_col})
+
             measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
             measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
             measurements.dropna(inplace=True)
-            measurements = measurements.loc[:,[db.objects.object_id.key,
-                                                    db.measurements.measurement_id.key,
-                                            db.object_measurements.value.key]]
-
             yield measurements
 
     def _generate_object_relation_types(self):
         dat_relations = (self._relation_csv)
-        dat_types =  pd.DataFrame(dat_relations.loc[:,
+        dat_types = pd.DataFrame(dat_relations.loc[:,
                 db.object_relation_types.object_relationtype_name.key]).drop_duplicates()
         dat_types[db.object_relation_types.object_relationtype_id.key] = \
             self._query_new_ids(db.object_relation_types.object_relationtype_id, (dat_types.shape[0]))

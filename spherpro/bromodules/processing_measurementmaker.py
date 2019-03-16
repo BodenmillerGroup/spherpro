@@ -49,7 +49,7 @@ class MeasurementMaker(base.BasePlot):
         """
         COL_OBJ_ID = db.objects.object_id.key
         img_dict = {n: i for n, i in
-                    self.main_session.query(db.images.image_number,
+                    self.session.query(db.images.image_number,
                                             db.images.image_id)}
         object_meta[db.images.image_id.key] = object_meta[db.images.image_number.key].replace(img_dict)
         object_meta[COL_OBJ_ID] = [

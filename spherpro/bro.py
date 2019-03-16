@@ -28,7 +28,7 @@ def get_bro(fn_config):
     store = datastore.DataStore()
     store.read_config(fn_config)
     store.resume_data()
-    bro = Bro(store)
+    bro = store.bro
     return bro
 
 
