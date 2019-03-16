@@ -16,6 +16,7 @@ MEAS_NAME = db.measurements.measurement_name.key
 MEAS_TYPE = db.measurements.measurement_type.key
 MEAS_PLANE = db.measurements.plane_id.key
 
+
 class MeasurementMaker(base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
@@ -32,6 +33,40 @@ class MeasurementMaker(base.BasePlot):
         self.session.merge(x)
         self.session.commit()
 
+    def register_objects(self, object_meta):
+        """
+        Registers an object metadata table
+        Needs to have the columns:
+            object_type
+            image_number
+            object_number
+        Registers them and returns a table
+            object_type
+            image_number
+            object_number
+            object_id
+            image_id
+        """
+        COL_OBJ_ID = db.objects.object_id.key
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        object_meta[db.images.image_id.key] = object_meta[db.images.image_number.key].replace(img_dict)
+        object_meta[COL_OBJ_ID] = [
+            l[0] if l is not None else None
+            for l in [self.session.query(COL_OBJ_ID)
+                .filter(db.objects.object_number == row[db.objects.object_number.key],
+                db.objects.image_id == row[db.objects.image_id.key],
+                db.objects.object_type == row[db.objects.object_type.key]).one_or_none()
+                for idx, row in object_meta.iterrows()]]
+        fil = object_meta[COL_OBJ_ID].isnull()
+        if sum(fil) > 0:
+            object_meta.loc[fil, COL_OBJ_ID] = self.bro.data._query_new_ids(
+                db.objects.object_id, sum(fil))
+            self.bro.data._bulk_pg_insert(object_meta.loc[fil, :],
+                                          db.objects)
+        return object_meta
+
     def register_measurements(self, measure_meta):
         """
         Retisters a table with measurments. The ID column
@@ -46,7 +81,7 @@ class MeasurementMaker(base.BasePlot):
         measure_meta[MEAS_ID] = [
             l[0] if l is not None else None
             for l in [self.session.query(db.measurements.measurement_id)
-            .filter(db.measurements.measurement_name == row[MEAS_NAME],
+                .filter(db.measurements.measurement_name == row[MEAS_NAME],
                 db.measurements.measurement_type == row[MEAS_TYPE],
                 db.measurements.plane_id == row[MEAS_PLANE]).one_or_none()
                 for idx, row in measure_meta.iterrows()]]
