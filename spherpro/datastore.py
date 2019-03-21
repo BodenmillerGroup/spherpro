@@ -191,20 +191,20 @@ class DataStore(object):
         """
         raise NotImplementedError
 
-    def _read_objtype_measurements(self, object_type):
+    def _read_objtype_measurements(self, object_type, chunksize):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         sep = conf_meas[conf.SEP]
         cpdir = self.conf[conf.CP_DIR]
         filetype = conf_meas[conf.FILETYPE]
-        dat_objmeas = pd.read_csv(os.path.join(cpdir, object_type+filetype),
-                                      sep=sep)
-
-        rename_dict = {
-            self.conf[conf.OBJECTNUMBER]: db.objects.object_number.key,
-            self.conf[conf.IMAGENUMBER]: db.images.image_number.key}
-        dat_objmeas.rename(columns=rename_dict, inplace=True)
-        dat_objmeas[db.objects.object_type.key] = object_type
-        return dat_objmeas
+        reader = pd.read_csv(os.path.join(cpdir, object_type+filetype),
+                            sep=sep, chunksize=chunksize)
+        for dat_objmeas in reader:
+            rename_dict = {
+                self.conf[conf.OBJECTNUMBER]: db.objects.object_number.key,
+                self.conf[conf.IMAGENUMBER]: db.images.image_number.key}
+            dat_objmeas.rename(columns=rename_dict, inplace=True)
+            dat_objmeas[db.objects.object_type.key] = object_type
+            yield dat_objmeas
 
     def _read_image_data(self):
         cpdir = self.conf[conf.CP_DIR]
@@ -708,7 +708,7 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        measurements = self._generate_measurements(minimal)
+        measurements = self._generate_measurements(minimal, chuncksize=3000)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
@@ -734,8 +734,6 @@ class DataStore(object):
                                        REFERENCES public.objects (object_id) MATCH SIMPLE
                                        ON UPDATE NO ACTION ON DELETE NO ACTION;''')
 
-
-        del self._measurement_csv
 
     def _register_measurement_meta(self, dat_meas):
         measurements = dat_meas.loc[:, ~dat_meas.columns.isin(
@@ -770,36 +768,35 @@ class DataStore(object):
         dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta)
         return dat_objmeta
 
-    def _generate_measurements(self, minimal):
+    def _generate_measurements(self, minimal, chuncksize=3000):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         for obj_type in conf_meas[conf.OBJECTS]:
-            dat_meas = self._read_objtype_measurements(obj_type)
+            for dat_meas in self._read_objtype_measurements(obj_type, chuncksize):
+                # register the measurements
+                measurement_meta = self._register_measurement_meta(dat_meas)
 
-            # register the measurements
-            measurement_meta = self._register_measurement_meta(dat_meas)
+                # register the objects
+                object_meta = self._register_objects(dat_meas)
 
-            # register the objects
-            object_meta = self._register_objects(dat_meas)
+                # get the measurement data
+                variables = measurement_meta['variable']
+                dat_measvals = dat_meas.loc[:, variables]
+                value_col = dat_measvals.values.flatten(order='C')
+                meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
+                meas_id = np.tile(meas_id, dat_meas.shape[0])
 
-            # get the measurement data
-            variables = measurement_meta['variable']
-            dat_measvals = dat_meas.loc[:, variables]
-            value_col = dat_measvals.values.flatten(order='C')
-            meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
-            meas_id = np.tile(meas_id, dat_meas.shape[0])
+                obj_id = object_meta[db.object_measurements.object_id.key].values
+                obj_id = np.repeat(obj_id, len(variables))
 
-            obj_id = object_meta[db.object_measurements.object_id.key].values
-            obj_id = np.repeat(obj_id, len(variables))
+                measurements = pd.DataFrame({
+                    db.object_measurements.object_id.key: obj_id,
+                    db.object_measurements.measurement_id.key: meas_id,
+                    db.object_measurements.value.key: value_col})
 
-            measurements = pd.DataFrame({
-                db.object_measurements.object_id.key: obj_id,
-                db.object_measurements.measurement_id.key: meas_id,
-                db.object_measurements.value.key: value_col})
-
-            measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
-            measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
-            measurements.dropna(inplace=True)
-            yield measurements
+                measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
+                measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
+                measurements.dropna(inplace=True)
+                yield measurements
 
     def _generate_object_relation_types(self):
         dat_relations = (self._relation_csv)
