@@ -11,19 +11,31 @@ import scipy.stats as stats
 
 import sqlalchemy as sa
 
-COL_CHANNELN = db.ref_planes.channel_name.key
-COL_MEASNAME = db.measurements.measurement_name.key
-COL_VALUES = db.object_measurements.value.key
-COL_MEASID = db.measurements.measurement_id.key
-COL_IMID = db.images.image_id.key
-COL_OBJID = db.objects.object_id.key
-COL_SITE  = db.sites.site_id.key
-COL_MEASTYPE = db.measurements.measurement_type.key
-COL_CONDID = db.conditions.condition_id.key
-COL_GOODNAME = 'goodname'
-COL_WORKING = 'working'
-COL_SITE_LEVEL = 'SiteLevel'
-COL_ISNB = 'isnb'
+class VariableBaseHelper:
+    COL_CHANNELN = db.ref_planes.channel_name.key
+    COL_MEASNAME = db.measurements.measurement_name.key
+    COL_VALUES = db.object_measurements.value.key
+    COL_MEASID = db.measurements.measurement_id.key
+    COL_IMID = db.images.image_id.key
+    COL_OBJID = db.objects.object_id.key
+    COL_SITE  = db.sites.site_id.key
+    COL_MEASTYPE = db.measurements.measurement_type.key
+    COL_CONDID = db.conditions.condition_id.key
+    COL_MEAS_ID = db.measurements.measurement_id.key
+    COL_VALUE = db.object_measurements.value.key
+    COL_FILTERVAL = db.object_filters.filter_value.key
+    COL_CONDITIONNAME = db.conditions.condition_name.key
+    COL_CONDITION_ID = db.conditions.condition_id.key
+    COL_CHANNELNAME = db.ref_planes.channel_name.key
+    COL_MEAS_NAME = db.measurement_names.measurement_name.key
+    COL_OBJ_ID = db.objects.object_id.key
+    COL_GOODNAME = 'goodname'
+    COL_WORKING = 'working'
+    COL_SITE_LEVEL = 'SiteLevel'
+    COL_ISNB = 'isnb'
+
+V = VariableBaseHelper
+
 
 def cur_transf(x):
     return np.log10(x+0.1)
@@ -63,13 +75,13 @@ class HelperVZ(pltbase.BasePlot):
         )
         dat_measmeta = self.bro.doquery(q)
 
-        dat_measmeta = dat_measmeta.merge(dat_pannelcsv.loc[:, [db.pannel.metal.key, COL_GOODNAME, COL_WORKING]]
+        dat_measmeta = dat_measmeta.merge(dat_pannelcsv.loc[:, [db.pannel.metal.key, V.COL_GOODNAME, V.COL_WORKING]]
                                                             , on=db.pannel.metal.key, how='left')
-        dat_measmeta[COL_WORKING] = dat_measmeta[COL_WORKING].fillna(1)
-        dat_measmeta[COL_ISNB] = dat_measmeta[COL_MEASNAME].map(lambda x: 'Nb' if x.startswith('Nb') else 'Int')
-        fil = dat_measmeta[COL_GOODNAME].isnull()
-        dat_measmeta.loc[fil, COL_GOODNAME] = dat_measmeta.loc[fil, COL_CHANNELN]
-        dat_measmeta = dat_measmeta.set_index(COL_MEASID, drop=False)
+        dat_measmeta[V.COL_WORKING] = dat_measmeta[V.COL_WORKING].fillna(1)
+        dat_measmeta[V.COL_ISNB] = dat_measmeta[V.COL_MEASNAME].map(lambda x: 'Nb' if x.startswith('Nb') else 'Int')
+        fil = dat_measmeta[V.COL_GOODNAME].isnull()
+        dat_measmeta.loc[fil, V.COL_GOODNAME] = dat_measmeta.loc[fil, V.COL_CHANNELN]
+        dat_measmeta = dat_measmeta.set_index(V.COL_MEASID, drop=False)
         return dat_measmeta
 
     def get_imgmeta(self):
@@ -80,8 +92,8 @@ class HelperVZ(pltbase.BasePlot):
             .join(db.valid_images)
         )
         dat_imgmeta = self.bro.doquery(q)
-        dat_imgmeta = dat_imgmeta.set_index(COL_IMID, drop=False)
-        dat_imgmeta[COL_SITE_LEVEL]= dat_imgmeta[COL_SITE].map(str)
+        dat_imgmeta = dat_imgmeta.set_index(V.COL_IMID, drop=False)
+        dat_imgmeta[V.COL_SITE_LEVEL]= dat_imgmeta[V.COL_SITE].map(str)
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
@@ -112,13 +124,13 @@ class HelperVZ(pltbase.BasePlot):
         return self.bro.doquery(q)
 
     def plt_clustmatp(self, dat_meas_raw, dat_measmeta):
-        dat_meas = dat_meas_raw.pivot_table(values=COL_VALUES,
-                            index=COL_OBJID,
-                            columns=COL_MEASID)
+        dat_meas = dat_meas_raw.pivot_table(values=V.COL_VALUES,
+                            index=V.COL_OBJID,
+                            columns=V.COL_MEASID)
 
         corrdat, pval = stats.spearmanr(dat_meas.dropna())
         colnames = dat_measmeta.loc[dat_meas.columns.values,:].apply(
-            lambda x: ' - '.join([x[COL_ISNB], x[COL_GOODNAME], x[COL_CHANNELN]]), axis=1)
+            lambda x: ' - '.join([x[V.COL_ISNB], x[V.COL_GOODNAME], x[V.COL_CHANNELN]]), axis=1)
 
         cg = sns.clustermap(pd.DataFrame(corrdat, index=colnames, columns=colnames))
         x = plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
@@ -128,23 +140,23 @@ class HelperVZ(pltbase.BasePlot):
         return cg
 
     def transf_intensities(self, dat, dat_measmeta):
-        COL_VALUE = db.object_measurements.value.key
-        ids = dat_measmeta.loc[dat_measmeta[COL_MEASTYPE] == 'Intensity', COL_MEASID]
-        fil = dat[COL_MEASID].isin(ids)
-        dat.loc[fil, COL_VALUE] = cur_transf(
-            dat.loc[fil, COL_VALUE].values)
+        V.COL_VALUE = db.object_measurements.value.key
+        ids = dat_measmeta.loc[dat_measmeta[V.COL_MEASTYPE] == 'Intensity', V.COL_MEASID]
+        fil = dat[V.COL_MEASID].isin(ids)
+        dat.loc[fil, V.COL_VALUE] = cur_transf(
+            dat.loc[fil, V.COL_VALUE].values)
         return dat
 
     def plt_clustmatp_pearson(self, dat_meas_raw, dat_measmeta):
         dat_meas = dat_meas_raw.copy()
         dat_meas = self.transf_intensities(dat_meas, dat_measmeta)
-        dat_meas = dat_meas.pivot_table(values=COL_VALUES,
-                            index=COL_OBJID,
-                            columns=COL_MEASID)
+        dat_meas = dat_meas.pivot_table(values=V.COL_VALUES,
+                            index=V.COL_OBJID,
+                            columns=V.COL_MEASID)
         dat_meas = dat_meas.dropna()
         corrdat = np.corrcoef(dat_meas.T)
         colnames = dat_measmeta.loc[dat_meas.columns.values,:].apply(
-            lambda x: ' - '.join([x[COL_ISNB], x[COL_GOODNAME], x[COL_CHANNELN]]), axis=1)
+            lambda x: ' - '.join([x[V.COL_ISNB], x[V.COL_GOODNAME], x[V.COL_CHANNELN]]), axis=1)
         cg = sns.clustermap(pd.DataFrame(corrdat, index=colnames, columns=colnames))
         x = plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
         x = plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
@@ -154,7 +166,7 @@ class HelperVZ(pltbase.BasePlot):
 
     def get_fil_good_meas(seklf, dat_measmeta):
         fil_good_meas = db.measurements.measurement_id.in_(
-                [int(i) for i in dat_measmeta.loc[dat_measmeta[COL_WORKING] == 1, COL_MEASID]])
+                [int(i) for i in dat_measmeta.loc[dat_measmeta[V.COL_WORKING] == 1, V.COL_MEASID]])
         return fil_good_meas
 
     def get_imgs_for_cond(self, condition_name):
