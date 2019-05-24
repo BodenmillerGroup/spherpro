@@ -31,7 +31,6 @@ class VariableBaseHelper:
     COL_OBJ_ID = db.objects.object_id.key
     COL_GOODNAME = 'goodname'
     COL_WORKING = 'working'
-    COL_SITE_LEVEL = 'SiteLevel'
     COL_ISNB = 'isnb'
 
 V = VariableBaseHelper
@@ -93,7 +92,6 @@ class HelperVZ(pltbase.BasePlot):
         )
         dat_imgmeta = self.bro.doquery(q)
         dat_imgmeta = dat_imgmeta.set_index(V.COL_IMID, drop=False)
-        dat_imgmeta[V.COL_SITE_LEVEL]= dat_imgmeta[V.COL_SITE].map(str)
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
@@ -175,3 +173,17 @@ class HelperVZ(pltbase.BasePlot):
         .join(db.valid_images)
         .filter(db.conditions.condition_name == condition_name))
         return [i[0] for i in q.all()]
+
+class Renamer(object):
+    """
+    A class to rename & unrename integer varaible names to make them compatible with the linear model
+    """
+    def __init__(self):
+        self.d = dict()
+    def rename(self, x):
+        rx='c'+str(x)
+        self.d.update({rx: x})
+        return rx
+    
+    def unrename(self, x):
+        return self.d.get(x,x)
