@@ -708,7 +708,7 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        measurements = self._generate_measurements(minimal, chuncksize=3000)
+        measurements = self._generate_measurements(minimal, chuncksize=10000)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
@@ -1469,32 +1469,20 @@ class DataStore(object):
         """
         if session is None:
             session = self.main_session
-        query = (session.query(
-                               db.ref_planes.channel_name,
-                                    db.ref_planes.channel_type,
-                                    db.images.image_id,
-                                  db.images.image_number,
-                                   db.objects.object_type,
-                                   db.objects.object_id,
-                                   db.objects.object_number,
-                                   db.measurements.measurement_name,
-                                   db.measurements.measurement_type,
-                                   db.object_measurements.value,
-                                   db.planes.plane_id,
-                                   db.stacks.stack_name)
-            .join(db.planes)
-            .join(db.stacks)
-            .join(db.measurements)
-            .join(db.object_measurements)
-            .join(db.objects)
-            .join(db.images)
+        query = (session
+                 .query(db.object_measurements)
+                 .join(db.measurements)
+                 .join(db.stacks)
+                 .join(db.planes)
+                 .join(db.ref_planes)
+                 .join(db.objects)
+                 .join(db.images)
                 )
         if valid_objects:
             query = query.join(db.valid_objects)
         if valid_images:
             query = query.join(db.valid_images)
         return query
-
 
     def _get_table_object(self, name):
         return getattr(db, name)
