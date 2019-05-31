@@ -21,6 +21,7 @@ CHANNEL_TYPE_DEFAULT = 'IMC'
 CONDITION = 'condition_col'
 CPOUTPUT = 'cpoutput'
 CP_DIR = 'cp_dir'
+DEFAULT_OBJECT = 'default_object'
 DISPLAY_NAME = 'display_name_col'
 FILENAME_COL = 'filename_col'
 FILETYPE = 'filetype'
@@ -157,7 +158,8 @@ default_dict = {
     CPOUTPUT: {
         MEASUREMENT_CSV: {
             SEP: ',',
-            FILETYPE: '.csv'
+            FILETYPE: '.csv',
+            DEFAULT_OBJECT: 'cell'
         },
         RELATION_CSV: {
             SEP: ',',
