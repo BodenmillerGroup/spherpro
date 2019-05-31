@@ -1472,8 +1472,10 @@ class DataStore(object):
         query = (session
                  .query(db.object_measurements)
                  .join(db.measurements)
-                 .join(db.stacks)
+                 .join(db.measurement_types)
+                 .join(db.measurement_names)
                  .join(db.planes)
+                 .join(db.stacks)
                  .join(db.ref_planes)
                  .join(db.objects)
                  .join(db.images)
