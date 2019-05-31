@@ -26,7 +26,7 @@ class Debarcode(object):
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
 
     def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None,
-                  measurement_name=None):
+                  measurement_name=None, transform=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
         stored in the condition table
@@ -37,7 +37,7 @@ class Debarcode(object):
         cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack,
                                    measurement_name=measurement_name)
         # threshold them
-        cells = self._treshold_data(cells, bc_treshs)
+        cells = self._treshold_data(cells, bc_treshs, transform)
         # debarcode them
         data = self._debarcode_data(key, cond, cells)
         # summarize them
@@ -88,10 +88,13 @@ class Debarcode(object):
                 update(dic)
         session.commit()
 
-    def _treshold_data(self, bc_dat, bc_tresh=None):
+    def _treshold_data(self, bc_dat, bc_tresh=None, transform=None):
         bc_dat = bc_dat.copy()
+        if transform is not None:
+            bc_dat = bc_dat.transform(transform)
+
         if bc_tresh is None:
-            bc_dat = bc_dat.apply(lambda x: (x-np.mean(x))/np.std(x),)
+            bc_dat = bc_dat.apply(lambda x: (x-np.mean(x)))
             bc_dat[bc_dat > 0] = 1
             bc_dat[bc_dat < 0] = 0
         else:
@@ -190,9 +193,15 @@ class Debarcode(object):
                              ))
                          .filter(bcfilt)
                         )
+        # add additional columns to the output
+        bc_query = (bc_query
+                    .add_columns(db.ref_planes.channel_name,
+                        db.objects.image_id)
+                    )
         bc_query = bc_query.join(db.acquisitions).join(db.sites).add_column(db.sites.site_id)
         if fils is not None:
             bc_query = bc_query.filter(fils)
+
         dat = self.bro.doquery(bc_query)
         dat = dat.pivot_table(values=db.object_measurements.value.key,
                                         columns=db.ref_planes.channel_name.key,
