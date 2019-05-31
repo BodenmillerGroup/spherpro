@@ -192,8 +192,10 @@ class PlotHeatmask(plot_base.BasePlot):
             measurement_dict.get(o,d)] for o, d in self.measure_idx ])
 
         query = self.data.get_measurement_query(session=self.session)
-
         query = query.filter(filter_statement)
+
+        # add more output columns
+        query = query.add_columns(db.images.image_id, db.objects.object_number)
 
         if image_numbers is not None:
             query = query.filter(db.images.image_id.in_(image_numbers))
