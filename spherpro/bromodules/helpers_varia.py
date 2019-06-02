@@ -1,6 +1,6 @@
 import spherpro.db as db
 
-class HelperDb(pltbase.BasePlot):
+class HelperDb(object):
     def __init__(self, bro):
         self.bro = bro
         self.session = self.bro.data.main_session
