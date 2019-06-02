@@ -7,6 +7,7 @@ import operator
 import spherpro.bromodules.filter_base as filter_base
 import pandas as pd
 import numpy as np
+from itertools import chain, repeat
 
 import spherpro as sp
 import spherpro.datastore as datastore
@@ -110,17 +111,66 @@ class FilterMeasurements(filter_base.BaseFilter):
                               db.measurements.measurement_name,
                              db.measurement_types.measurement_type]
 
-        constraints = [sa.and_(*[c.in_(v) if isinstance(v, tuple) else c==v
-                                 for c, v in zip(constraint_columns,
-                                                        values)])
-                       for values in zip(object_types, channel_names,
-                                         stack_names, measurement_names,
-                                         measurement_types)]
-        if len(constraints) > 1:
-            measure_filter = sa.or_(*constraints)
-        else:
-            measure_filter = constraints[0]
+        value_lists = [object_types,
+                                        channel_names,
+                                        stack_names,
+                                        measurement_names,
+                                        measurement_types]
+        measure_filter = combine_constraints(constraint_columns,
+                value_lists=value_lists)
         return measure_filter
+
+    def get_measmeta_filter_statements(self, channel_names,
+                                          stack_names, measurement_names, measurement_types):
+        """
+        Generates a filter expression to filter measurements by,
+        stack_names, measurement names and measurement types.
+
+        Input:
+            channel_names: list of channel names
+            stack_names: list of stack_names
+            measurement_names: list of measurement_names
+            measurement_types: list of measurement measurement_types
+        Returns:
+            A dataframes with the selected measurements
+        """
+        constraint_columns = [
+                              db.ref_planes.channel_name,
+                              db.stacks.stack_name,
+                              db.measurements.measurement_name,
+                             db.measurement_types.measurement_type]
+
+        value_lists = [
+                                        channel_names,
+                                        stack_names,
+                                        measurement_names,
+                                        measurement_types]
+        measure_filter = combine_constraints(constraint_columns,
+                value_lists=value_lists)
+        return measure_filter
+
+
+    def get_objectmeta_filter_statements(self, object_types):
+        """
+        Generates a filter expression to filter measurements by,
+        stack_names, measurement names and measurement types.
+
+        Input:
+            channel_names: list of channel names
+            stack_names: list of stack_names
+            measurement_names: list of measurement_names
+            measurement_types: list of measurement measurement_types
+        Returns:
+            A dataframes with the selected measurements
+        """
+        constraint_columns = [db.objects.object_type]
+
+        value_lists = [object_types
+                                        ]
+        measure_filter = combine_constraints(constraint_columns,
+                value_lists=value_lists)
+        return measure_filter
+
 
     def get_hq_filter_triplets(self):
         """
@@ -134,3 +184,38 @@ class FilterMeasurements(filter_base.BaseFilter):
                 }, operator.gt, 0)
             ]
         return hq
+
+def combine_constraints(columns, value_lists):
+    """
+    Combine constraints on columns in an sqlalchemy query.
+    Args:
+        columns: table columns to constrain on
+        value_lists: lists of constraints:
+            either contain elements
+            OR tuples with multiple elements
+            OR None to not constrain
+    Returns:
+        A filter statement encoding the constraints.
+    """
+    constraints = [sa.and_(*[c.in_(v) if isinstance(v, tuple)
+        else c==v
+        for c, v in zip_exact(columns, values) if v is not None])
+        for values in zip_exact(*value_lists)]
+    if len(constraints) > 1:
+        measure_filter = sa.or_(*constraints)
+    else:
+        measure_filter = constraints[0]
+    return measure_filter
+
+def zip_exact(*args):
+    """
+    A zip that asserts that all list have equal length
+    """
+    sentinel = object()
+    iters = [chain(it, repeat(sentinel)) for it in args]
+    for result in zip(*iters):
+        if sentinel in result:
+            if all(value==sentinel for value in result):
+                return
+            raise ValueError('sequences of different lengths')
+        yield result
