@@ -681,7 +681,6 @@ class DataStore(object):
         self._bulkinsert(objects, db.objects)
         self._bulkinsert(objects, db.valid_objects)
 
-
     def _generate_objects(self):
         """
         Genertes the cell table
@@ -1462,24 +1461,76 @@ class DataStore(object):
         query = lib.construct_sql_query(table, columns=columns, clauses=clauses)
         return query
 
-    def get_measurement_query(self, session=None, valid_objects=True, valid_images=True):
+    def get_measurement_query(self, session=None, valid_objects=True, valid_images=True, scaled=True):
         """
         Returns a query object that queries table with the most important
         information do identify a measurement
         """
         if session is None:
             session = self.main_session
-        query = (session
-                 .query(db.object_measurements)
+
+        if scaled:
+            query = session.query(
+                    db.object_measurements.measurement_id,
+                    db.object_measurements.object_id,
+                    (db.object_measurements.value *
+                        db.ref_stacks.scale
+                        ).label(db.object_measurements.value.key))
+        else:
+            query = (session.query(db.object_measurements))
+
+        query = (query
                  .join(db.measurements)
                  .join(db.measurement_types)
                  .join(db.measurement_names)
                  .join(db.planes)
                  .join(db.stacks)
                  .join(db.ref_planes)
+                 .join(db.ref_stacks)
                  .join(db.objects)
                  .join(db.images)
                 )
+
+        if valid_objects:
+            query = query.join(db.valid_objects)
+        if valid_images:
+            query = query.join(db.valid_images)
+        return query
+
+    def get_measmeta_query(self, session=None):
+        """
+        Returns a measurement object that queries table with the most important
+        information do identify a measurement.
+        """
+        if session is None:
+            session = self.main_session
+
+        query = (session.query(db.measurements)
+                 .join(db.measurement_types)
+                 .join(db.measurement_names)
+                 .join(db.planes)
+                 .join(db.stacks)
+                 .join(db.ref_planes)
+                 .join(db.ref_stacks)
+                 )
+        return query
+
+    def get_objectmeta_query(self, session=None, valid_objects=True, valid_images=True):
+        """
+        Returns a query object that queries table with the most important
+        information do identify an object.
+        """
+        if session is None:
+            session = self.main_session
+
+        query = (session.query(db.objects)
+                 .join(db.images)
+                 .join(db.acquisitions)
+                 .join(db.sites)
+                 .join(db.slideacs)
+                 .join(db.slides)
+                )
+
         if valid_objects:
             query = query.join(db.valid_objects)
         if valid_images:
