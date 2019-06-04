@@ -1515,6 +1515,7 @@ class DataStore(object):
                  .join(db.sites)
                  .join(db.slideacs)
                  .join(db.slides)
+                 .join(db.sampleblocks)
                 )
 
         if valid_objects:
