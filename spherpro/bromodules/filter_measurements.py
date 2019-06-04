@@ -49,21 +49,20 @@ class FilterMeasurements(filter_base.BaseFilter):
         """
         NEVER USE THIS ALONE BUT JUST THROUGH GET MULTIFILTER STATEMENT
         """
-
-        measure_query = self.data.get_measurement_query()
         filter_statement = self.get_measurement_filter_statements(*[[
             measurement_dict.get(o,d)] for o, d in self.measure_idx])
         filter_statement = sa.and_(filter_statement,
-                logical_operator(db.object_measurements.value,
+                logical_operator(db.object_measurements.value*db.ref_stacks.scale,
                 treshold))
         return filter_statement
 
     def get_multifilter_query(self, query_triplets):
         filters = [self._get_filter_statement(m, l, t)
                    for m, l, t in query_triplets]
-        meas_query = self.data.get_measurement_query()
-        subquerys = [meas_query.filter(fil).subquery() for i, fil in
-                     enumerate(filters)]
+        meas_query = (self.data.get_measurement_query()
+                .with_entities(db.objects.object_id))
+        subquerys = [meas_query.filter(fil).subquery() for fil in
+                     filters]
         combined_filter_query = self.session.query(db.objects.object_id)
         for subquery in subquerys:
             combined_filter_query = (combined_filter_query.filter(db.objects.object_id == subquery.c.object_id))
@@ -88,7 +87,6 @@ class FilterMeasurements(filter_base.BaseFilter):
         filter_statement = sa.and_(
             db.objects.object_id == subquery.c.object_id)
         return filter_statement
-
 
     def get_measurement_filter_statements(self, object_types, channel_names,
                                           stack_names, measurement_names, measurement_types):
