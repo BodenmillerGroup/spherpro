@@ -956,7 +956,15 @@ class DataStore(object):
         sample_dict = {n: i for n, i in
                     self.main_session.query(db.sampleblocks.sampleblock_name,
                                             db.sampleblocks.sampleblock_id)}
-        data[db.sampleblocks.sampleblock_id.key] = data[db.sampleblocks.sampleblock_name.key].replace(sample_dict)
+        if db.sampleblocks.sampleblock_name.key in data:
+            # If sampleblocks are used, replace them by sample ids
+            data[db.sampleblocks.sampleblock_id.key] = data[db.sampleblocks.sampleblock_name.key].replace(sample_dict)
+        elif len(sample_dict) == 1:
+            # If there is only one sample, assume this is the one that the conditions refer to
+            data[db.sampleblocks.sampleblock_id.key] = list(sample_dict.values())[0]
+        else:
+            raise('''Sampleblocks are used in the `slide_regexp`, but not refered to in the experiment layout!\n
+                    Either remove them in the regexp or add them to the layout!''')
         return data
 
     def _query_new_ids(self, id_col, n):
