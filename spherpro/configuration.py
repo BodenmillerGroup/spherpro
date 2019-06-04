@@ -70,6 +70,7 @@ GROUP_PANORMAID = 'group_panoid'
 GROUP_ACID = 'group_acid'
 GROUP_ROIID = 'group_roiid'
 GROUP_SLIDENUMBER = 'group_slidenumber'
+GROUP_SAMPLEBLOCKNAME = 'group_sampleblockname'
 GROUP_BASENAME = 'group_basename'
 
 META_REGEXP = 're_meta'
@@ -198,9 +199,12 @@ default_dict = {
             GROUP_PANORMAID: db.sites.site_mcd_panoramaid.key,
             GROUP_ACID: db.acquisitions.acquisition_mcd_acid.key,
             GROUP_ROIID: db.acquisitions.acquisition_mcd_roiid.key,
+            #IMAGE_SLIDE_REGEXP: '.*_(?P<{}>.*)_slide(?P<{}>[0-9]+)_'.format(
+            #    db.sampleblocks.sampleblock_name.key, db.slides.slide_number.key),
             IMAGE_SLIDE_REGEXP: '.*_slide(?P<{}>[0-9]+)_'.format(
                 db.slides.slide_number.key),
-            GROUP_SLIDENUMBER: db.slides.slide_number.key
+            GROUP_SLIDENUMBER: db.slides.slide_number.key,
+            GROUP_SAMPLEBLOCKNAME: db.sampleblocks.sampleblock_name.key
         },
 
     },

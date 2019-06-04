@@ -543,7 +543,9 @@ class DataStore(object):
         dat_roi, dat_site = self._generate_site_table(dat_roi)
         dat_site, dat_slideac = self._generate_slideac_table(dat_site)
         dat_slideac, dat_slide = self._generate_slide_table(dat_slideac)
+        dat_slide, dat_sampleblock = self._generate_sampleblock_table(dat_slide)
 
+        self._bulkinsert(dat_sampleblock, db.sampleblocks)
         self._bulkinsert(dat_slide, db.slides)
         self._bulkinsert(dat_slideac, db.slideacs)
         self._bulkinsert(dat_site, db.sites)
@@ -640,7 +642,8 @@ class DataStore(object):
         re_slide = imgconf[conf.IMAGE_SLIDE_REGEXP]
         slideac_meta = lib.map_group_re(slideacs, re_slide)
         colmap = {imgconf[g]: v for g, v in [
-            (conf.GROUP_SLIDENUMBER, db.slides.slide_number.key)]
+            (conf.GROUP_SLIDENUMBER, db.slides.slide_number.key),
+            (conf.GROUP_SAMPLEBLOCKNAME, db.sampleblocks.sampleblock_name.key)]
                   }
         slideac_meta = slideac_meta.rename(columns=colmap)
         # set default values
@@ -655,11 +658,11 @@ class DataStore(object):
                 slideac_meta.loc[:, [db.slideacs.slideac_id.key,
                                      db.slideacs.slideac_name.key]],
                              on=db.slideacs.slideac_name.key)
-
         return site_meta, slideac_meta
 
     def _generate_slide_table(self, slideac_meta):
-        slide_meta = slideac_meta.loc[:, [db.slides.slide_number.key]]
+        slide_meta = slideac_meta.loc[:, [db.slides.slide_number.key,
+                                          db.sampleblocks.sampleblock_name.key]]
         slide_meta = slide_meta.drop_duplicates()
         slide_meta[db.slides.slide_id.key] =\
             self._query_new_ids(db.slides.slide_id, slide_meta.shape[0])
@@ -668,6 +671,18 @@ class DataStore(object):
                                                    db.slides.slide_id.key]],
                                 on=db.slides.slide_number.key)
         return slideac_meta, slide_meta
+
+    def _generate_sampleblock_table(self, slide_meta):
+        sampleblock_meta = slide_meta.loc[:, [db.sampleblocks.sampleblock_name.key]]
+        sampleblock_meta = sampleblock_meta.drop_duplicates()
+        sampleblock_meta[db.sampleblocks.sampleblock_id.key] =\
+            self._query_new_ids(db.sampleblocks.sampleblock_id, sampleblock_meta.shape[0])
+        slide_meta = pd.merge(slide_meta,
+                                sampleblock_meta.loc[:,
+                                    [db.sampleblocks.sampleblock_name.key,
+                                     db.sampleblocks.sampleblock_id.key]],
+                                on=db.sampleblocks.sampleblock_name.key)
+        return slide_meta, sampleblock_meta
 
     def _generate_masks(self):
         cpconf = self.conf[conf.CPOUTPUT]
@@ -936,6 +951,12 @@ class DataStore(object):
         # Assign the condition IDs: 
         ncond = data.shape[0]
         data[db.conditions.condition_id.key] = self._query_new_ids(db.conditions.condition_id, ncond)
+
+        # Add the sampleblock id:
+        sample_dict = {n: i for n, i in
+                    self.main_session.query(db.sampleblocks.sampleblock_name,
+                                            db.sampleblocks.sampleblock_id)}
+        data[db.sampleblocks.sampleblock_id.key] = data[db.sampleblocks.sampleblock_name.key].replace(sample_dict)
         return data
 
     def _query_new_ids(self, id_col, n):
