@@ -139,6 +139,18 @@ class DataStore(object):
             experiment_layout = pd.read_csv(
                 self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
             )
+            # rename the columns
+            rename_dict = {self.conf[conf.LAYOUT_CSV][c]: target for c, target in [
+                    (conf.LAYOUT_CSV_COND_ID, db.conditions.condition_id.key),
+                    (conf.LAYOUT_CSV_COND_NAME, db.conditions.condition_name.key),
+                    (conf.LAYOUT_CSV_TIMEPOINT_NAME, db.conditions.time_point.key),
+                    (conf.LAYOUT_CSV_BARCODE, db.conditions.barcode.key),
+                    (conf.LAYOUT_CSV_CONCENTRATION_NAME, db.conditions.concentration.key),
+                    (conf.LAYOUT_CSV_BC_PLATE_NAME, db.conditions.bc_plate.key),
+                    (conf.LAYOUT_CSV_PLATE_NAME, db.conditions.plate_id.key),
+                    (conf.LAYOUT_CSV_WELL_NAME, db.conditions.well_name.key)
+                ]}
+            experiment_layout = experiment_layout.rename(columns=rename_dict)
             self.experiment_layout = experiment_layout.fillna(0)
         else:
             self.experiment_layout = None
@@ -146,18 +158,37 @@ class DataStore(object):
     def _read_barcode_key(self):
         """
         reads the barcode key as stated in the config
-        and saves it in the datastore
         """
-        if self.conf[conf.BARCODE_CSV][conf.PATH] is not None:
-            sep = self.conf[conf.BARCODE_CSV][conf.SEP]
-            self.barcode_key = pd.read_csv(
-                self.conf[conf.BARCODE_CSV][conf.PATH], sep=sep
-            ).set_index(
-                [
-                    self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME],
-                    self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
-                ]
+        conf_bc = self.conf[conf.BARCODE_CSV]
+        conf_layout = self.conf[conf.LAYOUT_CSV]
+        path = conf_bc[conf.PATH]
+        if path is not None:
+            # Load the barcode key
+            sep = conf_bc[conf.SEP]
+            barcodes = pd.read_csv(
+                path , sep=sep
             )
+            # Adapt the names
+            rename_dict = {
+                    conf_bc[conf.BC_CSV_PLATE_NAME]:
+                             conf_layout[conf.LAYOUT_CSV_BC_PLATE_NAME],
+                    conf_bc[conf.BC_CSV_WELL_NAME]:
+                             db.conditions.well_name.key
+                             }
+            barcodes = barcodes.rename(columns=rename_dict)
+            # Convert the barcode key to a dictionary string
+            barcodes = barcodes.set_index(
+                list(rename_dict.values())
+            )
+            barcodes = (barcodes
+                .transpose()
+                # converts the barcodes to a string dictionary
+                .apply(lambda x: str(x.to_dict())
+                    )
+                )
+            barcodes = barcodes.rename(db.conditions.barcode.key)
+            barcodes = barcodes.reset_index(drop=False)
+            self.barcode_key = barcodes
         else:
             self.barcode_key = None
 
@@ -879,78 +910,33 @@ class DataStore(object):
 
 
     def _generate_condition_table(self):
-        rename_dict = {self.conf[conf.LAYOUT_CSV][c]: target for c, target in [
-                (conf.LAYOUT_CSV_COND_ID, db.conditions.condition_id.key),
-                (conf.LAYOUT_CSV_COND_NAME, db.conditions.condition_name.key),
-                (conf.LAYOUT_CSV_TIMEPOINT_NAME, db.conditions.time_point.key),
-                (conf.LAYOUT_CSV_BARCODE, db.conditions.barcode.key),
-                (conf.LAYOUT_CSV_CONCENTRATION_NAME, db.conditions.concentration.key),
-                (conf.LAYOUT_CSV_BC_PLATE_NAME, db.conditions.bc_plate.key),
-                (conf.LAYOUT_CSV_PLATE_NAME, db.conditions.plate_id.key),
-            ] if target is not None
-        }
-        if rename_dict.get(None) is not None:
-            del rename_dict[None]
-        cols = [c for c in rename_dict]
-        outcols = [rename_dict[c] for c in rename_dict]
-        if self.barcode_key is not None:
-            if self.experiment_layout is not None:
-                barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
-                barcodes = barcodes.to_frame()
-                barcodes.columns = [db.conditions.barcode.key]
-                #IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-                barcodes[db.conditions.condition_id.key] = \
-                    self._query_new_ids(db.conditions.condition_id, (barcodes.shape[0]))
-                barcodes = barcodes.reset_index(drop=False)
-                barcodes = barcodes.rename(columns={self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]:
-                                 self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME]})
-                data = barcodes.merge(
-                    self.experiment_layout.reset_index(drop=False),
-                    left_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
-                             self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]),
-                    right_on=(self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_BC_PLATE_NAME],
-                              self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]),
-                    how='inner'
-                )
-                data = data.dropna()
-                tp_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME]
-                tw_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]
-                we_name = self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]
-                co_name = self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME]
-                data.loc[pd.isnull(data[tw_name]),co_name] = "default"
-                data.loc[pd.isnull(data[tw_name]),tp_name] = 0.0
-                data.loc[pd.isnull(data[tw_name]),tw_name] = data.loc[pd.isnull(data[tw_name])][we_name]
-                data[db.conditions.bc_y.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: x[0])
-                data[db.conditions.bc_x.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
-                data[db.conditions.well_name.key] = data[self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_WELL_NAME]]
-
-                data = data.rename(columns=rename_dict)
-                if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_TIMEPOINT_NAME] is None:
-                    data[db.conditions.time_point.key] = 0.-1
-                if self.conf[conf.LAYOUT_CSV][conf.LAYOUT_CSV_COND_NAME] is None:
-                    data[db.conditions.condition_name.key] = 'default'
-
-                data = data.fillna('0')
-                return data
-            else:
-                barcodes = self.barcode_key.transpose().apply(lambda x: str(x.to_dict()))
-                barcodes = barcodes.to_frame()
-                barcodes.columns = [db.conditions.barcode.key]
-                IDs = self.barcode_key.transpose().apply(lambda x: ''.join(x.astype(str).tolist()))
-                barcodes[db.conditions.condition_id.key] = IDs
-                barcodes = barcodes.reset_index(drop=False)
-
-                barcodes = lib.fill_null(barcodes, db.conditions)
-                barcodes[db.conditions.well_name.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]]
-                barcodes[db.conditions.bc_y.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: x[0])
-                barcodes[db.conditions.bc_x.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_WELL_NAME]].apply(lambda x: int(x[1:]))
-                barcodes[db.conditions.bc_plate.key] = barcodes[self.conf[conf.BARCODE_CSV][conf.BC_CSV_PLATE_NAME]]
-                return barcodes[outcols]
-        else:
+        """
+        Generates the condition metadata table based on a barcode and or a condition file
+        """
+        conf_layout = self.conf[conf.LAYOUT_CSV]
+        exp_layout = self.experiment_layout
+        barcode_key = self.barcode_key
+        if (exp_layout is None) and (barcode_key is None):
             return None
+        if exp_layout is None:
+            data = barcode_key
+        elif barcode_key is None:
+            data = exp_layout
+        else:
+            data = exp_layout.merge(barcode_key)
+        data = lib.fill_null(data, db.conditions)
+        # Legacy: split barcode in x and y
+        def get_y(x):
+            return x[0]
+        def get_x(x):
+            return int(x[1:])
+        data[db.conditions.bc_x.key] = data[db.conditions.well_name.key].map(get_x)
+        data[db.conditions.bc_y.key] = data[db.conditions.well_name.key].map(get_y)
 
-
-
+        # Assign the condition IDs: 
+        ncond = data.shape[0]
+        data[db.conditions.condition_id.key] = self._query_new_ids(db.conditions.condition_id, ncond)
+        return data
 
     def _query_new_ids(self, id_col, n):
         """

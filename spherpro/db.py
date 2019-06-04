@@ -91,14 +91,14 @@ class conditions(Base):
     __tablename__ = 'conditions'
     condition_id = Column(Integer(), primary_key=True, autoincrement=True)
     condition_name = Column(String(200), server_default='default')
-    time_point = Column(Float(), server_default="0")
+    time_point = Column(Float(), server_default='0.')
     barcode = Column(String(200))
-    concentration = Column(Float())
-    plate_id = Column(Integer())
-    bc_plate = Column(Integer())
-    bc_x = Column(Integer())
-    bc_y = Column(String(200))
-    well_name = Column(String(200))
+    concentration = Column(Float(), server_default='0.')
+    plate_id = Column(Integer(), server_default='1')
+    bc_plate = Column(Integer(), server_default='0')
+    bc_x = Column(Integer(), server_default='1')
+    bc_y = Column(String(200), server_default='A')
+    well_name = Column(String(200), server_default='A01')
 
 class slides(Base):
     __tablename__ = 'slides'

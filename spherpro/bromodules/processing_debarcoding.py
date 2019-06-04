@@ -24,6 +24,13 @@ class Debarcode(object):
         self.bro = bro
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
+        self.DEFAULT_STACK = 'FullStack'
+        self.DEFAULT_MEASUREMENT = 'MeanIntensity'
+        self.DEFAULT_DISTSTACK = 'DistStack'
+        self.DEFAULT_DISTCHAN = 'dist-sphere'
+        self.DEFAULT_DISTMEAS = 'MeanIntensity'
+        self.DEFAULT_OBJ_TYPE = 'cell'
+        self.DEFAULT_MEASUREMENT_TYPE = 'Intensity'
 
     def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None,
                   measurement_name=None, transform=None):
@@ -100,6 +107,7 @@ class Debarcode(object):
         else:
             t = np.array([bc_tresh[c] for c in bc_dat.columns])
             bc_dat = bc_dat.apply(lambda x: x > t, axis=1)
+        bc_dat = bc_dat.astype(int)
         return bc_dat
 
     def _debarcode_data(self, bc_key, cond, bc_dat):
@@ -160,11 +168,60 @@ class Debarcode(object):
 
 
     def _get_barcode_key(self):
-        cond = pd.read_sql_query(self.data.main_session.query(db.conditions).statement, self.data.db_conn)
-        cond = cond.set_index(db.conditions.condition_id.key, drop=False)
+        bro = self.bro
+        cond = bro.doquery(bro.session.query(db.conditions.condition_id, db.conditions.barcode))
+        cond = cond.set_index(db.conditions.condition_id.key)
         key = cond[db.conditions.barcode.key].apply(lambda x: pd.Series(eval(x)))
-        return cond, key
+        return key
 
+
+    def _get_bc_cells2(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
+        bro = self.bro
+        if measurement_name is None:
+            measurement_name = self.DEFAULT_MEASUREMENT
+        if stack is None:
+            stack = self.DEFAULT_STACK
+
+        channels = tuple(key.columns.tolist())
+
+        filtdict = {
+            db.stacks.stack_name.key: self.DEFAULT_DISTSTACK,
+            db.ref_planes.channel_name.key: self.DEFAULT_DISTCHAN,
+            db.measurement_names.measurement_name.key: self.DEFAULT_DISTMEAS
+        }
+        fil_dist = self.filter.get_multifilter_statement([
+            (filtdict, operator.gt, borderdist),
+            (filtdict, operator.lt, dist)
+        ])
+        fil_obj = bro.filters.measurements.get_objectmeta_filter_statements(
+                object_types=[self.DEFAULT_OBJ_TYPE])
+        fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
+                                     channel_names=[channels],
+                                     stack_names=[stack],
+                                     measurement_names=[measurement_name],
+                                     measurement_types=[self.DEFAULT_MEASUREMENT_TYPE])
+
+        q_dat= (bro.data.get_measurement_query()
+            .filter(fil_obj)
+            .filter(fil_meas)
+            .filter(fil_dist)
+               )
+        q_obj = (bro.data.get_objectmeta_query()
+                .filter(db.objects.object_id == q_dat.subquery().c.object_id)
+                .with_entities(db.images.image_id,
+                              db.objects.object_id)
+                )
+
+        q_meas = (bro.data.get_measmeta_query()
+                .filter(fil_meas)
+                .with_entities(db.measurements.measurement_id,
+                              db.ref_planes.channel_name)
+                )
+
+        #dat_bccells, dat_objmeta, dat_measmeta = (bro.doquery(q)
+        #        for q in (q_dat, q_obj, q_meas))
+        return (q_dat, q_obj, q_meas)
+        #return dat_bccells, dat_objmeta, dat_measmeta
 
 
     def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
