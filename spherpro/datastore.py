@@ -781,11 +781,10 @@ class DataStore(object):
 
 
     def _register_measurement_meta(self, dat_meas):
-        measurements = dat_meas.loc[:, ~dat_meas.columns.isin(
-            [ db.objects.object_type.key,
+        meas_cols = list(set(dat_meas.columns)-set([ db.objects.object_type.key,
               db.images.image_number.key,
-              db.objects.object_number.key])]
-        meta = pd.Series(measurements.columns.unique()).apply(
+              db.objects.object_number.key]))
+        meta = pd.Series(meas_cols).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
                                               no_plane_string=OBJECTS_PLANEID))
@@ -948,7 +947,7 @@ class DataStore(object):
         data[db.conditions.bc_x.key] = data[db.conditions.well_name.key].map(get_x)
         data[db.conditions.bc_y.key] = data[db.conditions.well_name.key].map(get_y)
 
-        # Assign the condition IDs: 
+        # Assign the condition IDs:
         ncond = data.shape[0]
         data[db.conditions.condition_id.key] = self._query_new_ids(db.conditions.condition_id, ncond)
 
