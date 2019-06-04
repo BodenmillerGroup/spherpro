@@ -99,11 +99,32 @@ class conditions(Base):
     bc_x = Column(Integer(), server_default='1')
     bc_y = Column(String(200), server_default='A')
     well_name = Column(String(200), server_default='A01')
+    sampleblock_nr = Column(Integer(), server_default='1')
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [sample_block_nr],
+        [sampleblocks.sampleblock_nr]),
+            {})
+
+class sampleblocks(Base):
+    """
+    Represents a physical sample block which is cut and placed onto
+    slides.
+    """
+    __tablename__ = 'sample_block'
+    sampleblock_nr = Column(Integer(), primary_key=True)
 
 class slides(Base):
     __tablename__ = 'slides'
     slide_id = Column(Integer(), primary_key=True, autoincrement=True)
     slide_number = Column(String(200))
+    sampleblock_nr = Column(Integer(), server_default='1')
+    __table_args__ = (
+        ForeignKeyConstraint(
+        [sampleblock_nr],
+        [sampleblocks.sampleblock_nr]),
+            {})
+
 
 class slideacs(Base):
     __tablename__ = 'slideacs'
