@@ -344,16 +344,16 @@ class measurements(Base):
 class object_measurements(Base):
     """docstring for object_measurements."""
     __tablename__ = 'object_measurements'
+    measurement_id = Column(Integer(), primary_key=True)
     object_id = Column(Integer(),
                        primary_key=True)
-    measurement_id = Column(Integer(), primary_key=True)
     value = Column(Float(precision=32))
-    __table_args__ = (ForeignKeyConstraint(
+    __table_args__ = (        ForeignKeyConstraint(
+            [measurement_id], [measurements.measurement_id]),
+            ForeignKeyConstraint(
         [object_id],
         [objects.object_id]),
-        ForeignKeyConstraint(
-            [measurement_id], [measurements.measurement_id])
-        ,{})
+{})
 
 
 class pannel(Base):
