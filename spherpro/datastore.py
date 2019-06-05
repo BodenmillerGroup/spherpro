@@ -9,6 +9,8 @@ import io
 import warnings
 from odo import odo
 import tifffile as tif
+# move to a  postgres specific location later!
+from pgcopy import CopyManager
 
 import spherpro as spp
 import spherpro.library as lib
@@ -767,7 +769,9 @@ class DataStore(object):
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_object_id_fkey;')
             for meas in measurements:
-                self._bulk_pg_insert(meas, db.object_measurements)
+                print('Start inserting')
+                self._bulk_pg_insert_numeric(meas, db.object_measurements)
+                print('Start loading csv')
             self.db_conn.execute('''ALTER TABLE public.object_measurements
                                    ADD CONSTRAINT object_measurements_pkey PRIMARY KEY(object_id, measurement_id);''')
             self.db_conn.execute('''ALTER TABLE public.object_measurements
@@ -788,8 +792,11 @@ class DataStore(object):
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
                                               no_plane_string=OBJECTS_PLANEID))
-        meta.columns = ['variable', db.measurement_types.measurement_type.key, db.measurement_names.measurement_name.key,
-                        db.stacks.stack_name.key, db.ref_planes.ref_plane_id.key]
+        meta.columns = ['variable',
+                db.measurement_types.measurement_type.key,
+                db.measurement_names.measurement_name.key,
+                db.stacks.stack_name.key,
+                db.ref_planes.ref_plane_id.key]
         meta = meta.loc[meta['variable'] != '', :]
         meta[db.ref_planes.ref_plane_id.key] = meta[db.ref_planes.ref_plane_id.key].map(lambda x: int(x.replace('c','')))
 
@@ -809,37 +816,39 @@ class DataStore(object):
                 db.objects.object_type.key,
                 db.images.image_number.key]
         dat_objmeta = dat_meas.loc[:, obj_metavars]
-        dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta)
+        dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta, assume_new=True)
         return dat_objmeta
 
     def _generate_measurements(self, minimal, chuncksize=3000):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         for obj_type in conf_meas[conf.OBJECTS]:
+            print(f'Read {obj_type}:')
             for dat_meas in self._read_objtype_measurements(obj_type, chuncksize):
                 # register the measurements
+                print('Register measurements:')
                 measurement_meta = self._register_measurement_meta(dat_meas)
-
+                print('Register objects:')
                 # register the objects
                 object_meta = self._register_objects(dat_meas)
-
+                print('Reshape values:')
                 # get the measurement data
                 variables = measurement_meta['variable']
                 dat_measvals = dat_meas.loc[:, variables]
                 value_col = dat_measvals.values.flatten(order='C')
                 meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
                 meas_id = np.tile(meas_id, dat_meas.shape[0])
-
                 obj_id = object_meta[db.object_measurements.object_id.key].values
                 obj_id = np.repeat(obj_id, len(variables))
-
+                print('Construct dataframe')
                 measurements = pd.DataFrame({
                     db.object_measurements.object_id.key: obj_id,
                     db.object_measurements.measurement_id.key: meas_id,
                     db.object_measurements.value.key: value_col})
-
+                print('Replace non finite')
                 measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
                 measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
                 measurements.dropna(inplace=True)
+                print('Start uploading')
                 yield measurements
 
     def _generate_object_relation_types(self):
@@ -1040,7 +1049,6 @@ class DataStore(object):
         output = io.StringIO()
         # ignore the index
         data.to_csv(output, sep='\t', header=False, index=False)
-        output.getvalue()
         # jump to start of stream
         output.seek(0)
         con = self.db_conn
@@ -1051,6 +1059,19 @@ class DataStore(object):
         cursor.copy_from(output, table_name, null="")
         connection.commit()
         cursor.close()
+
+    def _bulk_pg_insert_numeric(self, data, table, drop=False):
+        if drop:
+            session = self.main_session
+            session.query(table).delete()
+            session.commit()
+        print('Insert table of dimension:', str(data.shape))
+        data = self._clean_columns(data, table)
+        conn = self.db_conn.raw_connection()
+        table_name = table.__tablename__
+        mgr = CopyManager(conn, table_name, list(data.columns))
+        mgr.copy(data.to_records(index=False), io.BytesIO)
+        conn.commit()
 
     def _clean_columns(self, data, table):
         data_cols = data.columns
@@ -1503,6 +1524,11 @@ class DataStore(object):
                  .join(db.ref_stacks)
                  .join(db.objects)
                  .join(db.images)
+                 .join(db.acquisitions)
+                 .join(db.sites)
+                 .join(db.slideacs)
+                 .join(db.slides)
+                 .join(db.sampleblocks)
                 )
 
         if valid_objects:
