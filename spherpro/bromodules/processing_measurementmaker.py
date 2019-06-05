@@ -33,7 +33,7 @@ class MeasurementMaker(base.BasePlot):
         self.session.merge(x)
         self.session.commit()
 
-    def register_objects(self, object_meta):
+    def register_objects(self, object_meta, assume_new=False):
         """
         Registers an object metadata table
         Needs to have the columns:
@@ -46,19 +46,25 @@ class MeasurementMaker(base.BasePlot):
             object_number
             object_id
             image_id
+
+        If assume_new is True, the objects are assumed to be guaranteed
+        new - use with care!
         """
         COL_OBJ_ID = db.objects.object_id.key
         img_dict = {n: i for n, i in
                     self.session.query(db.images.image_number,
                                             db.images.image_id)}
         object_meta[db.images.image_id.key] = object_meta[db.images.image_number.key].replace(img_dict)
-        object_meta[COL_OBJ_ID] = [
-            l[0] if l is not None else None
-            for l in [self.session.query(COL_OBJ_ID)
-                .filter(db.objects.object_number == row[db.objects.object_number.key],
-                db.objects.image_id == row[db.objects.image_id.key],
-                db.objects.object_type == row[db.objects.object_type.key]).one_or_none()
-                for idx, row in object_meta.iterrows()]]
+        if assume_new == False:
+            object_meta[COL_OBJ_ID] = [
+                l[0] if l is not None else None
+                for l in [self.session.query(COL_OBJ_ID)
+                    .filter(db.objects.object_number == row[db.objects.object_number.key],
+                    db.objects.image_id == row[db.objects.image_id.key],
+                    db.objects.object_type == row[db.objects.object_type.key]).one_or_none()
+                    for idx, row in object_meta.iterrows()]]
+        else:
+            object_meta[COL_OBJ_ID] = None
         fil = object_meta[COL_OBJ_ID].isnull()
         if sum(fil) > 0:
             object_meta.loc[fil, COL_OBJ_ID] = self.bro.data._query_new_ids(
