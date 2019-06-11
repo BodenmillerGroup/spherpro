@@ -65,7 +65,7 @@ class HelperVZ(pltbase.BasePlot):
             fil_measurements = sa.or_(fil_measurements,additional_measfilt)
         q = (self.bro.session.query(db.measurements, db.ref_planes.channel_name, db.stacks.stack_name,
                         db.pannel)
-            .join(db.planes)
+            .join(db.planes, db.measurements.plane_id==db.planes.plane_id)
             .join(db.stacks)
             .join(db.ref_planes)
             .filter(fil_measurements)
@@ -80,7 +80,7 @@ class HelperVZ(pltbase.BasePlot):
         dat_measmeta[V.COL_ISNB] = dat_measmeta[V.COL_MEASNAME].map(lambda x: 'Nb' if x.startswith('Nb') else 'Int')
         fil = dat_measmeta[V.COL_GOODNAME].isnull()
         dat_measmeta.loc[fil, V.COL_GOODNAME] = dat_measmeta.loc[fil, V.COL_CHANNELN]
-        dat_measmeta = dat_measmeta.set_index(V.COL_MEASID, drop=False)
+        #dat_measmeta = dat_measmeta.set_index(V.COL_MEASID, drop=False)
         return dat_measmeta
 
     def get_imgmeta(self):
@@ -91,7 +91,7 @@ class HelperVZ(pltbase.BasePlot):
             .join(db.valid_images)
         )
         dat_imgmeta = self.bro.doquery(q)
-        dat_imgmeta = dat_imgmeta.set_index(V.COL_IMID, drop=False)
+        #dat_imgmeta = dat_imgmeta.set_index(V.COL_IMID, drop=False)
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
