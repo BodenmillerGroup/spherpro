@@ -1,4 +1,5 @@
 from spherpro.bromodules.helpers_varia import HelperDb
+import numpy as np
 class BasePlot(HelperDb):
     def __init__(self, bro):
         super().__init__(bro)
@@ -20,7 +21,7 @@ class BasePlot(HelperDb):
 
 
 def adapt_ax_clims(axs):
-    caxs = [cax for ax in axs for cax in ax.images]
+    caxs = [ax.images[0] for ax in axs if len(ax.images) > 0]
     clims = [cax.get_clim() for cax in caxs]
     clims = [c for c in clims if c != (True, True)]
     clim_all = [f(c) for f, c in zip([np.min, np.max], zip(*clims))]
