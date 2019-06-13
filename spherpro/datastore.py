@@ -7,7 +7,6 @@ import os
 import re
 import io
 import warnings
-from odo import odo
 import tifffile as tif
 # move to a  postgres specific location later!
 from pgcopy import CopyManager
@@ -110,17 +109,19 @@ class DataStore(object):
         the configfile.
         """
         # Read the data based on the config
-        self._read_experiment_layout()
-        self._read_barcode_key()
+        #self._read_experiment_layout()
+        #self._read_barcode_key()
         # self._readWellMeasurements()
         # self._read_cut_meta()
         # self._read_roi_meta()
         #self._read_measurement_data()
-        self._read_stack_meta()
+        #self._read_stack_meta()
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self._bulkinsert = self._bulk_pg_insert
+        else:
+            from odo import odo
         self.bro = bro.Bro(self)
 
     def drop_all(self):
@@ -307,6 +308,34 @@ class DataStore(object):
         # vacuum after population in postgres
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self._pg_vacuum()
+
+    #### Helpers ####
+
+    def replace_condition_table(self):
+        """
+        This is used in case an the experiment layout or 
+        barcoding is updated.
+
+        Note that this will delete any debarcoding.
+        """
+        # read the tables
+        self._read_experiment_layout()
+        self._read_barcode_key()
+
+        # delete the link between images and conditions
+        session = self.main_session
+        q = (session.query(db.images)
+                .update({db.images.condition_id.key: None})
+                )
+        # delete the existing table
+        (session.query(db.conditions)
+                .delete()
+                )
+        session.commit()
+
+        # write the table
+        self._write_condition_table()
+        session.commit()
 
     ##########################################
     #        Database Table Generation:      #
@@ -1035,7 +1064,6 @@ class DataStore(object):
 
         print('Insert table of dimension:', str(data.shape))
         data = self._clean_columns(data, table)
-
         odo(data, dbtable)
         self.main_session.commit()
 
