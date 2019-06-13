@@ -96,17 +96,8 @@ class HelperVZ(pltbase.BasePlot):
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
                  meas_ids=None, object_type=None):
-        q = (self.bro.session.query(db.object_measurements, db.images.image_id)
-            .join(db.measurements)
-            .join(db.objects)
-            .join(db.images)
-        .join(db.valid_images)
-        .join(db.valid_objects)
-            .join(db.conditions)
-            .join(db.planes)
-            .join(db.stacks)
-            .join(db.ref_planes)
-        )
+        q = (self.data.get_measurement_query()
+                .add_columns(db.images.image_id))
         if curcond is not None:
             q = q.filter(db.conditions.condition_name == curcond)
 
