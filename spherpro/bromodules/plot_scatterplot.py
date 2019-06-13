@@ -44,8 +44,8 @@ class PlotScatter(plot_base.BasePlot):
 
         """
         dat = self.get_marker_data([measure_x, measure_y],
-                                               image_ids=image_ids,
-                                               filters=filters)
+                                image_ids=image_ids,
+                                filters=filters)
         p = (gg.ggplot(dat, gg.aes(x="0_"+VAL_COL, y='1_'+VAL_COL)) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
@@ -96,18 +96,21 @@ class PlotScatter(plot_base.BasePlot):
                                     filters=None):
 
 
-        filters_measurement = [self.filter_measurements.get_measurement_filter_statements(*[[meas.get(o,d)] for o, d in
-                                                   self.measure_idx ])
+        filters_measurement = [
+                self.filter_measurements.get_measurement_filter_statements(
+                    *[[meas.get(o,d)]
+                        for o, d in self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
         if image_ids is not None:
-            query = query.filter(db.images.image_id.in_(image_ids))
+            query = query.filter(
+                    db.images.image_id.in_(image_ids))
         query_joins = self._get_joined_filtered_queries(query,
                                                         filters_measurement)
         if filters is not None:
            # TODO: This needs to be fixed!
            query = query.filter(filters)
-        dat = pd.read_sql(query_joins.statement, self.data.db_conn)
+        dat = self.bro.doquery(query_joins)
         return dat
 
     def _get_joined_filtered_queries(self, base_query, filters, on_cols=None):
@@ -125,7 +128,8 @@ class PlotScatter(plot_base.BasePlot):
             the query to get the results
         """
         if on_cols is None:
-            on_cols = [db.images.image_id.key, db.objects.object_number.key]
+            on_cols = [db.images.image_id.key,
+                    db.objects.object_number.key]
         queries = [base_query.filter(fil).subquery(name=str(i))
                    for i, fil in enumerate(filters)]
         # queries =[q.apply_labels() for q in queries]
@@ -148,9 +152,11 @@ class PlotScatter(plot_base.BasePlot):
         query = self._get_measurement_query()
         for fil in filters:
             query = query.filter(fil)
-        dat = pd.read_sql(query.statement, self.data.db_conn)
+        dat = self.bro.doquery(query)
         return dat
 
     def _get_measurement_query(self):
-        query = self.data.get_measurement_query(session=self.session)
+        query = (self.data.get_measurement_query()
+                .add_columns(db.images.image_id,
+                    db.objects.object_number))
         return query
