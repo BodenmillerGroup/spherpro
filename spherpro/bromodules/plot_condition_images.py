@@ -25,10 +25,11 @@ class PlotConditionImages(plot_base.BasePlot):
         self.imcimage = bro.io.imcimg
         self.get_target_by_channel = bro.helpers.dbhelp.get_target_by_channel
 
-    def plot_hm_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
-
+    def plot_hm_conditions(self, condition_name, channel_name, stack_name='FullStackFiltered', measurement_name='MeanIntensity', object_type='cell',
+            minmax=(0,1), transf=None):
         cond_list = self.get_cond_id_im_id(condition_name)
-        im_dict = self.get_dict_imgs(cond_list,channel_name)
+        im_dict = self.get_dict_imgs(cond_list,channel_name,
+                stack_name, measurement_name, object_type)
         if transf is not None:
             for key, val in im_dict.items():
                 im_dict[key] = transf(val)
@@ -87,7 +88,8 @@ class PlotConditionImages(plot_base.BasePlot):
                     image = images[j]
                     img = im_dict[image]
                     cax = pltfkt(img, ax=a, crange = crange)
-                    sb = scalebar.ScaleBar(1, units='um', location=4)
+                    sb = scalebar.ScaleBar(1, units='um', location=4, frameon=False,
+                            color='white')
                     a.add_artist(sb)
                     a.set_xticks([])
                     a.set_yticks([])
@@ -98,35 +100,13 @@ class PlotConditionImages(plot_base.BasePlot):
                 else:
                     a.set_visible(False)
 
-        plt.colorbar(cax, ax=ax.ravel().tolist())
+        plt.colorbar(cax.images[0], ax=ax.ravel().tolist())
         plt.suptitle(title)
         return fig, ax
 
-
-    @staticmethod
-    def plot_im(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None):
-
-        if crange is None:
-            crange=(np.nanmin(img[:]), np.nanmax(img[:]))
-
-        if cmap is None:
-            cmap = plt.cm.viridis
-        cmap.set_bad('k',1.)
-        if ax is None:
-            plt.close()
-            fig, ax = plt.subplots(1, 1)
-        else:
-            fig = ax.get_figure()
-
-        cax = ax.imshow(img, cmap=cmap, interpolation="nearest")
-
-        if hasattr(img, 'mask'):
-            mask_img = np.isnan(img)
-            if np.any(mask_img):
-                mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False),fill_value=0)
-                ax.imshow(mask_img, alpha=0.2)
-
-        cax.set_clim(crange[0], crange[1])
+    def plot_im(self, img, title=None,crange=None, ax=None, update_axrange=True, cmap=None):
+        cax = self.heatmask.do_heatplot(img=img, title=title, crange=crange, ax=ax,
+                update_axrange=update_axrange, cmap=cmap, colorbar=False)
         return cax
 
 
@@ -136,10 +116,9 @@ class PlotConditionImages(plot_base.BasePlot):
         crange = [np.percentile(vals, 100*minmax[0]), np.percentile(vals, 100*minmax[1])]
         return  crange
 
-
-
-    def get_dict_imgs(self, cond_list, channelname):
-        imgids = {img: self.get_im_data(str(img),channelname) for c, imgs in cond_list for img in imgs}
+    def get_dict_imgs(self, cond_list, channelname, stack_name, measurement_name, cell_type):
+        imgids = {img: self.get_im_data(str(img),channelname,
+            stack_name, measurement_name, cell_type) for c, imgs in cond_list for img in imgs}
         return imgids
 
 
@@ -150,16 +129,20 @@ class PlotConditionImages(plot_base.BasePlot):
         return imac
 
 
-    def get_im_data(self, im_num, channelname):
+    def get_im_data(self, im_num, channelname, stack_name,
+            measurement_name, object_type):
 
         #fil_hq = self.objectfilterlib.get_combined_filterstatement([('is-sphere', True), ('is-ambiguous', False)])
 
         q = (self.data.get_measurement_query().filter(
-                                db.stacks.stack_name == 'FullStackFiltered',
-                                db.measurements.measurement_name == 'MeanIntensity',
-                                db.objects.object_type == 'cell',
+                                db.stacks.stack_name == stack_name,
+                                db.measurements.measurement_name == measurement_name,
+                                db.objects.object_type == object_type,
                                 db.images.image_id == im_num,
-                                db.ref_planes.channel_name == channelname))
+                                db.ref_planes.channel_name == channelname)
+                .add_columns(db.images.image_id, db.objects.object_number)
+                                )
+
 
         pdat = self.bro.doquery(q)
         img = self.heatmask.assemble_heatmap_image(pdat)
