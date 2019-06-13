@@ -1,6 +1,6 @@
 import spherpro.bromodules.plot_base as plot_base
 
-
+import copy
 import pandas as pd
 import numpy as np
 import re
@@ -275,7 +275,7 @@ class PlotHeatmask(plot_base.BasePlot):
             crange=(np.nanmin(img[:]), np.nanmax(img[:]))
 
         if cmap is None:
-            cmap = plt.cm.viridis
+            cmap = copy.copy(plt.cm.viridis)
         cmap.set_bad('k',1.)
         if ax is None:
             plt.close()
@@ -312,12 +312,11 @@ class PlotHeatmask(plot_base.BasePlot):
             ax.set_title(title)
         #fig.colorbar(cax)
         # slightly color the non background but not colored cells
-
         if hasattr(img, 'mask'):
             mask_img = np.isnan(img)
             if np.any(mask_img):
                 mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
-                ax.imshow(mask_img, alpha=0.2)
+                ax.imshow(mask_img==1, cmap='Greys', alpha=0.3)
 
         #fig.canvas.draw()
         return ax
