@@ -12,26 +12,25 @@ import scipy.stats as stats
 import sqlalchemy as sa
 
 class VariableBaseHelper:
-    COL_CHANNELN = db.ref_planes.channel_name.key
-    COL_MEASNAME = db.measurements.measurement_name.key
-    COL_VALUES = db.object_measurements.value.key
-    COL_MEASID = db.measurements.measurement_id.key
-    COL_IMID = db.images.image_id.key
-    COL_OBJID = db.objects.object_id.key
-    COL_SITE  = db.sites.site_id.key
-    COL_MEASTYPE = db.measurements.measurement_type.key
-    COL_CONDID = db.conditions.condition_id.key
-    COL_MEAS_ID = db.measurements.measurement_id.key
-    COL_VALUE = db.object_measurements.value.key
-    COL_FILTERVAL = db.object_filters.filter_value.key
-    COL_CONDITIONNAME = db.conditions.condition_name.key
-    COL_CONDITION_ID = db.conditions.condition_id.key
     COL_CHANNELNAME = db.ref_planes.channel_name.key
-    COL_MEAS_NAME = db.measurement_names.measurement_name.key
-    COL_OBJ_ID = db.objects.object_id.key
+    COL_CONDID = db.conditions.condition_id.key
+    COL_CONDLEVEL = COL_CONDID + 'level'
+    COL_CONDNAME = db.conditions.condition_name.key
+    COL_FILTERVAL = db.object_filters.filter_value.key
     COL_GOODNAME = 'goodname'
-    COL_WORKING = 'working'
+    COL_IMGID = db.images.image_id.key
+    COL_IMGLEVEL = COL_IMGID + 'level'
+    COL_IMID = db.images.image_id.key
     COL_ISNB = 'isnb'
+    COL_MEASID = db.measurements.measurement_id.key
+    COL_MEASID = db.measurements.measurement_id.key
+    COL_MEASNAME = db.measurement_names.measurement_name.key
+    COL_MEASTYPE = db.measurements.measurement_type.key
+    COL_OBJID = db.objects.object_id.key
+    COL_SITEID  = db.sites.site_id.key
+    COL_SITELEVEL = COL_SITEID + 'level'
+    COL_VALUE = db.object_measurements.value.key
+    COL_WORKING = 'working'
 
 V = VariableBaseHelper
 
@@ -91,7 +90,9 @@ class HelperVZ(pltbase.BasePlot):
             .join(db.valid_images)
         )
         dat_imgmeta = self.bro.doquery(q)
-        #dat_imgmeta = dat_imgmeta.set_index(V.COL_IMID, drop=False)
+        dat_imgmeta[V.COL_SITELEVEL] = dat_imgmeta[V.COL_SITEID].map(lambda x: 'site{}'.format(int(x)))
+        dat_imgmeta[V.COL_CONDLEVLEL] = dat_imgmeta[V.COL_CONDID].map(lambda x: 'well{}'.format(int(x)))
+        dat_imgmeta[V.COL_IMGLEVEL] = dat_imgmeta[V.COL_IMGID].map(lambda x: 'img{}'.format(int(x))) 
         return dat_imgmeta
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
