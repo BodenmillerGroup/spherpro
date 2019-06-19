@@ -78,7 +78,7 @@ class HelperVZ(pltbase.BasePlot):
         dat_measmeta[V.COL_WORKING] = dat_measmeta[V.COL_WORKING].fillna(1)
         dat_measmeta[V.COL_ISNB] = dat_measmeta[V.COL_MEASNAME].map(lambda x: 'Nb' if x.startswith('Nb') else 'Int')
         fil = dat_measmeta[V.COL_GOODNAME].isnull()
-        dat_measmeta.loc[fil, V.COL_GOODNAME] = dat_measmeta.loc[fil, V.COL_CHANNELN]
+        dat_measmeta.loc[fil, V.COL_GOODNAME] = dat_measmeta.loc[fil, V.COL_CHANNELNAME]
         #dat_measmeta = dat_measmeta.set_index(V.COL_MEASID, drop=False)
         return dat_measmeta
 
@@ -91,7 +91,7 @@ class HelperVZ(pltbase.BasePlot):
         )
         dat_imgmeta = self.bro.doquery(q)
         dat_imgmeta[V.COL_SITELEVEL] = dat_imgmeta[V.COL_SITEID].map(lambda x: 'site{}'.format(int(x)))
-        dat_imgmeta[V.COL_CONDLEVLEL] = dat_imgmeta[V.COL_CONDID].map(lambda x: 'well{}'.format(int(x)))
+        dat_imgmeta[V.COL_CONDLEVEL] = dat_imgmeta[V.COL_CONDID].map(lambda x: 'well{}'.format(int(x)))
         dat_imgmeta[V.COL_IMGLEVEL] = dat_imgmeta[V.COL_IMGID].map(lambda x: 'img{}'.format(int(x))) 
         return dat_imgmeta
 
@@ -99,11 +99,14 @@ class HelperVZ(pltbase.BasePlot):
                  meas_ids=None, object_type=None):
         q = (self.data.get_measurement_query()
                 .add_columns(db.images.image_id))
-        if curcond is not None:
-            q = q.filter(db.conditions.condition_name == curcond)
+        if (curcond is not None) or (cond_ids is not None):
+            q = q.join(db.conditions,
+                    db.images.condition_id == db.conditions.condition_id)
+            if curcond is not None:
+                q = q.filter(db.conditions.condition_name == curcond)
 
-        if cond_ids is not None:
-            q = q.filter(db.conditions.condition_id.in_(cond_ids))
+            if cond_ids is not None:
+                q = q.filter(db.conditions.condition_id.in_(cond_ids))
         if fil_good_meas is not None:
             q = q.filter(fil_good_meas)
         if meas_ids is not None:
@@ -154,9 +157,9 @@ class HelperVZ(pltbase.BasePlot):
         cg.fig.subplots_adjust(right=0.7)
         return cg
 
-    def get_fil_good_meas(seklf, dat_measmeta):
+    def get_fil_good_meas(self, dat_measmeta, col_working=V.COL_WORKING):
         fil_good_meas = db.measurements.measurement_id.in_(
-                [int(i) for i in dat_measmeta.loc[dat_measmeta[V.COL_WORKING] == 1, V.COL_MEASID]])
+                [int(i) for i in dat_measmeta.loc[dat_measmeta[col_working] == 1, V.COL_MEASID]])
         return fil_good_meas
 
     def get_imgs_for_cond(self, condition_name):
