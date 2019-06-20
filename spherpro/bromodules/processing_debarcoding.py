@@ -12,11 +12,13 @@ import plotnine as gg
 NAME_BARCODE = "BCString"
 NAME_WELLCOLUMN = "CondID"
 NAME_INVALID = "Invalid"
-KEY_SECOND =  db.images.bc_second_count.key
-KEY_HIGHEST =  db.images.bc_highest_count.key
+KEY_SECOND = db.images.bc_second_count.key
+KEY_HIGHEST = db.images.bc_highest_count.key
+
 
 class Debarcode(object):
     """docstring for Debarcode."""
+
     def __init__(self, bro):
         self.bro = bro
         self.data = bro.data
@@ -28,14 +30,14 @@ class Debarcode(object):
         self.COL_TYPE = 'coltype'
         self.NOT_VALID = 0
         self.BC_METACOLS = [db.conditions.condition_id,
-                db.conditions.sampleblock_id]
+                            db.conditions.sampleblock_id]
         self.COL_BC_METACOLS = [c.key for c in self.BC_METACOLS]
         self.CELL_METACOLS = [db.objects.object_id,
-            db.images.image_id,
-            db.sampleblocks.sampleblock_id]
+                              db.images.image_id,
+                              db.sampleblocks.sampleblock_id]
         self.COL_CELL_METACOLS = [c.key for c in self.CELL_METACOLS]
 
-    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs = None,
+    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs=None,
                   measurement_name=None, transform=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
@@ -45,7 +47,7 @@ class Debarcode(object):
         key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
         dat_cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack,
-                                   measurement_name=measurement_name)
+                                       measurement_name=measurement_name)
         # threshold them
         dat_tresh = self._treshold_data(dat_cells, bc_treshs, transform)
         # debarcode them
@@ -71,9 +73,9 @@ class Debarcode(object):
         bcvals.name = 'value'
         bcvals = bcvals.reset_index()
         bcvals['site'] = bcvals['site_id'].map(str)
-        p = (gg.ggplot(bcvals, gg.aes(x=transform, color='site'))+
-          gg.facet_wrap('channel_name', scales='free')+
-          gg.geom_density())
+        p = (gg.ggplot(bcvals, gg.aes(x=transform, color='site')) +
+             gg.facet_wrap('channel_name', scales='free') +
+             gg.geom_density())
         return(p)
 
     def _write_bc(self, dat_bcstat, dist):
@@ -87,7 +89,7 @@ class Debarcode(object):
         dat = dat_bcstat.set_index(db.images.image_id.key, drop=False)
 
         imgids = [i[0] for i in session.query(db.images.image_id).all()]
-        dat = dat.loc[imgids,:]
+        dat = dat.loc[imgids, :]
         for row in dat.to_dict(orient='records'):
             # convert all dtypes to int
             row.update({str(c): int(v) if np.isfinite(v) else None for c, v in row.items()})
@@ -99,23 +101,23 @@ class Debarcode(object):
 
             row[db.images.bc_depth.key] = dist
             session.query(db.images).\
-                    filter(db.images.image_id == row[db.images.image_id.key]).\
-                    update(row)
+                filter(db.images.image_id == row[db.images.image_id.key]).\
+                update(row)
         session.commit()
 
     @staticmethod
     def _default_treshfun(x):
-        return (x-np.mean(x)>0)
+        return (x-np.mean(x) > 0)
 
     def _treshold_data(self, bc_dat, bc_tresh=None, transform=None,
-            meta_group=None, tresh_fun=None):
+                       meta_group=None, tresh_fun=None):
         bc_dat = bc_dat.copy()
         if transform is not None:
             bc_dat = bc_dat.transform(transform)
 
         if tresh_fun is None:
             def tresh_fun(x):
-                return (x-np.mean(x))>0
+                return (x-np.mean(x)) > 0
 
         if bc_tresh is None:
             if meta_group is not None:
@@ -131,47 +133,46 @@ class Debarcode(object):
         meta_cols_bc = self.COL_BC_METACOLS
         meta_cols_cell = self.COL_CELL_METACOLS
         dat_db = (bc_key
-         .reset_index(drop=False)
-         .merge(dat_tresh.reset_index(drop=False),how='right',
-             )
-         .fillna(self.NOT_VALID)
-         .loc[:, set(meta_cols_bc + meta_cols_cell)]
-        )
+                  .reset_index(drop=False)
+                  .merge(dat_tresh.reset_index(drop=False), how='right',
+                         )
+                  .fillna(self.NOT_VALID)
+                  .loc[:, set(meta_cols_bc + meta_cols_cell)]
+                  )
         return dat_db
 
     def _summarize_singlecell_barcodes(self, dat_db):
         bc_meta_cols = self.COL_BC_METACOLS
         dat_sum = (dat_db
-         .groupby(by=bc_meta_cols + [db.images.image_id.key])
-         .size().rename(self.N)
-         .reset_index(drop=False)
-         )
+                   .groupby(by=bc_meta_cols + [db.images.image_id.key])
+                   .size().rename(self.N)
+                   .reset_index(drop=False)
+                   )
         return dat_sum
 
     def _get_barcode_statistics(self, dat_sum):
         dat_bcstat = (dat_sum
-                .groupby(db.images.image_id.key)
-                .apply(self._aggregate_barcodes)
-                .pivot_table(values='n',index=[db.images.image_id.key, db.conditions.condition_id.key],
-                    columns=self.COL_TYPE,
-                    fill_value=0)
-                .reset_index(drop=False))
+                      .groupby(db.images.image_id.key)
+                      .apply(self._aggregate_barcodes)
+                      .pivot_table(values='n', index=[db.images.image_id.key, db.conditions.condition_id.key],
+                                   columns=self.COL_TYPE,
+                                   fill_value=0)
+                      .reset_index(drop=False))
         return dat_bcstat
 
-
     def _aggregate_barcodes(self, d):
-        coltypelargest =[db.images.bc_highest_count.key,
-                db.images.bc_second_count.key]
+        coltypelargest = [db.images.bc_highest_count.key,
+                          db.images.bc_second_count.key]
         fil = d[db.conditions.condition_id.key] != self.NOT_VALID
         d_large = d.loc[fil].nlargest(2, self.N)
         d_large[self.COL_TYPE] = coltypelargest[:d_large.shape[0]]
-        d_none = d.loc[fil == False,:]
-        d_none[self.COL_TYPE] =  db.images.bc_invalid.key
+        d_none = d.loc[fil == False, :]
+        d_none[self.COL_TYPE] = db.images.bc_invalid.key
         d_sum = (d.loc[fil].groupby(db.images.image_id.key)[self.N]
-                .apply(lambda x: np.sum(x))
-                .rename(self.N)
-                .reset_index(drop=False)
-                )
+                 .apply(lambda x: np.sum(x))
+                 .rename(self.N)
+                 .reset_index(drop=False)
+                 )
         d_sum[self.COL_TYPE] = db.images.bc_valid.key
         d_out = pd.concat([d_large, d_none, d_sum], sort=False)
         if d_large.shape[0] > 0:
@@ -181,19 +182,16 @@ class Debarcode(object):
         d_out[db.conditions.condition_id.key] = cond
         return d_out
 
-
-
     def _get_barcode_key(self):
         bro = self.bro
         cond = bro.doquery(bro.session.query(*self.BC_METACOLS,
-            db.conditions.barcode))
+                                             db.conditions.barcode))
         cond = cond.set_index(self.COL_BC_METACOLS)
         key = cond[db.conditions.barcode.key].apply(lambda x: pd.Series(eval(x)))
         return key
 
-
     def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None,
-            additional_meta=None):
+                      additional_meta=None):
         """
         Get cells for debarcoding
         Args:
@@ -240,44 +238,43 @@ class Debarcode(object):
                                      measurement_names=[measurement_name],
                                      measurement_types=[self.DEFAULT_MEASUREMENT_TYPE])
         # get the data query
-        q_dat= (bro.data.get_measurement_query()
-            .filter(fil_obj)
-            .filter(fil_meas)
-            .filter(fil_dist)
-            .add_columns(db.images.image_id,
-                          db.sampleblocks.sampleblock_id
-               )
-            )
+        q_dat = (bro.data.get_measurement_query()
+                 .filter(fil_obj)
+                 .filter(fil_meas)
+                 .filter(fil_dist)
+                 .add_columns(db.images.image_id,
+                              db.sampleblocks.sampleblock_id
+                              )
+                 )
         if additional_meta is not None:
             q_dat = q_dat.add_columns(*additional_meta)
-            cols_meta = list(set(cols_meta+ [c.key for c in additional_meta]))
-        ## Get the metadata query
-        #q_obj = (bro.data.get_objectmeta_query()
+            cols_meta = list(set(cols_meta + [c.key for c in additional_meta]))
+        # Get the metadata query
+        # q_obj = (bro.data.get_objectmeta_query()
         #        .filter(db.objects.object_id == q_dat.subquery().c.object_id)
         #        .with_entities(db.objects.object_id,
         #            db.images.image_id,
         #            db.sampleblocks.sampleblock_id)
         #        )
-        ## The the measurement metadta query
+        # The the measurement metadta query
         q_meas = (bro.data.get_measmeta_query()
-                .filter(fil_meas)
-                .with_entities(db.measurements.measurement_id,
-                              db.ref_planes.channel_name)
-                )
+                  .filter(fil_meas)
+                  .with_entities(db.measurements.measurement_id,
+                                 db.ref_planes.channel_name)
+                  )
         # Query the data
         dat_cells, dat_measmeta = (bro.doquery(q)
-                for q in (q_dat, q_meas))
+                                   for q in (q_dat, q_meas))
 
         # bring it into the right form
         # object_meta (in index) ~ metals
         dat_bccells = (dat_cells
-                .merge(dat_measmeta)
-                .pivot_table(values=db.object_measurements.value.key,
-                    columns=db.ref_planes.channel_name.key,
-                    index=cols_meta, aggfunc='mean')
-                )
+                       .merge(dat_measmeta)
+                       .pivot_table(values=db.object_measurements.value.key,
+                                    columns=db.ref_planes.channel_name.key,
+                                    index=cols_meta, aggfunc='mean')
+                       )
         return dat_bccells
-
 
     def _get_bc_cells_old(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
         if measurement_name is None:
@@ -294,8 +291,8 @@ class Debarcode(object):
             (filtdict, operator.gt, borderdist),
             (filtdict, operator.lt, dist)
         ])
-        bc_query  = (self.data.get_measurement_query()
-                         .filter(
+        bc_query = (self.data.get_measurement_query()
+                    .filter(
                              self.bro.filters.measurements.get_measurement_filter_statements(
                                  channel_names=[channels],
                                  object_types=['cell'],
@@ -303,12 +300,12 @@ class Debarcode(object):
                                  measurement_names=[measurement_name],
                                  measurement_types=['Intensity'],
                              ))
-                         .filter(bcfilt)
-                        )
+                    .filter(bcfilt)
+                    )
         # add additional columns to the output
         bc_query = (bc_query
                     .add_columns(db.ref_planes.channel_name,
-                        db.objects.image_id)
+                                 db.objects.image_id)
                     )
         bc_query = bc_query.join(db.acquisitions).join(db.sites).add_column(db.sites.site_id)
         if fils is not None:
@@ -316,7 +313,7 @@ class Debarcode(object):
 
         dat = self.bro.doquery(bc_query)
         dat = dat.pivot_table(values=db.object_measurements.value.key,
-                                        columns=db.ref_planes.channel_name.key,
-                        index=[db.objects.image_id.key,
-                               db.object_measurements.object_id.key, db.sites.site_id.key])
+                              columns=db.ref_planes.channel_name.key,
+                              index=[db.objects.image_id.key,
+                                     db.object_measurements.object_id.key, db.sites.site_id.key])
         return dat
