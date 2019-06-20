@@ -1,13 +1,11 @@
 
 import pandas as pd
 import numpy as np
-import re
 import operator
 
 import spherpro as sp
-import spherpro.datastore as datastore
+import spherpro.configuration as conf
 import spherpro.db as db
-import sqlalchemy as sa
 
 import plotnine as gg
 
@@ -16,7 +14,6 @@ NAME_WELLCOLUMN = "CondID"
 NAME_INVALID = "Invalid"
 KEY_SECOND =  db.images.bc_second_count.key
 KEY_HIGHEST =  db.images.bc_highest_count.key
-DEFAULT_MEASURENAME = 'MeanIntensity'
 
 class Debarcode(object):
     """docstring for Debarcode."""
@@ -24,13 +21,9 @@ class Debarcode(object):
         self.bro = bro
         self.data = bro.data
         self.filter = sp.bromodules.filter_measurements.FilterMeasurements(self.bro)
-        self.DEFAULT_STACK = 'FullStack'
-        self.DEFAULT_MEASUREMENT = 'MeanIntensity'
-        self.DEFAULT_DISTSTACK = 'DistStack'
-        self.DEFAULT_DISTCHAN = 'dist-sphere'
-        self.DEFAULT_DISTMEAS = 'MeanIntensity'
-        self.DEFAULT_OBJ_TYPE = 'cell'
-        self.DEFAULT_MEASUREMENT_TYPE = 'Intensity'
+        self.defaults_rawdist = bro.data.conf[conf.QUERY_DEFAULTS][conf.RAWDIST]
+        self.defaults_channels = bro.data.conf[conf.QUERY_DEFAULTS][conf.CHANNEL_MEASUREMENTS]
+        self.DEFAULT_OBJTYPE = bro.data.conf[conf.QUERY_DEFAULTS][conf.DEFAULT_OBJECT_TYPE]
         self.N = 'n'
         self.COL_TYPE = 'coltype'
         self.NOT_VALID = 0
@@ -218,18 +211,19 @@ class Debarcode(object):
 
         bro = self.bro
         if measurement_name is None:
-            measurement_name = self.DEFAULT_MEASUREMENT
+            measurement_name = self.defaults_channels[conf.DEFAULT_MEASUREMENT_NAME]
         if stack is None:
-            stack = self.DEFAULT_STACK
+            measurement_name = self.defaults_channels[conf.DEFAULT_STACK_NAME]
 
         cols_meta = self.COL_CELL_METACOLS
         channels = tuple(key.columns.tolist())
 
         # Generate the measurement dict
+        d_rawdist = self.defaults_rawdist
         filtdict = {
-            db.stacks.stack_name.key: self.DEFAULT_DISTSTACK,
-            db.ref_planes.channel_name.key: self.DEFAULT_DISTCHAN,
-            db.measurement_names.measurement_name.key: self.DEFAULT_DISTMEAS
+            db.stacks.stack_name.key: d_rawdist[conf.DEFAULT_STACK_NAME],
+            db.ref_planes.channel_name.key: d_rawdist[conf.DEFAULT_CHANNEL_NAME],
+            db.measurement_names.measurement_name.key: d_rawdist[conf.DEFAULT_MEASUREMENT_NAME]
         }
         # Get the distance filters
         fil_dist = self.filter.get_multifilter_statement([
@@ -238,7 +232,7 @@ class Debarcode(object):
         ])
         # get the filter for the object type
         fil_obj = bro.filters.measurements.get_objectmeta_filter_statements(
-                object_types=[self.DEFAULT_OBJ_TYPE])
+                object_types=[self.DEFAULT_OBJTYPE])
         # get the filter for the measurment
         fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
                                      channel_names=[channels],
