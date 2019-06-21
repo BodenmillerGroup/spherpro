@@ -15,6 +15,9 @@ NAME_INVALID = "Invalid"
 KEY_SECOND = db.images.bc_second_count.key
 KEY_HIGHEST = db.images.bc_highest_count.key
 
+SS_BARCODE_MEASUREMENT_NAME = 'barcode'
+SS_BARCODE_MEASUREMENT_TYPE = 'object'
+
 
 class Debarcode(object):
     """docstring for Debarcode."""
@@ -58,6 +61,8 @@ class Debarcode(object):
         dat_stat = self._get_barcode_statistics(dat_sum)
         # update them to the Database
         self._write_bc(dat_stat, dist)
+        # write single cell barcodes to the Database
+        self._write_singlecell_barcodes(dat_db)
 
     def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None,
                         measurement_name=None, transform='value'):
@@ -154,27 +159,28 @@ class Debarcode(object):
         dat_bcstat = (dat_sum
                       .groupby(db.images.image_id.key)
                       .apply(self._aggregate_barcodes)
-                      .pivot_table(values='n', index=[db.images.image_id.key, db.conditions.condition_id.key],
+                      .reset_index(drop=True)
+                      .pivot_table(values=self.N, index=[db.images.image_id.key, db.conditions.condition_id.key],
                                    columns=self.COL_TYPE,
                                    fill_value=0)
                       .reset_index(drop=False))
         return dat_bcstat
 
-    def _aggregate_barcodes(self, d):
+    def _aggregate_barcodes(self, dat):
         coltypelargest = [db.images.bc_highest_count.key,
                           db.images.bc_second_count.key]
-        fil = d[db.conditions.condition_id.key] != self.NOT_VALID
-        d_large = d.loc[fil].nlargest(2, self.N)
+        fil = dat[db.conditions.condition_id.key] != self.NOT_VALID
+        d_large = dat.loc[fil].nlargest(2, self.N).copy()
         d_large[self.COL_TYPE] = coltypelargest[:d_large.shape[0]]
-        d_none = d.loc[fil == False, :]
+        d_none = dat.loc[fil == False, :].copy()
         d_none[self.COL_TYPE] = db.images.bc_invalid.key
-        d_sum = (d.loc[fil].groupby(db.images.image_id.key)[self.N]
-                 .apply(lambda x: np.sum(x))
+        d_sum = (dat.loc[fil].groupby(db.images.image_id.key)[self.N]
+                 .sum()
                  .rename(self.N)
                  .reset_index(drop=False)
                  )
         d_sum[self.COL_TYPE] = db.images.bc_valid.key
-        d_out = pd.concat([d_large, d_none, d_sum], sort=False)
+        d_out = pd.concat([d_large, d_none, d_sum], sort=True)
         if d_large.shape[0] > 0:
             cond = d_large[db.conditions.condition_id.key].iloc[0]
         else:
@@ -236,7 +242,7 @@ class Debarcode(object):
                                      channel_names=[channels],
                                      stack_names=[stack],
                                      measurement_names=[measurement_name],
-                                     measurement_types=[self.DEFAULT_MEASUREMENT_TYPE])
+                                     measurement_types=[None])
         # get the data query
         q_dat = (bro.data.get_measurement_query()
                  .filter(fil_obj)
@@ -317,3 +323,21 @@ class Debarcode(object):
                               index=[db.objects.image_id.key,
                                      db.object_measurements.object_id.key, db.sites.site_id.key])
         return dat
+
+    def _write_singlecell_barcodes(self, dat_db):
+        """
+        Saves the singlecell barcodes to the database
+        """
+        mm = self.bro.processing.measurement_maker
+        dat_db = dat_db.copy()
+        val_obj = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.OBJECT_DEFAULTS]
+
+        plane_id = mm.get_object_plane_id()
+        meas_id = mm.register_single_measurement(
+            SS_BARCODE_MEASUREMENT_NAME,
+            SS_BARCODE_MEASUREMENT_TYPE,
+            plane_id)
+        dat_db[db.measurements.measurement_id.key] = meas_id
+        dat_db = dat_db.rename(columns={db.conditions.condition_id.key: db.object_measurements.value.key})
+        self.bro.processing.measurement_maker.add_object_measurements(dat_db, drop_all_old=True)
+
