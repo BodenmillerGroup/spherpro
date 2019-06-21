@@ -9,6 +9,7 @@ import spherpro.bromodules.filters as filters
 import spherpro.bromodules.plots as plots
 import spherpro.bromodules.io as io
 import spherpro.bromodules.processing as processing
+import spherpro.bromodules.helpers as helpers
 
 import sqlalchemy as sa
 
@@ -27,7 +28,7 @@ def get_bro(fn_config):
     store = datastore.DataStore()
     store.read_config(fn_config)
     store.resume_data()
-    bro = Bro(store)
+    bro = store.bro
     return bro
 
 
@@ -36,10 +37,15 @@ class Bro(object):
 
     def __init__(self, DataStore):
         self.data = DataStore
+        self.helpers = helpers.Helpers(self)
         self.filters = filters.Filters(self)
         self.io = io.Io(self)
-        self.plots = plots.Plots(self)
-        self.processing = processing.Processing(self)
+        self.plots = plots.Plots()
+        self.plots.load_modules(self)
+        self.processing = processing.Processing()
+        self.processing.load_modules(self)
+        self.doquery = self.data.get_query_function()
+        self.session = self.data.main_session
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
@@ -78,8 +84,8 @@ class Bro(object):
     @property
     def is_debarcoded(self):
         isdeb = False
-        q =self.data.main_session.query(db.Image.ConditionID)
-        q = q.filter(db.Image.ConditionID.isnot(None)).count()
+        q =self.data.main_session.query(db.images.condition_id)
+        q = q.filter(db.images.condition_id.isnot(None)).count()
         if q > 0:
             isdeb = True
         return isdeb

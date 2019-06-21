@@ -10,12 +10,41 @@ import sqlalchemy as sa
 
 import plotnine as gg
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+import colorcet
 
 LABEL_CBAR = "# of all cells with valid barcodes"
 LABEL_Y = "# of cells with\nmost prominent barcode"
 LABEL_X = "# of cells with second most prominent barcode"
 PLT_TITLE = "Debarcoding Quality"
-CBAR_HUE = db.KEY_BCVALID
+CBAR_HUE = db.images.bc_valid.key
+
+class PlotDebarcodeCells(plot_base.BasePlot):
+    def __init__(self, bro):
+        super().__init__(bro)
+
+    def plot_debarcoded_cells(self, img_id, color_invalid='#F8F8F8',
+                              base_colormap=colorcet.glasbey,
+                              colorbar=False, ax=None, title=None):
+        # get the conditions of the block
+        blockid = (self.session.query(db.sampleblocks)
+                    .join(db.conditions)
+                    .join(db.images)
+                    .filter(db.images.image_id == img_id)).subquery()
+        unicols = [c[0] for c in self.session.query(db.conditions.condition_id)
+                .filter(db.conditions.sampleblock_id == blockid.c.sampleblock_id).all()]
+        cmap = [color_invalid] + base_colormap
+        mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', cmap, N=max(unicols)+1)
+        if title is None:
+            title=f'ImgId: {img_id}'
+        return self.bro.plots.heatmask.plt_heatplot([img_id],
+                                        'barcode',
+                                        'ObjectStack',
+                                        'object',
+                                                title=title,
+                                                transform=None,colorbar=colorbar,cmap=mymap, ax=ax
+                                            )
 
 
 class PlotDebarcodeQuality(plot_base.BasePlot):
@@ -59,9 +88,9 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         return plt, ax
 
     def _get_data(self):
-        q = self.data.main_session.query(db.Image)
-        zeros = q.filter(db.Image.ConditionID == None).count()
-        q = q.filter(db.Image.ConditionID.isnot(None)).statement
+        q = self.data.main_session.query(db.images)
+        zeros = q.filter(db.images.condition_id == None).count()
+        q = q.filter(db.images.condition_id.isnot(None)).statement
         table = pd.read_sql_query(q, self.data.db_conn)
         return table, zeros
 
@@ -73,8 +102,8 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         if cm is None:
             cm = plt.cm.get_cmap('winter')
 
-        y = data[db.KEY_BCHIGHESTCOUNT]
-        x = data[db.KEY_BCSECONDCOUNT]
+        y = data[db.images.bc_highest_count.key]
+        x = data[db.images.bc_second_count.key]
         sc = ax.scatter(x, y,
                    alpha=0.7, edgecolors='none', c=data[CBAR_HUE], cmap=cm)
         upper = max(x.max()*1.1, y.max()*1.1)

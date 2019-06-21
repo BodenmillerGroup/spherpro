@@ -1,10 +1,9 @@
 """
-A class to generate and add a hq filter to the database.
-this filter is a composition from diffrent silent (as in not saved to the db)
-conditions.
+TODO: NON WORKING!!
+
 """
 import spherpro.bromodules.filter_base as filter_base
-import spherpro.bromodules.filter_customfilterstack as filter_customfilterstack
+import spherpro.bromodules.filter_customfilterstack as filter_objectfilters
 import pandas as pd
 import numpy as np
 import re
@@ -20,7 +19,7 @@ import sqlalchemy as sa
 class Bins(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.custfilter = filter_customfilterstack.CustomFilterStack(bro)
+        self.custfilter = filter_objectfilters.CustomFilterStack(bro)
 
     def create(self, binwidth=10):
         """
@@ -46,8 +45,8 @@ class Bins(filter_base.BaseFilter):
                          ))
                     )
         data = pd.read_sql_query(q.statement,self.data.db_conn)
-        data = data.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-        data[cname] = data[db.KEY_VALUE]
+        data = data.set_index([db.images.image_id.key, db.objects.object_number.key])
+        data[cname] = data[db.object_measurements.value.key]
         data = pd.DataFrame(data[cname])
         for group in mdicts:
             sname, mname, cname = group
@@ -62,15 +61,14 @@ class Bins(filter_base.BaseFilter):
                              ))
                         )
             tmp = pd.read_sql_query(q.statement,self.data.db_conn)
-            tmp = tmp.set_index([db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER])
-            tmp[cname] = tmp[db.KEY_VALUE]
+            tmp = tmp.set_index([db.images.image_id.key, db.objects.object_number.key])
+            tmp[cname] = tmp[db.object_measurements.value.key]
             tmp = pd.DataFrame(tmp[cname])
             data = data.join(tmp)
         return data
 
 
-    def _filter_query(self, q, filter, filtertuple):
-        
+
 
 
 

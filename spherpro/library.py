@@ -1,6 +1,6 @@
-import pandas as pd
 import os
 import re
+import pandas as pd
 import spherpro.configuration as conf
 
 def fill_null(data, table):
@@ -150,3 +150,21 @@ def read_csv_from_config(configdict, base_dir=None):
         path = os.path.join(base_dir, path)
     dat = pd.read_csv(path, sep=sep)
     return dat
+
+def map_group_re(x, re_str):
+    """
+    Maps a regular expression with matchgroups
+    to a iterable (e.g. column in a dataframe) and returns the
+    result as a data frame
+    Args:
+        x: iterable
+        re_str: a regular expression string with matchgroups
+    Return:
+        A dataframe with column names being matchgroups
+
+    """
+    qre = re.compile(re_str)
+    m_list = [pd.DataFrame.from_dict(
+            [m.groupdict() for m in qre.finditer(s)]) for s in x]
+    return pd.concat(m_list, ignore_index=True)
+

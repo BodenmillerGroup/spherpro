@@ -10,6 +10,8 @@ import sqlalchemy as sa
 
 import plotnine as gg
 
+VAL_COL = db.object_measurements.value.key
+
 class PlotScatter(plot_base.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
@@ -19,11 +21,11 @@ class PlotScatter(plot_base.BasePlot):
         # define the measurement indexes with defaults
         # order is order expected by _get_measurement_filters
         self.measure_idx =[ # idx_name, default
-            (db.KEY_OBJECTID, 'cell'),
-            (db.KEY_CHANNEL_NAME, None),
-            (db.KEY_STACKNAME, 'FullStack'),
-            (db.KEY_MEASUREMENTNAME, 'MeanIntensity'),
-            (db.KEY_MEASUREMENTTYPE, 'Intensity')]
+            (db.objects.object_id.key, 'cell'),
+            (db.ref_planes.channel_name.key, None),
+            (db.stacks.stack_name.key, 'FullStack'),
+            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
+            (db.measurement_types.measurement_type.key, 'Intensity')]
 
 
     def plot_bin2d(self, measure_x, measure_y, image_ids=None, filters=None):
@@ -32,19 +34,19 @@ class PlotScatter(plot_base.BasePlot):
         scatterplot
         Args:
             measure_x, measure_y: dict defining the selected measures:
-                {db.KEY_OBJECTID: object_id,
-                 db.KEY_CHANNEL_NAME: channel_name,
-                 db.KEY_STACKNAME: stack_name,
-                 db.KEY_MEASUREMENTNAME: measurement_name,
-                 db.KEY_MEASUREMENTTYPE: measurement_type}
+                {db.objects.object_id.key: object_id,
+                 db.ref_planes.channel_name.key: channel_name,
+                 db.stacks.stack_name.key: stack_name,
+                 db.measurement_names.measurement_name.key: measurement_name,
+                 db.measurement_types.measurement_type.key: measurement_type}
         Returns:
             p:  the plot figure object
 
         """
         dat = self.get_marker_data([measure_x, measure_y],
-                                               image_ids=image_ids,
-                                               filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
+                                image_ids=image_ids,
+                                filters=filters)
+        p = (gg.ggplot(dat, gg.aes(x="0_"+VAL_COL, y='1_'+VAL_COL)) +
           gg.geom_bin2d()+
           gg.geom_smooth(method='lm') +
           gg.xlab(' - '.join([measure_x.get(o,d) for o, d in
@@ -63,14 +65,14 @@ class PlotScatter(plot_base.BasePlot):
         scatterplot
         Args:
             measure_x, measure_y: dict defining the selected measures:
-                {db.KEY_OBJECTID: object_id,
-                 db.KEY_CHANNEL_NAME: channel_name,
-                 db.KEY_STACKNAME: stack_name,
-                 db.KEY_MEASUREMENTNAME: measurement_name,
-                 db.KEY_MEASUREMENTTYPE: measurement_type}
+                {db.objects.object_id.key: object_id,
+                 db.ref_planes.channel_name.key: channel_name,
+                 db.stacks.stack_name.key: stack_name,
+                 db.measurement_names.measurement_name.key: measurement_name,
+                 db.measurement_types.measurement_type.key: measurement_type}
             image_ids: image ids to plot
             filters: list of filter tuples [('filtername1', True),
-            ('filtername2', False)] 
+            ('filtername2', False)]
         Returns:
             p:  the plot figure object
 
@@ -78,7 +80,7 @@ class PlotScatter(plot_base.BasePlot):
         dat = self.get_marker_data([measure_x, measure_y],
                                                image_ids=image_ids,
                                                filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x='0_Value', y='1_Value')) +
+        p = (gg.ggplot(dat, gg.aes(x='0_'+VAL_COL, y='1_'+VAL_COL)) +
           gg.geom_point()+
           gg.geom_smooth(method='lm') +
           gg.xlab(' - '.join([measure_x.get(o,d) for o, d in
@@ -94,22 +96,21 @@ class PlotScatter(plot_base.BasePlot):
                                     filters=None):
 
 
-        filters_measurement = [self.filter_measurements.get_measurement_filter_statements(*[[meas.get(o,d)] for o, d in
-                                                   self.measure_idx ])
+        filters_measurement = [
+                self.filter_measurements.get_measurement_filter_statements(
+                    *[[meas.get(o,d)]
+                        for o, d in self.measure_idx ])
                    for meas in measures]
         query = self._get_measurement_query()
         if image_ids is not None:
-            query = query.filter(db.Image.ImageNumber.in_(image_ids))
-        if filters is not None:
-            for filtername, filtervalue in filters:
-                query = (query.filter(sa.and_(db.Filters.FilterName == filtername,
-                                         db.Filters.FilterValue ==
-                                          filtervalue)))
-            query = query.join(db.Filters)
-
+            query = query.filter(
+                    db.images.image_id.in_(image_ids))
         query_joins = self._get_joined_filtered_queries(query,
                                                         filters_measurement)
-        dat = pd.read_sql(query_joins.statement, self.data.db_conn)
+        if filters is not None:
+           # TODO: This needs to be fixed!
+           query = query.filter(filters)
+        dat = self.bro.doquery(query_joins)
         return dat
 
     def _get_joined_filtered_queries(self, base_query, filters, on_cols=None):
@@ -117,7 +118,7 @@ class PlotScatter(plot_base.BasePlot):
         Queries repeatedly using the base_query and applying multiple filters.
         The results will be joined on the 'on_cols' and the columns renamed
         with a prefix according to the filter index (0_, 1_ etc.)
-        
+
         Args:
             base_query: the query that should be used as a basis.
             filters:    a list of filter statements
@@ -127,7 +128,8 @@ class PlotScatter(plot_base.BasePlot):
             the query to get the results
         """
         if on_cols is None:
-            on_cols = [db.KEY_IMAGENUMBER, db.KEY_OBJECTNUMBER]
+            on_cols = [db.images.image_id.key,
+                    db.objects.object_number.key]
         queries = [base_query.filter(fil).subquery(name=str(i))
                    for i, fil in enumerate(filters)]
         # queries =[q.apply_labels() for q in queries]
@@ -150,9 +152,11 @@ class PlotScatter(plot_base.BasePlot):
         query = self._get_measurement_query()
         for fil in filters:
             query = query.filter(fil)
-        dat = pd.read_sql(query.statement, self.data.db_conn)
+        dat = self.bro.doquery(query)
         return dat
 
     def _get_measurement_query(self):
-        query = self.data.get_measurement_query(session=self.session)
+        query = (self.data.get_measurement_query()
+                .add_columns(db.images.image_id,
+                    db.objects.object_number))
         return query

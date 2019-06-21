@@ -19,7 +19,7 @@ LABEL_CBAR = "# of all cells with valid barcodes"
 LABEL_Y = "# of cells with\nmost prominent barcode"
 LABEL_X = "# of cells with second most prominent barcode"
 PLT_TITLE = "Debarcoding Quality"
-CBAR_HUE = db.KEY_BCVALID
+CBAR_HUE = db.images.bc_valid.key
 RADIUS_COL = "radius"
 
 
@@ -55,7 +55,7 @@ class PlotConditionPlot(plot_base.BasePlot):
             condition: the condition tc to be drawn
             cm: color map to use
             filtertuples: list of filtertuples to create subquery from
-            filters: list of filternames from db.Filters
+            filters: list of filternames from db.object_filters
         Returns:
             plt, ax from plot
         """
@@ -106,7 +106,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         # generate lookup table
         lookup = self._generate_wells()
         # create range
-        pdat = data[db.KEY_VALUE]
+        pdat = data[db.object_measurements.value.key]
         clim = (np.percentile(pdat,censor_min*100), np.percentile(pdat,censor_max*100))
         # fill the grid
         fig, ax = self._fill_grid(data, condition, clim, cm, fig, ax, lookup, sizey, sizex, timepoints, wells_per_timepoint, nox, noy, plot_map, relative)
@@ -136,7 +136,7 @@ class PlotConditionPlot(plot_base.BasePlot):
         """
         for tpit in range(0, len(timepoints)):
             count = 0
-            images = list(lookup.loc[(lookup[db.KEY_CONDITIONNAME]==condition)&(lookup[db.KEY_TIMEPOINT]==timepoints[tpit])][db.KEY_IMAGENUMBER])
+            images = list(lookup.loc[(lookup[db.conditions.condition_name.key]==condition)&(lookup[db.conditions.timepoint.key]==timepoints[tpit])][db.images.image_id.key])
             #print(str(tpit)+"---------")
             for well in images:
                 #print(well)
@@ -169,10 +169,10 @@ class PlotConditionPlot(plot_base.BasePlot):
                 # PLOT-----------
                 count = count + 1
                 if relative:
-                    max_h = self.data.main_session.query(func.max(db.Masks.ShapeH)).first()[0]
-                    max_w = self.data.main_session.query(func.max(db.Masks.ShapeW)).first()[0]
-                    cur_h = self.data.main_session.query(db.Masks.ShapeH).filter(db.Masks.ImageNumber == str(well)).first()[0]
-                    cur_w = self.data.main_session.query(db.Masks.ShapeW).filter(db.Masks.ImageNumber == str(well)).first()[0]
+                    max_h = self.data.main_session.query(func.max(db.masks.shape_h)).first()[0]
+                    max_w = self.data.main_session.query(func.max(db.masks.shape_w)).first()[0]
+                    cur_h = self.data.main_session.query(db.masks.shape_h).filter(db.masks.image_id == str(well)).first()[0]
+                    cur_w = self.data.main_session.query(db.masks.shape_w).filter(db.masks.image_id == str(well)).first()[0]
                     xdiff = max_w - cur_w
                     ydiff = max_h - cur_h
                     curax.set_ylim(bottom=-ydiff/2, top=cur_h+ydiff/2)
@@ -181,15 +181,15 @@ class PlotConditionPlot(plot_base.BasePlot):
         return fig, ax
 
     def _get_condition_meta(self):
-        q = self.session.query(db.Condition.TimePoint)
+        q = self.session.query(db.conditions.time_point)
         q = q.distinct()
         tpts = pd.read_sql_query(q.statement,self.data.db_conn)
-        timepoints = list(tpts[db.KEY_TIMEPOINT])
+        timepoints = list(tpts[db.conditions.timepoint.key])
 
         COUNT_COL = "count_1"
-        q = self.session.query(sa.func.count(db.Condition.ConditionID))\
-            .filter(db.Condition.TimePoint==str(timepoints[0]))
-        q = q.group_by(db.Condition.ConditionName)
+        q = self.session.query(sa.func.count(db.conditions.condition_id))\
+            .filter(db.conditions.time_point==str(timepoints[0]))
+        q = q.group_by(db.conditions.condition_name)
         res = pd.read_sql_query(q.statement,self.data.db_conn)
         wells_per_timepoint = res[COUNT_COL].max()
 
@@ -228,20 +228,20 @@ class PlotConditionPlot(plot_base.BasePlot):
                          ))
                     )
         data = pd.read_sql_query(q.statement, self.data.db_conn)
-        q = self.data.main_session.query(db.Condition.TimePoint,
-                                            db.Condition.ConditionName,
-                                            db.Condition.BCPlate,
-                                            db.Condition.BCX,
-                                            db.Condition.BCY,
-                                            db.Image.ImageNumber)
-        q = q.join(db.Image)
+        q = self.data.main_session.query(db.conditions.time_point,
+                                            db.conditions.condition_name,
+                                            db.conditions.bc_plate,
+                                            db.conditions.bc_x,
+                                            db.conditions.bc_y,
+                                            db.images.image_id)
+        q = q.join(db.images)
         conditions = pd.read_sql_query(q.statement,self.data.db_conn)
-        radius = data[[db.KEY_IMAGENUMBER,db.KEY_VALUE]].groupby(db.KEY_IMAGENUMBER).max()
+        radius = data[[db.images.image_id.key,db.object_measurements.value.key]].groupby(db.images.image_id.key).max()
         radius.columns = [RADIUS_COL]
-        conditions = conditions.set_index(db.KEY_IMAGENUMBER)
+        conditions = conditions.set_index(db.images.image_id.key)
         conditions = conditions.join(radius)
         conditions = conditions.sort_values(RADIUS_COL, ascending=False)
-        conditions = conditions.drop_duplicates([db.KEY_BCPLATENAME,db.KEY_BCX,db.KEY_BCY], keep='first')
+        conditions = conditions.drop_duplicates([db.conditions.bc_plate.key,db.conditions.bc_x.key,db.conditions.bc_y.key], keep='first')
         conditions = conditions.reset_index(drop=False)
         return conditions
 
@@ -262,6 +262,6 @@ class PlotConditionPlot(plot_base.BasePlot):
             q = q.filter(fstatement)
         if filters is not None:
             for filtername in filters:
-                q = q.join(db.Filters).filter(sa.and_(db.Filters.FilterName == filtername, db.Filters.FilterValue==1))
+                q = q.join(db.object_filters).filter(sa.and_(db.object_filters.FilterName == filtername, db.object_filters.filter_value==1))
         data = pd.read_sql_query(q.statement, self.data.db_conn)
         return data

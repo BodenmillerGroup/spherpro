@@ -31,5 +31,6 @@ setup(
                        'seaborn',
                        'pyyaml',
                        'PyMySQL',
+                        'colorcet',
                        'sqlalchemy'],
 )
