@@ -8,21 +8,50 @@ import plotnine as gg
 
 import spherpro as sp
 import spherpro.datastore as datastore
+import spherpro.configuration as conf
 import spherpro.db as db
 import spherpro.bromodules.filter_objectfilters as custfilter
 
-CHANNEL_DISTSPHERE = 'dist-sphere'
 
 class FilterMembership(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
         self.filter_custom = custfilter.ObjectFilterLib(bro)
+        self.defaults = self.data.conf[conf.QUERY_DEFAULTS]
+
+    def add_issmall(self, minpix=10, name=None, measid_area=None,
+                    object_type=None, drop=True):
+        if name is None:
+            name = 'is-small'
+        obj_def = self.defaults[conf.OBJECT_DEFAULTS]
+        measfilts = self.bro.filters.measurements
+
+        if measid_area is None:
+            fil = measfilts.get_measmeta_filter_statements(
+                channel_names=[obj_def[conf.DEFAULT_CHANNEL_NAME]],
+                stack_names=[obj_def[conf.DEFAULT_STACK_NAME]],
+                measurement_names=['Area'],
+                measurement_types=['AreaShape'])
+            measid_area = (self.data.get_measmeta_query()
+                           .filter(fil)
+                           .with_entities(db.measurements.measurement_id)
+                           ).one()[0]
+        q_dat = (self.data.get_measurement_query()
+               .filter(db.measurements.measurement_id == measid_area)
+               )
+        if object_type is not None:
+            q_dat = q_dat.filter(db.objects.object_type == object_type)
+
+        dat_filter = self.bro.doquery(q_dat)
+        dat_filter[db.object_filters.filter_value.key] = \
+            dat_filter[db.object_measurements.value.key] < minpix
+        self.filter_custom.write_filter_to_db(dat_filter, name, drop)
+        return dat_filter
 
     def add_issphere(self, minfrac=0.6, name=None, drop=True):
         if name is None:
             name = 'is-sphere'
         col_issphere = 'is-sphere'
-        scale = 2**8
         col_isother = 'is-other'
         col_isbg = 'is-bg'
         col_measure = 'MeanIntensity'
