@@ -6,6 +6,7 @@ import operator
 
 import spherpro as sp
 import spherpro.datastore as datastore
+import spherpro.configuration as conf
 import spherpro.db as db
 import sqlalchemy as sa
 
@@ -74,6 +75,15 @@ class MeasurementMaker(base.BasePlot):
                                           db.objects)
         return object_meta
 
+    def register_single_measurement(self, measurement_name, measurement_type, plane_id):
+        dat_measure_meta = pd.DataFrame(
+            {db.measurements.measurement_name.key: [measurement_name],
+             db.measurements.plane_id.key: [plane_id],
+             db.measurements.measurement_type.key: [measurement_type]
+             })
+        dat_measure_meta = self.register_measurements(dat_measure_meta)
+        return dat_measure_meta[db.measurements.measurement_id.key].values[0]
+
     def register_measurements(self, measure_meta):
         """
         Retisters a table with measurments. The ID column
@@ -114,3 +124,22 @@ class MeasurementMaker(base.BasePlot):
         q.delete(synchronize_session=False)
         self.bro.session.commit()
 
+    def get_object_plane_id(self):
+        """
+        Gets the object plane id, based on defaults.
+
+        The object plane is a plane to capture object level measurements,
+        not related to any channel, e.g. size/shape/location...
+        """
+        def_obj = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.OBJECT_DEFAULTS]
+        OUT_STACK = def_obj[conf.DEFAULT_STACK_NAME]
+        OUT_CHANNEL_TYPE = def_obj[conf.DEFAULT_CHANNEL_TYPE]
+        OUT_CHANNEL_NAME = def_obj[conf.DEFAULT_CHANNEL_NAME]
+        plane_id = (self.bro.session.query(db.planes.plane_id)
+             .join(db.stacks)
+             .join(db.ref_stacks)
+             .join(db.ref_planes)
+             .filter(db.stacks.stack_name == OUT_STACK,
+                                        db.ref_planes.channel_type == OUT_CHANNEL_TYPE,
+                                        db.ref_planes.channel_name == OUT_CHANNEL_NAME)).one()[0]
+        return plane_id
