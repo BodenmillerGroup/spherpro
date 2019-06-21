@@ -13,6 +13,19 @@ defaults, required files, loading as well as validation functions.
 """
 List of keywords fields used in the configuration file
 """
+QUERY_DEFAULTS = 'query_defaults'
+CHANNEL_MEASUREMENTS = 'channel_measurements'
+RAWDIST = 'distance_measure_raw'
+CORRDIST = 'distance_measure_corrected'
+OBJECT_DEFAULTS = 'object_defaults'
+DEFAULT_OBJECT_TYPE = db.objects.object_type.key
+DEFAULT_MEASUREMENT_NAME = db.measurement_names.measurement_name.key
+DEFAULT_STACK_NAME = db.stacks.stack_name.key
+DEFAULT_MEASUREMENT_TYPE = db.measurement_types.measurement_type.key
+DEFAULT_OBJ_TYPE = db.objects.object_type.key
+DEFAULT_CHANNEL_NAME = db.ref_planes.channel_name.key
+DEFAULT_CHANNEL_TYPE = db.ref_planes.channel_type.key
+
 BACKEND = 'backend'
 BARCODE_CSV = 'barcode_csv'
 CHANNEL_NAME = 'channel_name_col'
@@ -113,6 +126,33 @@ COLMAP = 'column_map'
 Default settings
 """
 default_dict = {
+    QUERY_DEFAULTS: {
+        DEFAULT_OBJECT_TYPE: 'cell',
+        CHANNEL_MEASUREMENTS: {
+            DEFAULT_MEASUREMENT_NAME: 'MeanIntensityComp',
+            DEFAULT_STACK_NAME: 'FullStackFiltered',
+            DEFAULT_MEASUREMENT_TYPE: 'Intensity'
+            },
+        RAWDIST: {
+            DEFAULT_MEASUREMENT_NAME: 'MeanIntensity',
+            DEFAULT_STACK_NAME: 'DistStack',
+            DEFAULT_MEASUREMENT_TYPE: 'Intensity',
+            DEFAULT_CHANNEL_NAME: 'dist-sphere'
+        },
+        CORRDIST: {
+            DEFAULT_STACK_NAME: 'ObjectStack',
+            DEFAULT_MEASUREMENT_TYPE: 'Location',
+            DEFAULT_MEASUREMENT_NAME: 'dist-rim',
+            DEFAULT_CHANNEL_NAME: 'object',
+            DEFAULT_CHANNEL_TYPE: 'object'
+        },
+        OBJECT_DEFAULTS: {
+            DEFAULT_STACK_NAME: 'ObjectStack',
+            DEFAULT_CHANNEL_NAME: 'object',
+            DEFAULT_CHANNEL_TYPE: 'object'
+            },
+        },
+
     IMAGENUMBER: 'ImageNumber',
     OBJECTNUMBER: 'ObjectNumber',
     OBJECTTYPE: 'ObjectID',

@@ -112,7 +112,7 @@ class InteractiveHeatplot(object):
         # add the imageidx widget make it adapt depending on the chosen site
         w_image = ipw.Select([ALL] + self.get_image_ids(w_sites.value))
         def update_img_range(*args):
-            w_img.options = [ALL] + self.get_img_ids(w_roi.value)
+            w_image.options = [ALL] + self.get_img_ids(w_roi.value)
         w_roi.observe(update_img_range, 'value')
         w_imgidx = ipw.__version__
         channel_names = [q[0] for q in
@@ -165,7 +165,7 @@ class PlotHeatmask(plot_base.BasePlot):
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
-            (db.measurement_types.measurement_type.key, 'Intensity')]
+            (db.measurement_types.measurement_type.key, None)]
         self.interactive = InteractiveHeatplot(self.data.main_session, self)
 
 
@@ -271,8 +271,8 @@ class PlotHeatmask(plot_base.BasePlot):
     @staticmethod
     def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True):
 
-        if crange is None:
-            crange=(np.nanmin(img[:]), np.nanmax(img[:]))
+        #if crange is None:
+        #    crange=(np.nanmin(img[:]), np.nanmax(img[:]))
 
         if cmap is None:
             cmap = copy.copy(plt.cm.viridis)
@@ -295,7 +295,8 @@ class PlotHeatmask(plot_base.BasePlot):
 
         cax.set_data(np.flipud((img)))
         cax.set_extent([0,img.shape[1], 0, img.shape[0]])
-        cax.set_clim(crange[0], crange[1])
+        if crange is not None:
+            cax.set_clim(crange[0], crange[1])
 
         # update bounts
 
@@ -323,7 +324,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
-                     ax=None, title=None, colorbar=True, transform_fkt=None):
+                     ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None):
         """
         Retrieves images form the database and maps then on masks
         Args:
@@ -360,10 +361,14 @@ class PlotHeatmask(plot_base.BasePlot):
             transform_fkt = transf_dict[transform]
         data[col_val] = transform_fkt(data[col_val])
         img = self.assemble_heatmap_image(data)
-        crange = ( np.percentile(data[col_val],censor_min*100),
-                  np.percentile(data[col_val],censor_max*100))
+        if (censor_min > 0) & (censor_max < 1):
+            crange = ( np.percentile(data[col_val],censor_min*100),
+                    np.percentile(data[col_val],censor_max*100))
+        else:
+            crange = None
+
         if title is None:
             title=channel
         self.do_heatplot(img,  title=title,
-                   crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar)
+                   crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar, cmap=cmap)
         plt.axis('off')
