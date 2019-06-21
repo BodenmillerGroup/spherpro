@@ -40,7 +40,7 @@ class Debarcode(object):
                               db.sampleblocks.sampleblock_id]
         self.COL_CELL_METACOLS = [c.key for c in self.CELL_METACOLS]
 
-    def debarcode(self, dist=40, borderdist=0, fils=None, stack=None, bc_treshs=None,
+    def debarcode(self, dist=None, borderdist=0, fils=None, stack=None, bc_treshs=None,
                   measurement_name=None, transform=None):
         """
         Debarcodes the spheres in the dataset using the debarcoding information
@@ -64,7 +64,7 @@ class Debarcode(object):
         # write single cell barcodes to the Database
         self._write_singlecell_barcodes(dat_db)
 
-    def plot_histograms(self, dist=40, borderdist=0, fils=None, stack=None,
+    def plot_histograms(self, dist=None, borderdist=0, fils=None, stack=None,
                         measurement_name=None, transform='value'):
         """
         Plot the histograms of the raw data
@@ -196,7 +196,7 @@ class Debarcode(object):
         key = cond[db.conditions.barcode.key].apply(lambda x: pd.Series(eval(x)))
         return key
 
-    def _get_bc_cells(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None,
+    def _get_bc_cells(self, key, dist=None, fils=None, borderdist=0, stack=None, measurement_name=None,
                       additional_meta=None):
         """
         Get cells for debarcoding
@@ -230,10 +230,11 @@ class Debarcode(object):
             db.measurement_names.measurement_name.key: d_rawdist[conf.DEFAULT_MEASUREMENT_NAME]
         }
         # Get the distance filters
-        fil_dist = self.filter.get_multifilter_statement([
-            (filtdict, operator.gt, borderdist),
-            (filtdict, operator.lt, dist)
-        ])
+        distfils = [
+            (filtdict, operator.gt, borderdist)]
+        if dist is not None:
+            distfils+= [(filtdict, operator.lt, dist)]
+        fil_dist = self.filter.get_multifilter_statement(distfils)
         # get the filter for the object type
         fil_obj = bro.filters.measurements.get_objectmeta_filter_statements(
                 object_types=[self.DEFAULT_OBJTYPE])
