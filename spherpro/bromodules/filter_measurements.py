@@ -22,7 +22,7 @@ class FilterMeasurements(filter_base.BaseFilter):
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
-            (db.measurement_types.measurement_type.key, 'Intensity')]
+            (db.measurement_types.measurement_type.key, None)]
 
 
     def get_filter_statement(self, measurement_dict, logical_operator,
