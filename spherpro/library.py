@@ -1,7 +1,9 @@
 import os
 import re
 import pandas as pd
+import networkx as nx
 import spherpro.configuration as conf
+import spherpro.db as db
 
 def fill_null(data, table):
     """
@@ -168,3 +170,19 @@ def map_group_re(x, re_str):
             [m.groupdict() for m in qre.finditer(s)]) for s in x]
     return pd.concat(m_list, ignore_index=True)
 
+def get_largest_commponent_objs(dat, keys=None):
+    """
+    Get the nodes of the largest connected component of a
+    graph.
+    Args:
+        dat: a dataframe representing the edgelist
+        keys: list of source and target column names
+    Return:
+        A list of object ids
+    """
+    if keys is None:
+        keys = [ db.object_relations.object_id_parent.key,
+                db.object_relations.object_id_child.key]
+    g = nx.from_pandas_edgelist(dat[keys], source=keys[0], target=keys[1])
+    gmax = max(nx.connected_component_subgraphs(g), key=len)
+    return pd.Series((int(n) for n in gmax.nodes), name=db.objects.object_id.key)

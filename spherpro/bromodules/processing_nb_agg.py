@@ -63,24 +63,9 @@ class AggregateNeightbours(object):
 
 
     def get_nb_dat(self, relationtype_name, obj_type=None, fil_query=None):
-        c = sa.alias(db.valid_objects)
-        p = sa.alias(db.valid_objects)
-        nbquery = (self.session.query(db.object_relations.object_id_parent,
-                                      db.object_relations.object_id_child)
-           .join(db.object_relation_types)
-           .filter(db.object_relation_types.object_relationtype_name == relationtype_name)
-        .filter(db.object_relations.object_id_child == c.c.object_id)
-        .filter(db.object_relations.object_id_parent == p.c.object_id))
-        if obj_type is not None:
-            nbquery = (nbquery
-                       .join(db.objects,
-                             db.objects.object_id == db.object_relations.object_id_parent)
-                       .filter(db.objects.object_type == obj_type))
-        if fil_query is not None:
-            q_fil = fil_query.alias()
-            nbquery = nbquery.filter(db.object_relations.object_id_child == fil_query.c.object_id,
-                db.object_relations.object_id_parent == q_fil.c.object_id)
-        return self.bro.doquery(nbquery)
+        return self.bro.helpers.dbhelp.get_nb_dat(relationtype_name,
+                                                  obj_type,
+                                                  fil_query)
 
     def _get_data(self, object_type=None, measurement_name=None,
             stack_name=None, plane_id=None, measurement_type=None,

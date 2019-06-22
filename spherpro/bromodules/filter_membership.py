@@ -11,13 +11,15 @@ import spherpro.datastore as datastore
 import spherpro.configuration as conf
 import spherpro.db as db
 import spherpro.bromodules.filter_objectfilters as custfilter
-
+from spherpro.bromodules.helpers_varia import HelperDb
+import spherpro.library as lib
 
 class FilterMembership(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
         self.filter_custom = custfilter.ObjectFilterLib(bro)
         self.defaults = self.data.conf[conf.QUERY_DEFAULTS]
+        self.helperdb = HelperDb(bro)
 
     def add_issmall(self, minpix=10, name=None, measid_area=None,
                     object_type=None, drop=True):
@@ -47,6 +49,27 @@ class FilterMembership(filter_base.BaseFilter):
             dat_filter[db.object_measurements.value.key] < minpix
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
+
+    def add_ismaincomponent(self, name=None, drop=True,
+                            relation='Neighbors',
+                            obj_type='cell'):
+        if name is None:
+            name = 'is-maincomponent'
+        dat_nb = self.helperdb.get_nb_dat(relation, obj_type=obj_type)
+        dat_obj = self.bro.doquery(self.session.query(db.objects.object_id, db.objects.image_id)
+                   .join(db.valid_objects)
+                   .filter(db.objects.object_type == obj_type)
+                   )
+        largest_obj = (dat_nb
+                       .merge(dat_obj, left_on=db.object_relations.object_id_parent.key,
+                              right_on=db.objects.object_id.key)
+                       .groupby(db.images.image_id.key)
+                       .apply(lib.get_largest_commponent_objs)
+                       )
+        dat_obj[db.object_filters.filter_value.key] = \
+            dat_obj[db.objects.object_id.key].isin(largest_obj)
+        self.filter_custom.write_filter_to_db(dat_obj, name, drop)
+        return dat_obj
 
     def add_issphere(self, minfrac=0.6, name=None, drop=True):
         if name is None:
