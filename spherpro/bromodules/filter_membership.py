@@ -119,27 +119,48 @@ class FilterMembership(filter_base.BaseFilter):
         col_measure = 'MeanIntensity'
         col_stack = 'DistStack'
         col_distother = 'dist-other'
-        dat_filter = self.doquery(
-                (self.session
-                     .query(
-                         db.ref_stacks.scale,
-                         db.object_measurements.object_id,
-                                 db.object_measurements.value,
-                                 db.ref_planes.channel_name
-                                   )
-                    .join(db.ref_planes)
-                    .join(db.planes)
-                    .join(db.measurements)
-                    .join(db.object_measurements)
-                     )
+        col_objecttype = 'cell'
+        measid = (self.data.get_measmeta_query()
                     .filter(db.measurements.measurement_name==col_measure)
                     .filter(db.stacks.stack_name==col_stack)
-                    .filter(db.ref_planes.channel_name == col_distother))
-        dat_filter[db.object_measurements.value.key] = (dat_filter[db.object_measurements.value.key]
-                                                        * dat_filter[db.ref_stacks.scale.key])
+                    .filter(db.ref_planes.channel_name == col_distother)
+                    .with_entities(db.measurements.measurement_id)
+                    .one()[0]
+                    )
+        dat_filter = self.doquery(
+                (self.data.get_measurement_query()
+                    .filter(db.objects.object_type == col_objecttype)
+                 .filter(db.measurements.measurement_id == measid)
+        ))
         dat_filter[db.object_filters.filter_value.key] = (
            (dat_filter[db.object_measurements.value.key] > distother) & (
            dat_filter[db.object_measurements.value.key] < (2**16-2))).map(int)
 
+        self.filter_custom.write_filter_to_db(dat_filter, name, drop)
+        return dat_filter
+
+    def add_isnotborder(self, borderdist=5, name=None, drop=True):
+        if name is None:
+            name = 'is-notborder'
+        col_measure = 'MinIntensity'
+        col_stack = 'DistStack'
+        col_distsphere = 'dist-sphere'
+        col_objecttype = 'cell'
+
+        measid = (self.data.get_measmeta_query()
+                    .filter(db.measurements.measurement_name==col_measure)
+                    .filter(db.stacks.stack_name==col_stack)
+                    .filter(db.ref_planes.channel_name == col_distsphere)
+                    .with_entities(db.measurements.measurement_id)
+                    .one()[0]
+                    )
+        dat_filter = self.doquery(
+                (self.data.get_measurement_query()
+                    .filter(db.objects.object_type == col_objecttype)
+                 .filter(db.measurements.measurement_id == measid)
+        ))
+        dat_filter[db.object_filters.filter_value.key] = (
+           (dat_filter[db.object_measurements.value.key] > borderdist) & (
+           dat_filter[db.object_measurements.value.key] < (2**16-2))).map(int)
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
