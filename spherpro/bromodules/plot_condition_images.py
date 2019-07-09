@@ -71,8 +71,8 @@ class PlotConditionImages(plot_base.BasePlot):
         cond_id, image_id = zip(*cond_list)
 
         shape = [(np.shape(i)) for i in im_dict.values()]
-        x_shape = max(shape, key=lambda x:x[0])[0]
-        y_shape = max(shape, key=lambda x:x[1])[1]
+        x_shape = max(shape, key=lambda x: x[0])[0]
+        y_shape = max(shape, key=lambda x: x[1])[1]
 
         fig, ax = plt.subplots(nrows, ncols,  figsize= ( 2*ncols+2,2*nrows+2), squeeze=True)
         if nrows == 1:
@@ -161,10 +161,9 @@ class PlotConditionImages(plot_base.BasePlot):
     def get_cond_id_im_id(self, condition_name):
 
 
-        p = (self.session.query(db.objects.image_id,
+        p = (self.session.query(db.images.image_id,
                                      db.conditions.condition_id,
                                     )
-                         .join(db.images)
                          .join(db.valid_images)
                          .join(db.conditions)
                          .filter(
@@ -176,7 +175,6 @@ class PlotConditionImages(plot_base.BasePlot):
         cond_id_im_id = []
         for cond, conddat in pdat.groupby('condition_id'):
             cond_im = (cond, conddat['image_id'].unique())
-
             cond_id_im_id.append(cond_im)
 
         return cond_id_im_id
