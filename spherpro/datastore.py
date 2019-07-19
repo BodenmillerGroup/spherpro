@@ -313,7 +313,7 @@ class DataStore(object):
 
     def replace_condition_table(self):
         """
-        This is used in case an the experiment layout or 
+        This is used in case an the experiment layout or
         barcoding is updated.
 
         Note that this will delete any debarcoding.
@@ -699,8 +699,10 @@ class DataStore(object):
             self._query_new_ids(db.slides.slide_id, slide_meta.shape[0])
         slideac_meta = pd.merge(slideac_meta,
                                 slide_meta.loc[:, [db.slides.slide_number.key,
-                                                   db.slides.slide_id.key]],
-                                on=db.slides.slide_number.key)
+                                                   db.slides.slide_id.key,
+                                                   db.sampleblocks.sampleblock_name.key]],
+                                on=[db.slides.slide_number.key,
+                                    db.sampleblocks.sampleblock_name.key])
         return slideac_meta, slide_meta
 
     def _generate_sampleblock_table(self, slide_meta):

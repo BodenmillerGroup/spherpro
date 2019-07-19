@@ -49,7 +49,7 @@ class Debarcode(object):
         # get information from conditions and build the barcode key
         key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        dat_cells = self._get_bc_cells(key, dist, fils=fils, borderdist=0, stack=stack,
+        dat_cells = self._get_bc_cells(key, dist, fils=fils, borderdist=borderdist, stack=stack,
                                        measurement_name=measurement_name)
         # threshold them
         dat_tresh = self._treshold_data(dat_cells, bc_treshs, transform)
@@ -71,7 +71,7 @@ class Debarcode(object):
         """
         key = self._get_barcode_key()
         # get all intensities where dist-sphere<dist
-        bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=0,
+        bcdat = self._get_bc_cells(key, dist, fils=fils, borderdist=borderdist,
                                    stack=stack, measurement_name=measurement_name,
                                    additional_meta=[db.sites.site_id])
         bcvals = bcdat.stack()

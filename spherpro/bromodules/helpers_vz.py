@@ -1,4 +1,5 @@
 import spherpro.bromodules.plot_base as pltbase
+import spherpro.bromodules.filters as filters
 import spherpro.db as db
 import spherpro.configuration as conf
 import pandas as pd
@@ -31,6 +32,9 @@ class VariableBaseHelper:
     COL_SITELEVEL = COL_SITEID + 'level'
     COL_VALUE = db.object_measurements.value.key
     COL_WORKING = 'working'
+    COL_D2RIM = 'distrim'
+    COL_PLATEID = db.conditions.plate_id.key
+    COL_PLATELEVEL = COL_PLATEID+'level'
 
 V = VariableBaseHelper
 
@@ -41,6 +45,7 @@ def cur_transf(x):
 class HelperVZ(pltbase.BasePlot):
     def __init__(self, bro):
         super().__init__(bro)
+        self.filters = filters.Filters(bro)
 
     def get_pannelcsv(self):
         dat_pannelcsv = self.bro.data.pannel.drop_duplicates(subset='metal')
@@ -90,14 +95,19 @@ class HelperVZ(pltbase.BasePlot):
             .join(db.valid_images)
         )
         dat_imgmeta = self.bro.doquery(q)
-        dat_imgmeta[V.COL_SITELEVEL] = dat_imgmeta[V.COL_SITEID].map(lambda x: 'site{}'.format(int(x)))
-        dat_imgmeta[V.COL_CONDLEVEL] = dat_imgmeta[V.COL_CONDID].map(lambda x: 'well{}'.format(int(x)))
-        dat_imgmeta[V.COL_IMGLEVEL] = dat_imgmeta[V.COL_IMGID].map(lambda x: 'img{}'.format(int(x))) 
+        dat_imgmeta[V.COL_SITELEVEL] = get_level(dat_imgmeta, V.COL_SITEID)
+        dat_imgmeta[V.COL_CONDLEVEL] = get_level(dat_imgmeta, V.COL_CONDID)
+        dat_imgmeta[V.COL_IMGLEVEL] = get_level(dat_imgmeta, V.COL_IMGID)
         return dat_imgmeta
 
+    def get_condmeta(self):
+        dat = self.bro.doquery(self.bro.session.query(db.conditions))
+        dat[V.COL_PLATELEVEL] = get_level(dat, V.COL_PLATEID)
+        return dat
+
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
-                 meas_ids=None, object_type=None):
-        q = (self.data.get_measurement_query()
+                 meas_ids=None, object_type=None, session=None):
+        q = (self.data.get_measurement_query(session=session)
                 .add_columns(db.images.image_id))
         if (curcond is not None) or (cond_ids is not None):
             q = q.join(db.conditions,
@@ -107,15 +117,64 @@ class HelperVZ(pltbase.BasePlot):
 
             if cond_ids is not None:
                 q = q.filter(db.conditions.condition_id.in_(cond_ids))
-        if fil_good_meas is not None:
-            q = q.filter(fil_good_meas)
-        if meas_ids is not None:
-            q = q.filter(db.measurements.measurement_id.in_(meas_ids))
         if object_type is not None:
             q = q.filter(db.objects.object_type==object_type)
-
+        q_meta = (self.data.get_measmeta_query(session=session)
+                  .with_entities(db.measurements.measurement_id)
+                  )
+        if fil_good_meas is not None:
+            q_meta = q_meta.filter(fil_good_meas)
+        if meas_ids is not None:
+            q_meta = q_meta.filter(db.measurements.measurement_id.in_(meas_ids))
+        measids = [m[0] for m in q_meta.all()]
+        q = q.filter(db.measurements.measurement_id.in_(measids))
         return self.bro.doquery(q)
 
+    def get_d2rim(self):
+        measdict = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.CORRDIST]
+        obj = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.OBJECTTYPE]
+        fil = self.filters.measurements.get_measmeta_filter_statements(
+                 channel_names=[measdict[conf.DEFAULT_CHANNEL_NAME]],
+                 stack_names=[measdict[conf.DEFAULT_STACK_NAME]],
+            measurement_names=[measdict[conf.DEFAULT_MEASUREMENT_NAME]],
+            measurement_types=[measdict[conf.DEFAULT_MEASUREMENT_TYPE]])
+        dat = self.get_data(fil_good_meas=fil, object_type=obj)
+        dat = rename_measurement(dat, V.COL_D2RIM)
+        return dat
+
+    def get_object_meta(self, object_types=None):
+        if object_types is None:
+            obj = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.OBJECTTYPE]
+            object_types = [obj]
+        q = self.bro.session.query(db.objects)
+        if len(object_types) > 0:
+            q = q.filter(db.objects.object_type.in_(object_types))
+        return self.bro.doquery(q)
+
+    def get_fildats(self, filnames, outnames=None):
+        d = self.bro.doquery(self.bro.session.query(db.object_filters.object_id, db.object_filters.filter_value,
+                                        db.object_filter_names.object_filter_name)
+                .join(db.object_filter_names)
+                .filter(db.object_filter_names.object_filter_name.in_(filnames))
+            )
+        d = (d.assign(**{db.object_filters.filter_value.key:
+                         lambda x: x[db.object_filters.filter_value.key]})
+            .pivot(values=db.object_filters.filter_value.key,
+                    index=db.object_filters.object_id.key,
+                    columns = db.object_filter_names.object_filter_name.key).reset_index())
+        if outnames is not None:
+            d = d.rename({f: o for f, o in zip(filnames, outnames)}, axis=1)
+        return d
+    def get_sitemeta(self):
+        q = (self.bro.session.query(db.sites, db.acquisitions, db.slideacs, db.slides, db.sampleblocks)
+            .join(db.acquisitions)
+            .join(db.slideacs)
+            .join(db.slides)
+            .join(db.sampleblocks)
+        )
+        dat_sitemeta = self.bro.doquery(q)
+        dat_sitemeta = dat_sitemeta.loc[:, ~dat_sitemeta.columns.duplicated()]
+        return dat_sitemeta
     def plt_clustmatp(self, dat_meas_raw, dat_measmeta):
         dat_meas = dat_meas_raw.pivot_table(values=V.COL_VALUES,
                             index=V.COL_OBJID,
@@ -169,6 +228,17 @@ class HelperVZ(pltbase.BasePlot):
         .filter(db.conditions.condition_name == condition_name))
         return [i[0] for i in q.all()]
 
+
+
+def get_level(dat, idcol):
+    return dat[idcol].map(lambda x: f'{idcol}_{int(x)}')
+
+def rename_measurement(dat, name):
+    dat = dat.rename({V.COL_VALUE: name}, axis=1)
+    dat = dat.drop(V.COL_MEASID, axis=1)
+    return dat
+
+
 class Renamer(object):
     """
     A class to rename & unrename integer varaible names to make them compatible with the linear model
@@ -179,6 +249,6 @@ class Renamer(object):
         rx='c'+str(x)
         self.d.update({rx: x})
         return rx
-    
+
     def unrename(self, x):
         return self.d.get(x,x)

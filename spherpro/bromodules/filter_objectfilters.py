@@ -49,7 +49,7 @@ class ObjectFilterLib(filter_base.BaseFilter):
 
         return fil_id
 
-    def write_filter_to_db(self, filterdata, filtername, drop=None):
+    def write_filter_to_db(self, filterdata, filtername, drop=True, replace=True):
         """
         Writes a dataframe containing Filterdata to the DB.
         Args:
@@ -57,15 +57,23 @@ class ObjectFilterLib(filter_base.BaseFilter):
                 and object_id
             filtername: String stating the Filtername
         """
-        if drop is None:
-            drop=False
-
         filterdata = filterdata.loc[:, [db.objects.object_id.key, db.object_filters.filter_value.key]]
         filterdata.loc[:,db.object_filter_names.object_filter_id.key] = [self.add_filtername(filtername)]
 
+        if drop:
+            self.delete_filter_by_name(filtername)
         filterdata = filterdata.dropna()
         filterdata[db.object_filters.filter_value.key] = filterdata[db.object_filters.filter_value.key].astype(int)
         self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)
+
+    def delete_filter_by_name(self, filtername):
+        fid = (self.session.query(db.object_filter_names.object_filter_id)
+                .filter(db.object_filter_names.object_filter_name == filtername)).one()[0]
+        (self.session.query(db.object_filters)
+            .filter(db.object_filters.object_filter_id == fid)
+        ).delete()
+        self.session.commit()
+
 
     def get_combined_filterquery(self, object_filters):
         """

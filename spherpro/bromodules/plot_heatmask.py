@@ -360,15 +360,21 @@ class PlotHeatmask(plot_base.BasePlot):
         if transform_fkt is None:
             transform_fkt = transf_dict[transform]
         data[col_val] = transform_fkt(data[col_val])
-        img = self.assemble_heatmap_image(data)
-        if (censor_min > 0) & (censor_max < 1):
-            crange = ( np.percentile(data[col_val],censor_min*100),
-                    np.percentile(data[col_val],censor_max*100))
+        if (data.shape[0] == 0):
+            if ax is None:
+                fig, a = plt.figure()
+            else:
+                a = ax
         else:
-            crange = None
+            img = self.assemble_heatmap_image(data)
+            if (censor_min > 0) & (censor_max < 1):
+                crange = ( np.percentile(data[col_val],censor_min*100),
+                        np.percentile(data[col_val],censor_max*100))
+            else:
+                crange = None
 
-        if title is None:
-            title=channel
-        self.do_heatplot(img,  title=title,
-                   crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar, cmap=cmap)
-        plt.axis('off')
+            if title is None:
+                title=channel
+            a = self.do_heatplot(img,  title=title,
+                    crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar, cmap=cmap)
+        a.axis('off')
