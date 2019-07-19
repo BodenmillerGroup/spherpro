@@ -362,7 +362,8 @@ class PlotHeatmask(plot_base.BasePlot):
         data[col_val] = transform_fkt(data[col_val])
         if (data.shape[0] == 0):
             if ax is None:
-                fig, a = plt.figure()
+                fig = plt.figure()
+                a=fig.axes[0]
             else:
                 a = ax
         else:
