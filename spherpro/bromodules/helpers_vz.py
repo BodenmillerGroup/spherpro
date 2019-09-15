@@ -106,9 +106,12 @@ class HelperVZ(pltbase.BasePlot):
         return dat
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
-                 meas_ids=None, object_type=None, session=None):
+                 meas_ids=None, object_type=None, session=None,
+                 img_ids=True):
         q = (self.data.get_measurement_query(session=session)
-                .add_columns(db.images.image_id))
+             )
+        if img_ids:
+            q = q.add_columns(db.images.image_id)
         if (curcond is not None) or (cond_ids is not None):
             q = q.join(db.conditions,
                     db.images.condition_id == db.conditions.condition_id)
