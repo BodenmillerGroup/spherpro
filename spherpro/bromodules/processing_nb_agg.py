@@ -33,10 +33,20 @@ class AggregateNeightbours(object):
         object_type=None, measurement_name=None,
         stack_name=None, plane_id=None, measurement_type=None,
         filter_query=None, filter_statement=None, image_id=None,
-                           drop_all_old=False):
+        drop_all_old=False,
+        remove_fil_nb=True # Should neightbours of filtered objects also be removed?)
+                           ):
         if nb_relationtype is None:
             nb_relationtype = DEFAULT_RELATION
-        nb_dic_dat = self.get_nb_dat(nb_relationtype, filter_query)
+        if filter_statement is not None:
+            raise('filter_statement not implemented yet')
+
+        if remove_fil_nb:
+            nbfil = filter_query
+        else:
+            nbfil = None
+        nb_dic_dat = self.get_nb_dat(nb_relationtype, obj_type=object_type,
+                                     fil_query=nbfil)
         dat = self._get_data(
                 object_type, measurement_name,
                 stack_name, plane_id, measurement_type,
