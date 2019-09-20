@@ -107,7 +107,7 @@ class HelperVZ(pltbase.BasePlot):
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
                  meas_ids=None, object_type=None, session=None,
-                 img_ids=True):
+                 img_ids=True, obj_filter_query=None):
         q = (self.data.get_measurement_query(session=session)
              )
         if img_ids:
@@ -122,6 +122,9 @@ class HelperVZ(pltbase.BasePlot):
                 q = q.filter(db.conditions.condition_id.in_(cond_ids))
         if object_type is not None:
             q = q.filter(db.objects.object_type==object_type)
+
+        if obj_filter_query is not None:
+            q = q.filter(db.objects.object_id == obj_filter_query.c.object_id)
         q_meta = (self.data.get_measmeta_query(session=session)
                   .with_entities(db.measurements.measurement_id)
                   )
