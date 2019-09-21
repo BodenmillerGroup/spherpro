@@ -1700,6 +1700,7 @@ class DataStore(object):
             def query_postgres(query):
                 comp = query.statement.compile(dialect=postgresql.dialect())
                 d = pd.read_sql(comp.string, connection,params=comp.params)
+                d = d.loc[:,~d.columns.duplicated()]
                 return d
             return query_postgres
         else:
