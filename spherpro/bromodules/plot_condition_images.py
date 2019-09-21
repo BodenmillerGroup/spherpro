@@ -57,8 +57,7 @@ class PlotConditionImages(plot_base.BasePlot):
 
         return fig
 
-
-    def plot_layout(self, cond_list, im_dict, title, pltfkt=None, minmax=(0,1)):
+    def plot_layout(self, cond_list, im_dict, title, pltfkt=None, minmax=(0,1), crange=None):
 
         if pltfkt is None:
             pltfkt = self.plot_im
@@ -66,7 +65,8 @@ class PlotConditionImages(plot_base.BasePlot):
         nrows = len(cond_list)
         ncols = max([len(c[1]) for c in cond_list ])
 
-        crange = self.get_crange(im_dict, minmax)
+        if crange is None:
+            crange = self.get_crange(im_dict, minmax)
 
         cond_id, image_id = zip(*cond_list)
 
@@ -152,7 +152,7 @@ class PlotConditionImages(plot_base.BasePlot):
 
     @staticmethod
     def logvalue(val):
-        new_val = np.log10(val + 0.00001)
+        new_val = np.log10(val + 0.1)
 
         return new_val
 
