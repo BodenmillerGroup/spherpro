@@ -8,6 +8,8 @@ import plotnine as gg
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import anndata
+
 import scipy.stats as stats
 
 import sqlalchemy as sa
@@ -234,6 +236,49 @@ class HelperVZ(pltbase.BasePlot):
         .filter(db.conditions.condition_name == condition_name))
         return [i[0] for i in q.all()]
 
+    # Things for anndata export
+    def get_full_obj_meta(self):
+        dat_objmeta = self.get_object_meta()
+        q= (self.bro.session.query(db.images, db.conditions, db.acquisitions, db.sites, db.slideacs, db.slides)
+        .join(db.conditions)
+        .join(db.acquisitions)
+        .join(db.sites)
+        .join(db.slideacs)
+        .join(db.slides)
+        .join(db.valid_images)
+        )
+        dat_condition = self.bro.doquery(q)
+        self.bro.data._read_experiment_layout()
+        dat_d2rim = self.get_d2rim()
+        dat_full_objmeta = (dat_condition
+                        .merge(self.bro.data.experiment_layout)
+                        .pipe(remove_duplicated_columns)
+                        .merge(dat_objmeta)
+                        .merge(dat_d2rim)
+                    .set_index(db.objects.object_id.key, drop=True)
+                    )
+        return dat_full_objmeta
+
+    def get_full_meas_meta(self):
+        dat_measmeta = self.bro.doquery(self.bro.data.get_measmeta_query()
+                                    .add_columns(db.stacks.stack_name,
+                                                db.ref_planes.channel_name))
+        dat_full_measmeta = (dat_measmeta
+                        .merge(self.bro.data.pannel,left_on=db.ref_planes.channel_name.key, right_on='metal',
+                            how='left')
+                        .pipe(remove_duplicated_columns)
+                        .set_index(db.measurements.measurement_id.key, drop=True)
+                        )
+        return dat_full_measmeta
+
+    def convert_to_anndata(self, dat_meas, dat_obs, dat_var):
+        dat_meas = dat_meas.pivot_table(values=db.object_measurements.value.key,
+                        index=db.objects.object_id.key,
+                        columns=db.measurements.measurement_id.key)
+        dat = anndata.AnnData(dat_meas, obs=dat_obs.loc[dat_meas.index,:],
+                        var=dat_var.loc[dat_meas.columns,:])
+        return dat
+
 
 
 def get_level(dat, idcol):
@@ -243,6 +288,9 @@ def rename_measurement(dat, name):
     dat = dat.rename({V.COL_VALUE: name}, axis=1)
     dat = dat.drop(V.COL_MEASID, axis=1)
     return dat
+
+def remove_duplicated_columns(dat):
+    return dat.loc[:, ~dat.columns.duplicated()]
 
 
 class Renamer(object):
