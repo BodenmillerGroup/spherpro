@@ -141,14 +141,15 @@ class InteractiveHeatplot(object):
 
     def get_roi_ids(self, site_id):
         q_rois = (self.session.query(db.acquisitions.acquisition_id)
-                    .filter(db.acquisitions.site_id == site)
+                    .filter(db.acquisitions.site_id == site_id)
                     .order_by(db.acquisitions.acquisition_id)
                     .all())
         rois = [r[0] for r in q_rois]
         return rois
-    def get_img_ids(self, roi_id):
+
+    def get_img_ids(self, site_id):
         q_rois = (self.session.query(db.acquisitions.acquisition_id)
-                    .filter(db.acquisitions.site_id == site)
+                    .filter(db.acquisitions.site_id == site_id)
                     .order_by(db.acquisitions.acquisition_id)
                     .all())
         rois = [r[0] for r in q_rois]
@@ -183,7 +184,8 @@ class PlotHeatmask(plot_base.BasePlot):
         slices = [slice_dict[i] for i in image_numbers]
         return slices
 
-    def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None):
+    def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None, valid_objects=True,
+                          valid_images=True):
 
         if filters is None:
             filters = []
@@ -191,7 +193,9 @@ class PlotHeatmask(plot_base.BasePlot):
         filter_statement = self.filter_measurements.get_measurement_filter_statements(*[[
             measurement_dict.get(o,d)] for o, d in self.measure_idx ])
 
-        query = self.data.get_measurement_query(session=self.session)
+        query = self.data.get_measurement_query(session=self.session,
+                                                valid_objects=valid_objects,
+                                                valid_images=valid_images)
         query = query.filter(filter_statement)
 
         # add more output columns
@@ -269,14 +273,15 @@ class PlotHeatmask(plot_base.BasePlot):
         return(pimg)
 
     @staticmethod
-    def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True):
+    def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True,
+                    cmap_mask=None, cmap_mask_alpha=0.3, bad_color='k', bad_alpha=1):
 
         #if crange is None:
         #    crange=(np.nanmin(img[:]), np.nanmax(img[:]))
 
         if cmap is None:
             cmap = copy.copy(plt.cm.viridis)
-        cmap.set_bad('k',1.)
+        cmap.set_bad(bad_color, bad_alpha)
         if ax is None:
             plt.close()
             fig, ax = plt.subplots(1, 1)
@@ -317,7 +322,9 @@ class PlotHeatmask(plot_base.BasePlot):
             mask_img = np.isnan(img)
             if np.any(mask_img):
                 mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
-                ax.imshow(mask_img==1, cmap='Greys', alpha=0.3)
+                if cmap_mask is None:
+                    cmap_mask='Greys'
+                ax.imshow(mask_img==1, cmap=cmap_mask, alpha=cmap_mask_alpha)
 
         #fig.canvas.draw()
         return ax
