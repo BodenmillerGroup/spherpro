@@ -16,7 +16,6 @@ def connect_sqlite(conf):
     creates a sqlite connector to be used with the Datastore.
 
     Args:
-        conf: the config dictionnary from a Datastore object.
 
     Returns:
         SQLite3 conne:ctor
@@ -241,7 +240,7 @@ class ref_planes(Base):
     """docstring for planes."""
     __tablename__ = 'ref_planes'
     ref_stack_id = Column(Integer(), primary_key=True)
-    ref_plane_id = Column(Integer(), primary_key=True, autoincrement=True)
+    ref_plane_id = Column(Integer(), primary_key=True)
     channel_type = Column(String(200))
     channel_name = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
