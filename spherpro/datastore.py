@@ -1,15 +1,18 @@
 import pandas as pd
-import numpy as np
+#import numpy as np
 import yaml
 from os import listdir
 from os.path import isfile, join
 import os
+from odo import odo
 import re
 import io
 import warnings
 import tifffile as tif
 # move to a  postgres specific location later!
 from pgcopy import CopyManager
+
+import numpy as np
 
 import spherpro as spp
 import spherpro.library as lib
@@ -786,7 +789,7 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        measurements = self._generate_measurements(minimal, chuncksize=10000)
+        measurements = self._generate_measurements(minimal, chuncksize=100000000)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
@@ -795,6 +798,11 @@ class DataStore(object):
                 self._bulkinsert(meas, db.object_measurements)
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
             self.db_conn.execute('SET UNIQUE_CHECKS = 1')
+
+        if self.conf[conf.BACKEND] == conf.CON_SQLITE:
+            for meas in measurements:
+                print('mock measurements insert')
+
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_pkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
@@ -865,20 +873,21 @@ class DataStore(object):
                 # get the measurement data
                 variables = measurement_meta['variable']
                 dat_measvals = dat_meas.loc[:, variables]
-                value_col = dat_measvals.values.flatten(order='C')
-                meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
-                meas_id = np.tile(meas_id, dat_meas.shape[0])
-                obj_id = object_meta[db.object_measurements.object_id.key].values
-                obj_id = np.repeat(obj_id, len(variables))
-                print('Construct dataframe')
-                measurements = pd.DataFrame({
-                    db.object_measurements.object_id.key: obj_id,
-                    db.object_measurements.measurement_id.key: meas_id,
-                    db.object_measurements.value.key: value_col})
-                print('Replace non finite')
-                measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
-                measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
-                measurements.dropna(inplace=True)
+                #value_col = dat_measvals.values.flatten(order='C')
+                #meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
+                #meas_id = np.tile(meas_id, dat_meas.shape[0])
+                #obj_id = object_meta[db.object_measurements.object_id.key].values
+                #obj_id = np.repeat(obj_id, len(variables))
+                #print('Construct dataframe')
+                #measurements = pd.DataFrame({
+                #    db.object_measurements.object_id.key: obj_id,
+                #    db.object_measurements.measurement_id.key: meas_id,
+                #    db.object_measurements.value.key: value_col})
+                #print('Replace non finite')
+                #measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
+                #measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
+                #measurements.dropna(inplace=True)
+                measurements = None
                 print('Start uploading')
                 yield measurements
 
@@ -1029,8 +1038,9 @@ class DataStore(object):
             session.commit()
             return range(i-n+1, i+1)
         else:
-            prev_max = self.db_conn.query(sa.func.max(id_col)).scalar()
-            return range(prev_max+1, prev_max+n+1)
+            return None
+            #prev_max = self.main_session.query(sa.func.max(id_col)).scalar()
+            #return range(prev_max+1, prev_max+n+1)
 
 
 
@@ -1707,3 +1717,4 @@ class DataStore(object):
             def query_general(query):
                 d = pd.read_sql(query.statement, self.db_conn)
                 return d
+            return query_general
