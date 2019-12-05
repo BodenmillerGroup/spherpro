@@ -70,8 +70,8 @@ class MeasurementMaker(base.BasePlot):
         if sum(fil) > 0:
             object_meta.loc[fil, COL_OBJ_ID] = self.bro.data._query_new_ids(
                 db.objects.object_id, sum(fil))
-            object_meta[COL_OBJ_ID] = object_meta[COL_OBJ_ID].astype(np.int)
-            self.bro.data._bulk_pg_insert(object_meta.loc[fil, :],
+            #object_meta[COL_OBJ_ID] = object_meta[COL_OBJ_ID].astype(np.int)
+            self.bro.data._bulkinsert(object_meta.loc[fil, :],
                                           db.objects)
         return object_meta
 
@@ -107,8 +107,8 @@ class MeasurementMaker(base.BasePlot):
         if sum(fil) > 0:
             measure_meta.loc[fil, MEAS_ID] = self.bro.data._query_new_ids(
                 db.measurements.measurement_id, sum(fil))
-            measure_meta[MEAS_ID] = measure_meta[MEAS_ID].astype(int)
-            self.bro.data._bulk_pg_insert(measure_meta.loc[fil, :],
+            #measure_meta[MEAS_ID] = measure_meta[MEAS_ID].astype(int)
+            self.bro.data._bulkinsert(measure_meta.loc[fil, :],
                                           db.measurements)
         return measure_meta
 
