@@ -20,6 +20,7 @@ import spherpro.db as db
 import spherpro.bro as bro
 import spherpro.configuration as conf
 import spherpro.bromodules.processing
+import spherpro.bromodules.io_anndata as io_anndata
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
@@ -235,6 +236,9 @@ class DataStore(object):
         filetype = conf_meas[conf.FILETYPE]
         reader = pd.read_csv(os.path.join(cpdir, object_type+filetype),
                             sep=sep, chunksize=chunksize)
+
+        if chunksize is None:
+            reader = [reader]
         for dat_objmeas in reader:
             rename_dict = {
                 self.conf[conf.OBJECTNUMBER]: db.objects.object_number.key,
@@ -307,7 +311,7 @@ class DataStore(object):
         self._write_pannel_table()
         self._write_condition_table()
         self._write_measurement_table(minimal)
-        self._write_object_relations_table()
+        #self._write_object_relations_table()
         # vacuum after population in postgres
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self._pg_vacuum()
@@ -732,7 +736,6 @@ class DataStore(object):
         dat_mask = pd.concat(dat_mask, names=[db.objects.object_type.key, 'idx'])
         dat_mask = dat_mask.reset_index(level=db.objects.object_type.key, drop=False)
         dat_mask = dat_mask.reset_index(drop=True)
-
         #    if all(dat_mask[db.masks.shape_w.key].isnull()):
         #        """
         #        If the width and height are not in the regexp, load all the
@@ -789,9 +792,13 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        measurements = self._generate_measurements(minimal, chuncksize=100000000)
+        if self.conf[conf.BACKEND] == conf.CON_SQLITE:
+            for obj_type, meas in self._generate_anndata_measurements():
+                ioan = io_anndata.IoAnnData(self.bro, obj_type)
+                ioan.initialize_anndata(meas)
         # increase performance
         if self.conf[conf.BACKEND] == conf.CON_MYSQL:
+            measurements = self._generate_measurements(minimal, chuncksize=50000)
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
             self.db_conn.execute('SET UNIQUE_CHECKS = 0')
             for meas in measurements:
@@ -799,11 +806,9 @@ class DataStore(object):
             self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
             self.db_conn.execute('SET UNIQUE_CHECKS = 1')
 
-        if self.conf[conf.BACKEND] == conf.CON_SQLITE:
-            for meas in measurements:
-                print('mock measurements insert')
 
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+            measurements = self._generate_measurements(minimal, chuncksize=50000)
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_pkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_object_id_fkey;')
@@ -826,7 +831,7 @@ class DataStore(object):
     def _register_measurement_meta(self, dat_meas):
         meas_cols = list(set(dat_meas.columns)-set([ db.objects.object_type.key,
               db.images.image_number.key,
-              db.objects.object_number.key]))
+              db.objects.object_number.key, db.objects.object_id.key]))
         meta = pd.Series(meas_cols).apply(
             lambda x: lib.find_measurementmeta(self._stacks, x,
                                                no_stack_str=OBJECTS_STACKNAME,
@@ -845,6 +850,7 @@ class DataStore(object):
 
         meta = meta.merge(dat_planeids)
         meta = self.bro.processing.measurement_maker.register_measurements(meta)
+        meta = self.bro.processing.measurement_maker.register_measurements(meta)
         return meta
 
     def _register_objects(self, dat_meas):
@@ -856,9 +862,41 @@ class DataStore(object):
                 db.images.image_number.key]
         dat_objmeta = dat_meas.loc[:, obj_metavars]
         dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta, assume_new=True)
+        dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta)
         return dat_objmeta
 
-    def _generate_measurements(self, minimal, chuncksize=3000):
+    def _generate_anndata_measurements(self):
+        """
+        Loads the measurements and converts them to the anndata format
+        ->
+
+        """
+        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
+        for obj_type in conf_meas[conf.OBJECTS]:
+            print(f'Read {obj_type}:')
+            dat_meas = next(self._read_objtype_measurements(obj_type, chunksize=None))
+            # register the measurements
+            print('Register measurements:')
+            dat_measmeta = self._register_measurement_meta(dat_meas)
+            print('Register objects:')
+            # register the objects
+            # -> This adds objectid to the table
+            dat_objmeta = self._register_objects(dat_meas)
+            dat_meas = dat_meas.merge(dat_objmeta)
+            # set the object_id as index
+            dat_meas.set_index(db.objects.object_id.key, inplace=True)
+            dat_meas.drop(columns=dat_objmeta.columns, errors='ignore', inplace=True)
+            variables = dat_measmeta['variable']
+            dat_meas = (dat_meas.loc[:, variables].rename(columns={v: i
+                            for v, i in zip(dat_measmeta['variable'],
+                            dat_measmeta[db.measurements.measurement_id.key])}
+                            ))
+            yield (obj_type, dat_meas)
+
+
+    def _generate_measurements(self, minimal,
+                               chuncksize=3000,
+                               longform=True):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         for obj_type in conf_meas[conf.OBJECTS]:
             print(f'Read {obj_type}:')
@@ -873,21 +911,21 @@ class DataStore(object):
                 # get the measurement data
                 variables = measurement_meta['variable']
                 dat_measvals = dat_meas.loc[:, variables]
-                #value_col = dat_measvals.values.flatten(order='C')
-                #meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
-                #meas_id = np.tile(meas_id, dat_meas.shape[0])
-                #obj_id = object_meta[db.object_measurements.object_id.key].values
-                #obj_id = np.repeat(obj_id, len(variables))
-                #print('Construct dataframe')
-                #measurements = pd.DataFrame({
-                #    db.object_measurements.object_id.key: obj_id,
-                #    db.object_measurements.measurement_id.key: meas_id,
-                #    db.object_measurements.value.key: value_col})
-                #print('Replace non finite')
-                #measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
-                #measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
-                #measurements.dropna(inplace=True)
-                measurements = None
+                value_col = dat_measvals.values.flatten(order='C')
+                meas_id = measurement_meta[db.object_measurements.measurement_id.key].values
+                meas_id = np.tile(meas_id, dat_meas.shape[0])
+                obj_id = object_meta[db.object_measurements.object_id.key].values
+                obj_id = np.repeat(obj_id, len(variables))
+                print('Construct dataframe')
+                measurements = pd.DataFrame({
+                    db.object_measurements.object_id.key: obj_id,
+                    db.object_measurements.measurement_id.key: meas_id,
+                    db.object_measurements.value.key: value_col})
+                print('Replace non finite')
+                measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
+                measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
+                measurements.dropna(inplace=True)
+
                 print('Start uploading')
                 yield measurements
 
