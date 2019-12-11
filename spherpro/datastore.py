@@ -850,7 +850,6 @@ class DataStore(object):
 
         meta = meta.merge(dat_planeids)
         meta = self.bro.processing.measurement_maker.register_measurements(meta)
-        meta = self.bro.processing.measurement_maker.register_measurements(meta)
         return meta
 
     def _register_objects(self, dat_meas):
@@ -862,7 +861,6 @@ class DataStore(object):
                 db.images.image_number.key]
         dat_objmeta = dat_meas.loc[:, obj_metavars]
         dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta, assume_new=True)
-        dat_objmeta = self.bro.processing.measurement_maker.register_objects(dat_objmeta)
         return dat_objmeta
 
     def _generate_anndata_measurements(self):
@@ -1076,9 +1074,11 @@ class DataStore(object):
             session.commit()
             return range(i-n+1, i+1)
         else:
-            return None
-            #prev_max = self.main_session.query(sa.func.max(id_col)).scalar()
-            #return range(prev_max+1, prev_max+n+1)
+            #self.main_session.query(func
+            prev_max = self.main_session.query(sa.func.max(id_col)).scalar()
+            if prev_max is None:
+                prev_max = 0
+            return range(prev_max+1, prev_max+n+1)
 
 
 
