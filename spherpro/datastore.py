@@ -25,6 +25,7 @@ import spherpro.bromodules.io_anndata as io_anndata
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.inspection import inspect
 import sqlalchemy as sa
+import logging
 
 DICT_DB_KEYS = {
     'image_number': db.images.image_id.key,
@@ -311,6 +312,8 @@ class DataStore(object):
         self._write_pannel_table()
         self._write_condition_table()
         self._write_measurement_table(minimal)
+        self.reset_valid_objects()
+        self.reset_valid_images()
         #self._write_object_relations_table()
         # vacuum after population in postgres
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
@@ -813,9 +816,9 @@ class DataStore(object):
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
             self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_object_id_fkey;')
             for meas in measurements:
-                print('Start inserting')
+                logging.debug('Start inserting')
                 self._bulk_pg_insert_numeric(meas, db.object_measurements)
-                print('Start loading csv')
+                logging.debug('Start loading csv')
             self.db_conn.execute('''ALTER TABLE public.object_measurements
                                    ADD CONSTRAINT object_measurements_pkey PRIMARY KEY(object_id, measurement_id);''')
             self.db_conn.execute('''ALTER TABLE public.object_measurements
@@ -871,12 +874,12 @@ class DataStore(object):
         """
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         for obj_type in conf_meas[conf.OBJECTS]:
-            print(f'Read {obj_type}:')
+            logging.debug(f'Read {obj_type}:')
             dat_meas = next(self._read_objtype_measurements(obj_type, chunksize=None))
             # register the measurements
-            print('Register measurements:')
+            logging.debug('Register measurements:')
             dat_measmeta = self._register_measurement_meta(dat_meas)
-            print('Register objects:')
+            logging.debug('Register objects:')
             # register the objects
             # -> This adds objectid to the table
             dat_objmeta = self._register_objects(dat_meas)
@@ -885,7 +888,7 @@ class DataStore(object):
             dat_meas.set_index(db.objects.object_id.key, inplace=True)
             dat_meas.drop(columns=dat_objmeta.columns, errors='ignore', inplace=True)
             variables = dat_measmeta['variable']
-            dat_meas = (dat_meas.loc[:, variables].rename(columns={v: i
+            dat_meas = (dat_meas.loc[:, variables].rename(columns={v: int(i)
                             for v, i in zip(dat_measmeta['variable'],
                             dat_measmeta[db.measurements.measurement_id.key])}
                             ))
@@ -897,15 +900,15 @@ class DataStore(object):
                                longform=True):
         conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
         for obj_type in conf_meas[conf.OBJECTS]:
-            print(f'Read {obj_type}:')
+            logging.debug(f'Read {obj_type}:')
             for dat_meas in self._read_objtype_measurements(obj_type, chuncksize):
                 # register the measurements
-                print('Register measurements:')
+                logging.debug('Register measurements:')
                 measurement_meta = self._register_measurement_meta(dat_meas)
-                print('Register objects:')
+                logging.debug('Register objects:')
                 # register the objects
                 object_meta = self._register_objects(dat_meas)
-                print('Reshape values:')
+                logging.debug('Reshape values:')
                 # get the measurement data
                 variables = measurement_meta['variable']
                 dat_measvals = dat_meas.loc[:, variables]
@@ -914,17 +917,17 @@ class DataStore(object):
                 meas_id = np.tile(meas_id, dat_meas.shape[0])
                 obj_id = object_meta[db.object_measurements.object_id.key].values
                 obj_id = np.repeat(obj_id, len(variables))
-                print('Construct dataframe')
+                logging.debug('Construct dataframe')
                 measurements = pd.DataFrame({
                     db.object_measurements.object_id.key: obj_id,
                     db.object_measurements.measurement_id.key: meas_id,
                     db.object_measurements.value.key: value_col})
-                print('Replace non finite')
+                logging.debug('Replace non finite')
                 measurements[db.object_measurements.value.key].replace(np.inf, 2**16, inplace=True)
                 measurements[db.object_measurements.value.key].replace(-np.inf, -(2**16), inplace=True)
                 measurements.dropna(inplace=True)
 
-                print('Start uploading')
+                logging.debug('Start uploading')
                 yield measurements
 
     def _generate_object_relation_types(self):
@@ -936,26 +939,32 @@ class DataStore(object):
         return dat_types
 
     def _generate_object_relations(self):
+        logging.debug('Start img_dict')
         img_dict = {n: i for n, i in
                     self.main_session.query(db.images.image_number,
                                             db.images.image_id)}
+        logging.debug('Start relation_dict')
         relation_dict = {n: i for n, i in
                          self.main_session.query(db.object_relation_types.object_relationtype_name,
                                                  db.object_relation_types.object_relationtype_id)}
+        logging.debug('Start obj dict')
         obj_dict = {(imgid, objnr, objtype): objid
                     for imgid, objnr, objtype, objid in
                     self.main_session.query(db.objects.image_id,
                                             db.objects.object_number,
                                             db.objects.object_type,
-                                            db.objects.object_id)}
+                                            db.objects.object_id).all()}
+        logging.debug('End obj dict')
 
         dat_relations = (self._relation_csv)
+        logging.debug('Start replacing objfrom')
         dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_FROM].replace(img_dict)
         dat_relations[db.object_relations.object_id_parent.key] =\
             dat_relations.loc[:,['timg',
                                  conf.OBJECTNUMBER_FROM,
                                  conf.OBJECTTYPE_FROM]].apply(
                 lambda x: obj_dict.get((x[0], x[1], x[2])), axis=1)
+        logging.debug('Start replacing ids objto')
         dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_TO].replace(img_dict)
         dat_relations[db.object_relations.object_id_child.key] =\
             dat_relations.loc[:,['timg',
@@ -967,8 +976,10 @@ class DataStore(object):
         return dat_relations
 
     def _write_object_relations_table(self):
+        logging.debug('start generate object_relation_types')
         relation_types = self._generate_object_relation_types()
         self._bulkinsert(relation_types, db.object_relation_types)
+        logging.debug('start generate object_relations')
         relations = self._generate_object_relations()
         if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
             self._bulk_pg_insert(relations, db.object_relations)
@@ -1112,7 +1123,7 @@ class DataStore(object):
             session.query(table).delete()
             session.commit()
 
-        print('Insert table of dimension:', str(data.shape))
+        logging.debug('Insert table of dimension: '+ str(data.shape))
         data = self._clean_columns(data, table)
         odo(data, dbtable)
         self.main_session.commit()
@@ -1122,7 +1133,7 @@ class DataStore(object):
             session = self.main_session
             session.query(table).delete()
             session.commit()
-        print('Insert table of dimension:', str(data.shape))
+        logging.debug('Insert table of dimension: '+str(data.shape))
         data = self._clean_columns(data, table)
         output = io.StringIO()
         # ignore the index
@@ -1143,7 +1154,7 @@ class DataStore(object):
             session = self.main_session
             session.query(table).delete()
             session.commit()
-        print('Insert table of dimension:', str(data.shape))
+        logging.debug('Insert table of dimension: ' + str(data.shape))
         data = self._clean_columns(data, table)
         conn = self.db_conn.raw_connection()
         table_name = table.__tablename__
@@ -1200,9 +1211,9 @@ class DataStore(object):
         measurements_base = measurements.rename(columns=col_map)
         finished = False
         bak_t = un_t = measurements_base[0:0]
-        print("starting storing measurements...")
+        logging.debug("starting storing measurements...")
         while not finished:
-            print("still need to store "+str(len(measurements_base))+" tuples!")
+            logging.debug("still need to store "+str(len(measurements_base))+" tuples!")
             if len(measurements_base) > split:
                 measurements = measurements_base[:split]
                 measurements_base = measurements_base[split:]
@@ -1310,6 +1321,17 @@ class DataStore(object):
 
             return None, unstored
 
+    def reset_valid_images(self):
+        sel = sa.select([db.images.image_id]).where(~db.images.image_id.in_(self.main_session.query(db.valid_images.image_id)))
+        ins = sa.insert(db.valid_images).from_select([db.valid_images.image_id.key], sel)
+        self.main_session.execute(ins)
+        self.main_session.commit()
+
+    def reset_valid_objects(self):
+        sel = sa.select([db.objects.object_id]).where(~db.objects.object_id.in_(self.main_session.query(db.valid_objects.object_id)))
+        ins = sa.insert(db.valid_objects).from_select([db.valid_objects.object_id.key], sel)
+        self.main_session.execute(ins)
+        self.main_session.commit()
 
     #########################################################################
     #########################################################################
