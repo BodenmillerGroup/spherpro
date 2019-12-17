@@ -21,6 +21,12 @@ def get_anndata_filename(conf: object, object_type: str):
     fn = pathlib.Path(conf['sqlite']['db']).parent / (object_type + SUFFIX_ANNDATA)
     return fn
 
+def scale_anndata(adat, col_scale=db.ref_stacks.scale.key, inplace=True):
+    if ~inplace:
+        adat = adat.copy()
+    adat.X = (adat.X.T * adat.var[col_scale][:, None]).T
+    return adat
+
 class IoAnnData(io_base.BaseIo):
     def __init__(self, bro, obj_type):
         super().__init__(bro)
