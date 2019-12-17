@@ -23,6 +23,7 @@ class FilterMeasurements(filter_base.BaseFilter):
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
             (db.measurement_types.measurement_type.key, None)]
+        self.get_filter_vector = get_filter_vector
 
 
     def get_filter_statement(self, measurement_dict, logical_operator,
@@ -126,7 +127,7 @@ class FilterMeasurements(filter_base.BaseFilter):
 
         Input:
             channel_names: list of channel names
-            stack_names: list of stack_names
+            stack_names: list ofstack_names
             measurement_names: list of measurement_names
             measurement_types: list of measurement measurement_types
         Returns:
@@ -163,25 +164,41 @@ class FilterMeasurements(filter_base.BaseFilter):
         """
         constraint_columns = [db.objects.object_type]
 
-        value_lists = [object_types
-                                        ]
+        value_lists = [object_types]
         measure_filter = combine_constraints(constraint_columns,
-                value_lists=value_lists)
+                                             value_lists=value_lists)
         return measure_filter
 
+    def get_filter_data(self, dat_obj, filter_triplets):
+        measids = set(f[0] for f in filter_triplets)
+        anndat = self.bro.io.objmeasurements.get_measurements(dat_obj, measidx=measids)
+        return anndat
 
-    def get_hq_filter_triplets(self):
-        """
-        returns a list of triplets, building the HQ-Filter
-        """
-        hq = [
-               ({
-                    db.stacks.stack_name.key: "BinStack",
-                    db.ref_planes.channel_name.key: "is-sphere",
-                    db.measurement_names.measurement_name.key: "MeanIntensity"
-                }, operator.gt, 0)
-            ]
-        return hq
+    def measmeta_to_measid(self, channel_name=None, stack_name=None, measurement_name=None, measurement_type=None):
+        fil = self.get_measmeta_filter_statements(
+            channel_names=[channel_name],
+            stack_names=[stack_name],
+            measurement_names=[measurement_name],
+            measurement_types=[measurement_type])
+        measid = (self.data.get_measmeta_query()
+                  .filter(fil)
+                  .with_entities(db.measurements.measurement_id)
+                  .all())
+        if len(measid) > 1:
+            raise ValueError(f'Measurment not uniquely specified.\n {len(measid)} measurements found that match specification.')
+        return measid[0][0]
+
+
+def get_filter_vector(anndat, filter_triplets):
+    barr = None
+    for m, l, t in filter_triplets:
+        d = anndat[:, str(m)].X
+        tmp = l(d, t)
+        if barr is None:
+            barr = np.array(tmp)
+        else:
+            barr = barr & tmp
+    return barr
 
 def combine_constraints(columns, value_lists):
     """
