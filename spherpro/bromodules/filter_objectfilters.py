@@ -64,7 +64,7 @@ class ObjectFilterLib(filter_base.BaseFilter):
             self.delete_filter_by_name(filtername)
         filterdata = filterdata.dropna()
         filterdata[db.object_filters.filter_value.key] = filterdata[db.object_filters.filter_value.key].astype(int)
-        self.data._add_generic_tuple(filterdata, db.object_filters, replace=drop)
+        self.data._bulkinsert(filterdata, db.object_filters)
 
     def delete_filter_by_name(self, filtername):
         fid = (self.session.query(db.object_filter_names.object_filter_id)
