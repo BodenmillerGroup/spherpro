@@ -7,6 +7,8 @@ import spherpro as sp
 import spherpro.configuration as conf
 import spherpro.db as db
 
+import logging
+
 import plotnine as gg
 
 NAME_BARCODE = "BCString"
@@ -217,9 +219,8 @@ class Debarcode(object):
         if measurement_name is None:
             measurement_name = self.defaults_channels[conf.DEFAULT_MEASUREMENT_NAME]
         if stack is None:
-            measurement_name = self.defaults_channels[conf.DEFAULT_STACK_NAME]
+            stack = self.defaults_channels[conf.DEFAULT_STACK_NAME]
 
-        cols_meta = self.COL_CELL_METACOLS
         channels = tuple(key.columns.tolist())
 
         # Generate the measurement dict
@@ -229,58 +230,42 @@ class Debarcode(object):
             db.ref_planes.channel_name.key: d_rawdist[conf.DEFAULT_CHANNEL_NAME],
             db.measurement_names.measurement_name.key: d_rawdist[conf.DEFAULT_MEASUREMENT_NAME]
         }
+        dist_measid = self.filter.measmeta_to_measid(**filtdict)
+
+        q_obj = (self.data.get_objectmeta_query()
+                   .filter(db.objects.object_type == self.DEFAULT_OBJTYPE)
+                   .add_columns(db.sampleblocks.sampleblock_id))
+
+        if additional_meta is not None:
+            q_obj = q_obj.add_columns(*additional_meta)
+        dat_obj = bro.doquery(q_obj)
+
+        dat_filmeas = bro.doquery(self.data.get_measmeta_query()
+                               .filter(db.measurements.measurement_id == dist_measid)
+                               .add_columns(db.ref_stacks.scale))
+        dat_fil = bro.io.objmeasurements.get_measurements(dat_obj, dat_filmeas)
+        bro.io.objmeasurements.scale_anndata(dat_fil)
+
         # Get the distance filters
         distfils = [
-            (filtdict, operator.gt, borderdist)]
+            (dist_measid, operator.gt, borderdist)]
         if dist is not None:
-            distfils+= [(filtdict, operator.lt, dist)]
-        fil_dist = self.filter.get_multifilter_statement(distfils)
-        # get the filter for the object type
-        fil_obj = bro.filters.measurements.get_objectmeta_filter_statements(
-                object_types=[self.DEFAULT_OBJTYPE])
-        # get the filter for the measurment
-        fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
-                                     channel_names=[channels],
-                                     stack_names=[stack],
-                                     measurement_names=[measurement_name],
-                                     measurement_types=[None])
-        # get the data query
-        q_dat = (bro.data.get_measurement_query()
-                 .filter(fil_obj)
-                 .filter(fil_meas)
-                 .filter(fil_dist)
-                 .add_columns(db.images.image_id,
-                              db.sampleblocks.sampleblock_id
-                              )
-                 )
-        if additional_meta is not None:
-            q_dat = q_dat.add_columns(*additional_meta)
-            cols_meta = list(set(cols_meta + [c.key for c in additional_meta]))
-        # Get the metadata query
-        # q_obj = (bro.data.get_objectmeta_query()
-        #        .filter(db.objects.object_id == q_dat.subquery().c.object_id)
-        #        .with_entities(db.objects.object_id,
-        #            db.images.image_id,
-        #            db.sampleblocks.sampleblock_id)
-        #        )
-        # The the measurement metadta query
-        q_meas = (bro.data.get_measmeta_query()
-                  .filter(fil_meas)
-                  .with_entities(db.measurements.measurement_id,
-                                 db.ref_planes.channel_name)
-                  )
-        # Query the data
-        dat_cells, dat_measmeta = (bro.doquery(q)
-                                   for q in (q_dat, q_meas))
+            distfils+= [(dist_measid, operator.lt, dist)]
 
-        # bring it into the right form
-        # object_meta (in index) ~ metals
-        dat_bccells = (dat_cells
-                       .merge(dat_measmeta)
-                       .pivot_table(values=db.object_measurements.value.key,
-                                    columns=db.ref_planes.channel_name.key,
-                                    index=cols_meta, aggfunc='mean')
-                       )
+        dat_obj = dat_fil.obs.loc[bro.filters.measurements.get_filter_vector(dat_fil, distfils),:]
+        # get the data query
+        fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
+                                                                    channel_names=[channels],
+                                                                    stack_names=[stack],
+                                                                    measurement_names=[measurement_name],
+                                                                    measurement_types=[None])
+        dat_meas = bro.doquery(self.data.get_measmeta_query()
+                               .filter(fil_meas)
+                               .add_columns(db.ref_stacks.scale,
+                                           db.ref_planes.channel_name))
+        dat_cells = bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
+
+        dat_bccells = pd.DataFrame(dat_cells.X, index=pd.MultiIndex.from_frame(dat_cells.obs), columns=dat_cells.var[db.ref_planes.channel_name.key])
         return dat_bccells
 
     def _get_bc_cells_old(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
