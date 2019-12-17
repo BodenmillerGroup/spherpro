@@ -184,5 +184,5 @@ def get_largest_commponent_objs(dat, keys=None):
         keys = [ db.object_relations.object_id_parent.key,
                 db.object_relations.object_id_child.key]
     g = nx.from_pandas_edgelist(dat[keys], source=keys[0], target=keys[1])
-    gmax = max(nx.connected_component_subgraphs(g), key=len)
-    return pd.Series((int(n) for n in gmax.nodes), name=db.objects.object_id.key)
+    gmax = max(nx.connected_components(g), key=len)
+    return pd.Series((int(n) for n in gmax), name=db.objects.object_id.key)
