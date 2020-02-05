@@ -101,3 +101,11 @@ class IoObjMeasurements:
         if dat_obj is not None:
             dat.obs = dat.obs.join(dat_obj)
         return dat
+
+    @staticmethod
+    def convert_anndat_legacy(anndat):
+        d = pd.DataFrame(anndat.X, index=anndat.obs.object_id,
+                         columns=anndat.var.measurement_id).stack()
+        d.name = db.object_measurements.value.key
+        dat = d.reset_index().merge(anndat.obs).merge(anndat.var)
+        return dat
