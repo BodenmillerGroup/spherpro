@@ -86,7 +86,7 @@ class InteractiveHeatplot(object):
             q = q.filter(db.acquisitions.acquisition_id == r_id)
 
         if img_idx == 0:
-            imnr = [r for r in q.distinct()]
+            imnr = [r[0] for r in q.distinct()]
         else:
             imnr = [q.order_by(db.images.image_id).offset(img_idx-1).first()[0]]
             print(imnr)
@@ -161,8 +161,8 @@ class PlotHeatmask(plot_base.BasePlot):
         super().__init__(bro)
         self.io_masks = self.bro.io.masks
         self.filter_measurements = self.bro.filters.measurements
+        self.objmeasurements = self.bro.io.objmeasurements
         self.measure_idx =[ # idx_name, default
-            (db.objects.object_type.key, 'cell'),
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
@@ -185,32 +185,39 @@ class PlotHeatmask(plot_base.BasePlot):
         return slices
 
     def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None, valid_objects=True,
-                          valid_images=True):
+                          valid_images=True, object_type='cell'):
 
         if filters is None:
             filters = []
 
-        filter_statement = self.filter_measurements.get_measurement_filter_statements(*[[
+        filter_statement = self.filter_measurements.get_measmeta_filter_statements(*[[
             measurement_dict.get(o,d)] for o, d in self.measure_idx ])
 
-        query = self.data.get_measurement_query(session=self.session,
+        q_meas = (self.data.get_measmeta_query(session=self.session)
+                  .filter(filter_statement)
+                  .add_column(db.ref_stacks.scale)
+                  )
+        q_obj = (self.data.get_objectmeta_query(session=self.session,
                                                 valid_objects=valid_objects,
                                                 valid_images=valid_images)
-        query = query.filter(filter_statement)
+                    .filter(db.objects.object_type == object_type)
+                 )
 
         # add more output columns
-        query = query.add_columns(db.images.image_id, db.objects.object_number)
+        q_obj = q_obj.add_columns(db.objects.object_number)
 
         if image_numbers is not None:
-            query = query.filter(db.images.image_id.in_(image_numbers))
+            q_obj = q_obj.filter(db.images.image_id.in_(image_numbers))
         if len(filters) > 0:
-            query = query.join(db.object_filters)
+            q_obj = q_obj.join(db.object_filters)
         for fil in filters:
             # TODO: this NEEDs to be fixed as it wont work as expected with multiple filters!
             # This needs to be done with subqueries!
-            query = query.filter(fil)
+            q_obj = q_obj.filter(fil)
 
-        data = self.bro.doquery(query)
+        data = self.objmeasurements.get_measurements(q_obj=q_obj, q_meas=q_meas)
+        data = self.objmeasurements.scale_anndata(data)
+        data = self.objmeasurements.convert_anndat_legacy(data)
         return data
 
     def assemble_heatmap_image(self, dat_cells, image_numbers=None, cut_slices=None,
