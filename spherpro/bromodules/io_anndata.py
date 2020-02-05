@@ -22,7 +22,7 @@ def get_anndata_filename(conf: object, object_type: str):
     return fn
 
 def scale_anndata(adat, col_scale=db.ref_stacks.scale.key, inplace=True):
-    if ~inplace:
+    if not inplace:
         adat = adat.copy()
     adat.X = (adat.X.T * adat.var[col_scale][:, None]).T
     return adat
