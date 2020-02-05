@@ -88,8 +88,8 @@ class IoObjMeasurements:
             adat = self.get_anndat(objtype)
             varidx = list(set(measids).intersection(adat.var.index))
             if (len(varidx) > 0) & (len(obsidx) > 0):
-                adat = adat[:, sorted(varidx)]
-                dats.append(ad.AnnData(adat.X, obs=adat.obs, var=adat.var)[obsidx,:].copy())
+                adat = adat[:, sorted(varidx, key=int)]
+                dats.append(ad.AnnData(adat.X, obs=adat.obs, var=adat.var)[obsidx, :].copy())
         if len(dats) == 1:
             dat = dats[0]
         elif len(dats) == 0:
