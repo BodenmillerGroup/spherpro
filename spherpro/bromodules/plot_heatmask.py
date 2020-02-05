@@ -94,8 +94,8 @@ class InteractiveHeatplot(object):
         if imnr[0] is None:
             return
         metal = pct.library.metal_from_name(channel)
-        self.plotter.plt_heatplot(imnr, stat, stack, metal, transform, censor_min,
-                     censor_max, keepRange, None, ax, title=channel)
+        self.plotter.plt_heatplot(imnr, stat, stack, metal, transform=transform, censor_min=censor_min,
+                     censor_max=censor_max, keepRange=keepRange, ax=ax, title=channel)
 
     def get_dynamic_selector(self, plotfkt):
         ALL = 'all'
@@ -280,7 +280,7 @@ class PlotHeatmask(plot_base.BasePlot):
         return(pimg)
 
     @staticmethod
-    def do_heatplot(img, title=None,crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True,
+    def do_heatplot(img, title=None, crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True,
                     cmap_mask=None, cmap_mask_alpha=0.3, bad_color='k', bad_alpha=1):
 
         #if crange is None:
@@ -305,7 +305,7 @@ class PlotHeatmask(plot_base.BasePlot):
                 cax_mask = ax.images[1]
                 cax_mask.remove()
 
-        cax.set_data(np.flipud((img)))
+        cax.set_data(np.flipud(img))
         cax.set_extent([0,img.shape[1], 0, img.shape[0]])
         if crange is not None:
             cax.set_clim(crange[0], crange[1])
@@ -331,9 +331,7 @@ class PlotHeatmask(plot_base.BasePlot):
                 mask_img = np.ma.array(mask_img, mask=img.mask | (mask_img == False))
                 if cmap_mask is None:
                     cmap_mask='Greys'
-                ax.imshow(mask_img==1, cmap=cmap_mask, alpha=cmap_mask_alpha)
-
-        #fig.canvas.draw()
+                ax.imshow(mask_img == 1, cmap=cmap_mask, alpha=cmap_mask_alpha)
         return ax
 
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
@@ -361,8 +359,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
         fil=filters
         #print('Start loading...')
-        data = self.get_heatmask_data({db.objects.object_type.key: 'cell',
-                                                db.ref_planes.channel_name.key: channel,
+        data = self.get_heatmask_data({db.ref_planes.channel_name.key: channel,
                                                 db.stacks.stack_name.key: stack,
                                                 db.measurement_names.measurement_name.key: stat},
                                                 image_numbers=img_ids,
@@ -377,19 +374,20 @@ class PlotHeatmask(plot_base.BasePlot):
         if (data.shape[0] == 0):
             if ax is None:
                 fig = plt.figure()
-                a=fig.axes[0]
+                a = fig.axes[0]
             else:
                 a = ax
         else:
             img = self.assemble_heatmap_image(data)
-            if (censor_min > 0) & (censor_max < 1):
-                crange = ( np.percentile(data[col_val],censor_min*100),
-                        np.percentile(data[col_val],censor_max*100))
+            if (censor_min > 0) | (censor_max < 1):
+                crange = (np.percentile(data[col_val], censor_min*100),
+                        np.percentile(data[col_val], censor_max*100))
             else:
-                crange = None
+                crange = (data[col_val].min(), data[col_val].max())
 
             if title is None:
                 title=channel
+
             a = self.do_heatplot(img,  title=title,
-                    crange=crange, ax=ax, update_axrange=keepRange==False, colorbar=colorbar, cmap=cmap)
+                    crange=crange, ax=ax, update_axrange=~keepRange, colorbar=colorbar, cmap=cmap)
         a.axis('off')
