@@ -64,7 +64,14 @@ class IoObjMeasurements:
             self._anndatdict[obj_type] = anndat
         return anndat.adat
 
-    def get_measurements(self, dat_obj=None, dat_meas=None, *, measidx=None, objidx=None, object_type=None):
+    def get_measurements(self, dat_obj=None, dat_meas=None, *,
+                         measidx=None, objidx=None, object_type=None,
+                         q_meas=None, q_obj=None):
+        if q_meas is not None:
+            dat_meas = self.bro.doquery(q_meas)
+        if q_obj is not None:
+            dat_obj = self.bro.doquery(q_obj)
+
         if dat_meas is not None:
             dat_meas = dat_meas.sort_values(db.measurements.measurement_id.key)
             measids = list(map(str, dat_meas[db.measurements.measurement_id.key]))
@@ -95,7 +102,7 @@ class IoObjMeasurements:
         elif len(dats) == 0:
             raise ValueError('No valid measurements found')
         else:
-            dat = ad.AnnData.concatenate(*dats, join='outer',index_unique=None)
+            dat = ad.AnnData.concatenate(*dats, join='outer', index_unique=None)
         if dat_meas is not None:
             dat.var = dat.var.join(dat_meas)
         if dat_obj is not None:
