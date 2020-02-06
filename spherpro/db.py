@@ -295,6 +295,18 @@ class stack_modifications(Base):
             [modification_id],[modifications.modification_id]),
         {})
 
+class image_stacks(Base):
+    """
+    Represents an image stack linked to an image
+    """
+    __tablename__ = 'imagestacks'
+    stack_id = Column(Integer(), primary_key=True)
+    image_id = Column(Integer(), primary_key=True)
+    image_stack_filename = Column(String(200))
+    __table_args__ = (ForeignKeyConstraint(
+        [stack_id], [stacks.stack_id]),
+                      ForeignKeyConstraint([image_id], [images.image_id]), {})
+
 class object_filter_names(Base):
     __tablename__ = 'object_filter_names'
     object_filter_id = Column(Integer(), primary_key=True, autoincrement=True)
