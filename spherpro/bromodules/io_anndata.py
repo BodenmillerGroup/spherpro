@@ -142,21 +142,38 @@ class IoObjMeasurements:
             self.add_anndata_objectmeasurements(obj_type, adat_new)
 
 
-    def add_anndata_objectmeasurements(self, obj_type, adat_new):
+    def add_anndata_objectmeasurements(self, obj_type, adat_new,
+                                       replace=True, drop_all_old=True):
+        """
+        Adds a measurments to the anndata
+        Args:
+            obj_type: the object type
+            adat_new: the anndata to be added
+            replace: should existing measurements be updates?
+            drop_all_old: should existing measurements be completly droped
+                          before updating?
+
+        Returns:
+
+        """
         adat = self.get_anndata(obj_type)
         # Check that no new objects were added
         if len(get_difference(adat_new.obs.index, adat.obs.index)) != 0:
             raise ValueError("The new data contains new objects, which is not supported yet.")
 
         old_vars = get_overlap(adat.var.index, adat_new.var.index)
-        new_vars = get_difference(adat_new.var.index, adat.var.index)
         if (len(old_vars) > 0):
-            if (adat.shape[0] != adat_new.shape[0]):
-                raise ValueError("Updating of existing variables only allowed if values for all observations"
-                                 " are provided.")
+            if not replace:
+                raise ValueError(f'Measurements {old_vars} already existing'
+                                 f' but replace=False was set!.\n'
+                                 f'Set replace=True to update values.')
+            if (not drop_all_old) and (adat.shape[0] != adat_new.shape[0]):
+                raise ValueError("Updating of existing variables only allowed"
+                                 " if values for all observations"
+                                 " are provided  or 'drop_all_old=True'")
             else:
-                vars = [i for i in adat.var.index if i not in old_vars]
-                adat = adat[:, vars]
+                kvars = [i for i in adat.var.index if i not in old_vars]
+                adat = adat[:, kvars]
 
         adat = copy_in_memory(adat)
         adat = adat.T.concatenate(adat_new.T,
@@ -170,6 +187,7 @@ class IoObjMeasurements:
 
         fn_backup = f'{ioan.filename}.{time.strftime("%Y%m%d-%H%M%S")}'
         shutil.move(str(ioan.filename), fn_backup)
+
 
         # check order of variables
         ordvars = sorted(adat.var.index, key=int)
