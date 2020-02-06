@@ -734,7 +734,7 @@ class DataStore(object):
         dat_mask = {obj:
                     self._images_csv[
                         [db.images.image_number.key, prefix+obj]
-                    ].rename(columns={prefix+obj: db.masks.file_name.key})
+                    ].rename(columns={prefix+obj: db.masks.mask_filename.key})
          for obj in objects}
         dat_mask = pd.concat(dat_mask, names=[db.objects.object_type.key, 'idx'])
         dat_mask = dat_mask.reset_index(level=db.objects.object_type.key, drop=False)

@@ -210,7 +210,7 @@ class masks(Base):
     object_type = Column(String(200),
                        primary_key=True)
     image_id = Column(Integer(),  primary_key=True)
-    file_name = Column(String(200))
+    mask_filename = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
         [image_id],
         [images.image_id]),)

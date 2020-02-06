@@ -39,7 +39,7 @@ class IoMasks(io_base.BaseIo):
             mask_array: numpy array with the mask labels as integer image
         """
         fn = self.dat_masks.loc[self.dat_masks[db.images.image_id.key] == image_number,
-                           db.masks.file_name.key].iloc[0]
+                           db.masks.mask_filename.key].iloc[0]
         return tif.imread(os.path.join(self.basedir, fn))
 
     def clear_caches(self):
