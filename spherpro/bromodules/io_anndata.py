@@ -127,11 +127,11 @@ class IoObjMeasurements:
         return dat
 
     @staticmethod
-    def convert_anndata_legacy(anndat):
-        d = pd.DataFrame(anndat.X, index=anndat.obs.object_id,
-                         columns=anndat.var.measurement_id).stack()
+    def convert_anndata_legacy(adat):
+        d = pd.DataFrame(adat.X, index=adat.obs.object_id,
+                         columns=adat.var.measurement_id).stack()
         d.name = db.object_measurements.value.key
-        dat = d.reset_index().merge(anndat.obs).merge(anndat.var)
+        dat = d.reset_index().merge(adat.obs).merge(adat.var)
         return dat
 
     def add_anndata_datmeasurements(self, dat_new):
