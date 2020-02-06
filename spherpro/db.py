@@ -240,7 +240,7 @@ class ref_planes(Base):
     """docstring for planes."""
     __tablename__ = 'ref_planes'
     ref_stack_id = Column(Integer(), primary_key=True)
-    ref_plane_id = Column(Integer(), primary_key=True)
+    ref_plane_number = Column(Integer(), primary_key=True)
     channel_type = Column(String(200))
     channel_name = Column(String(200))
     __table_args__ = (ForeignKeyConstraint(
@@ -261,12 +261,12 @@ class planes(Base):
     __tablename__ = 'planes'
     plane_id = Column(Integer(), primary_key=True, autoincrement=True)
     stack_id = Column(Integer())
-    ref_plane_id = Column(Integer())
+    ref_plane_number = Column(Integer())
     ref_stack_id = Column(Integer())
     __table_args__ = (
         ForeignKeyConstraint(
-        [ref_stack_id, ref_plane_id],
-        [ref_planes.ref_stack_id, ref_planes.ref_plane_id]),
+        [ref_stack_id, ref_plane_number],
+        [ref_planes.ref_stack_id, ref_planes.ref_plane_number]),
         ForeignKeyConstraint(
             [stack_id], [stacks.stack_id]),
             {})
@@ -375,7 +375,7 @@ class measurements(Base):
         [measurement_name], [measurement_names.measurement_name]),
         ForeignKeyConstraint([measurement_type], [measurement_types.measurement_type]),
         ForeignKeyConstraint([plane_id], [planes.plane_id]),
-        UniqueConstraint(measurement_name, measurement_type, plane_id),{})
+        UniqueConstraint(measurement_name, measurement_type, plane_id), {})
 
 class object_measurements(Base):
     """docstring for object_measurements."""
