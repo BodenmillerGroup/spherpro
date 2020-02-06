@@ -33,7 +33,7 @@ DICT_DB_KEYS = {
     'measurement_type': db.measurement_types.measurement_type.key,
     'measurement_name': db.measurement_names.measurement_name.key,
     'stack_name': db.stacks.stack_name.key,
-    'plane_id': db.ref_planes.ref_plane_id.key,
+    'plane_id': db.ref_planes.ref_plane_number.key,
     'object_id': db.objects.object_id.key
 }
 
@@ -524,14 +524,14 @@ class DataStore(object):
         planes = pd.DataFrame(
 
             columns=[
-            db.ref_planes.ref_plane_id.key,
+            db.ref_planes.ref_plane_number.key,
             db.ref_stacks.ref_stack_name.key,
             db.ref_planes.channel_name.key,
             db.ref_planes.channel_type.key
         ])
         for stack in self.stack_csvs:
             self.stack_csvs[stack].rename(columns={
-                id_col: db.ref_planes.ref_plane_id.key,
+                id_col: db.ref_planes.ref_plane_number.key,
                 stack_col: db.ref_stacks.ref_stack_name.key,
                 name_col: db.ref_planes.channel_name.key,
                 type_col: db.ref_planes.channel_type.key
@@ -540,9 +540,9 @@ class DataStore(object):
         planes = planes.reset_index()
         del planes['index']
         # cast PlaneID to be identical to the one in Measurement:
-        planes[db.ref_planes.ref_plane_id.key] = planes[db.ref_planes.ref_plane_id.key].apply(lambda x: int(x))
+        planes[db.ref_planes.ref_plane_number.key] = planes[db.ref_planes.ref_plane_number.key].apply(lambda x: int(x))
 
-        planes = planes.append({db.ref_planes.ref_plane_id.key: OBJECTS_PLANEID,
+        planes = planes.append({db.ref_planes.ref_plane_number.key: OBJECTS_PLANEID,
                        db.ref_stacks.ref_stack_name.key: OBJECTS_STACKNAME,
                        db.ref_planes.channel_name.key: OBJECTS_CHANNELNAME,
                        db.ref_planes.channel_type.key: OBJECTS_CHANNELTYPE},
@@ -552,7 +552,7 @@ class DataStore(object):
 
         planes[db.ref_stacks.ref_stack_id.key] = planes[db.ref_stacks.ref_stack_name.key].replace(refdict)
 
-        return planes.loc[:, [db.ref_stacks.ref_stack_id.key, db.ref_planes.ref_plane_id.key, db.ref_planes.channel_name.key,
+        return planes.loc[:, [db.ref_stacks.ref_stack_id.key, db.ref_planes.ref_plane_number.key, db.ref_planes.channel_name.key,
                               db.ref_planes.channel_type.key]]
 
     def _generate_planemeta(self):
@@ -564,7 +564,7 @@ class DataStore(object):
         planes[db.stacks.stack_id.key] = planes[db.stacks.stack_name.key].replace(stackdic)
         planes = planes.loc[:,[db.stacks.stack_id.key,
                                db.ref_stacks.ref_stack_id.key,
-                               db.ref_planes.ref_plane_id.key]]
+                               db.ref_planes.ref_plane_number.key]]
         planes[db.planes.plane_id.key] = \
             self._query_new_ids(db.planes.plane_id, (planes.shape[0]))
         return planes
@@ -840,12 +840,12 @@ class DataStore(object):
                                                no_stack_str=OBJECTS_STACKNAME,
                                               no_plane_string=OBJECTS_PLANEID))
         meta.columns = ['variable',
-                db.measurement_types.measurement_type.key,
-                db.measurement_names.measurement_name.key,
-                db.stacks.stack_name.key,
-                db.ref_planes.ref_plane_id.key]
+                        db.measurement_types.measurement_type.key,
+                        db.measurement_names.measurement_name.key,
+                        db.stacks.stack_name.key,
+                        db.ref_planes.ref_plane_number.key]
         meta = meta.loc[meta['variable'] != '', :]
-        meta[db.ref_planes.ref_plane_id.key] = meta[db.ref_planes.ref_plane_id.key].map(lambda x: int(x.replace('c','')))
+        meta[db.ref_planes.ref_plane_number.key] = meta[db.ref_planes.ref_plane_number.key].map(lambda x: int(x.replace('c', '')))
 
         dat_planeids = pd.read_sql(self.main_session.query(
                 db.stacks.stack_name, db.planes.ref_plane_id, db.planes.plane_id)
@@ -1172,16 +1172,16 @@ class DataStore(object):
         return data
 
     def add_measurements(self, measurements, replace=False, backup=False,
-        col_image = db.images.image_id.key,
-        col_object_no = db.objects.object_number.key,
-        col_object_id = db.objects.object_id.key,
-        col_type = db.measurement_types.measurement_type.key,
-        col_name = db.measurement_names.measurement_name.key,
-        col_plane = db.ref_planes.ref_plane_id.key,
-        col_stackname = db.stacks.stack_name.key,
-        col_value = db.object_measurements.value.key,
-        split = 100000
-    ):
+                         col_image = db.images.image_id.key,
+                         col_object_no = db.objects.object_number.key,
+                         col_object_id = db.objects.object_id.key,
+                         col_type = db.measurement_types.measurement_type.key,
+                         col_name = db.measurement_names.measurement_name.key,
+                         col_plane = db.ref_planes.ref_plane_number.key,
+                         col_stackname = db.stacks.stack_name.key,
+                         col_value = db.object_measurements.value.key,
+                         split = 100000
+                         ):
         """add_measurements
         This function allows to store new measurements to the database.
         If overwrite == False, it will only add new measurements, discard the
@@ -1204,7 +1204,7 @@ class DataStore(object):
             (col_object_id, db.objects.object_id.key),
             (col_type, db.measurement_types.measurement_type.key),
             (col_name, db.measurement_names.measurement_name.key),
-            (col_plane, db.ref_planes.ref_plane_id.key),
+            (col_plane, db.ref_planes.ref_plane_number.key),
             (col_stackname, db.stacks.stack_name.key),
             (col_value, db.object_measurements.value.key)]}
 
@@ -1226,7 +1226,7 @@ class DataStore(object):
             object_id = [str(c) for c in measurements[db.objects.object_id.key].unique()]
             measurement_type = [str(c) for c in measurements[db.measurement_types.measurement_type.key].unique()]
             measurement_name = [str(c) for c in measurements[db.measurement_names.measurement_name.key].unique()]
-            plane = [str(c) for c in measurements[db.ref_planes.ref_plane_id.key].unique()]
+            plane = [str(c) for c in measurements[db.ref_planes.ref_plane_number.key].unique()]
             stack = [str(c) for c in measurements[db.stacks.stack_name.key].unique()]
 
             query =  self.main_session.query(db.object_measurements).filter(

@@ -65,9 +65,9 @@ class CalculateDistRim(object):
         done = self.data.main_session.query(db.ref_planes.channel_name).filter(db.ref_planes.channel_name == CHANNELNAME).count()
         if done > 0:
             raise NameError('Please remove the current dist-rim first')
-        q = self.data.main_session.query(db.ref_planes.ref_plane_id).filter(db.ref_planes.RefStackName == STACKNAME)
+        q = self.data.main_session.query(db.ref_planes.ref_plane_number).filter(db.ref_planes.RefStackName == STACKNAME)
         channels = pd.read_sql_query(q.statement,self.data.db_conn)
-        channels = list(channels[db.ref_planes.ref_plane_id.key])
+        channels = list(channels[db.ref_planes.ref_plane_number.key])
         nochannels = len(channels)
         if nochannels == 0:
             channel = "c1"
@@ -78,7 +78,7 @@ class CalculateDistRim(object):
         # create RefPlaneMeta for next higher channel using CHANNELNAME
         refplanemeta = [{
             db.ref_Stacks.ref_stack_name.key: STACKNAME,
-            db.ref_planes.ref_plane_id.key: channel,
+            db.ref_planes.ref_plane_number.key: channel,
             db.ref_planes.channel_type.key: TYPENAME,
             db.ref_planes.channel_name.key: CHANNELNAME
         }]
@@ -87,7 +87,7 @@ class CalculateDistRim(object):
         # create PlaneMeta for next higher channel
         planemeta = [{
             db.stacks.stack_name.key: STACKNAME,
-            db.ref_planes.ref_plane_id.key: channel,
+            db.ref_planes.ref_plane_number.key: channel,
             db.ref_Stacks.ref_stack_name.key: STACKNAME
         }]
         table = pd.DataFrame(planemeta)
@@ -95,10 +95,10 @@ class CalculateDistRim(object):
 
         #
         # select only database columns and write to the Database
-        filterdata = filterdata[[db.images.image_id.key, db.objects.object_number.key, db.objects.object_id.key, db.measurement_names.measurement_name.key, db.ref_planes.ref_plane_id.key,db.object_measurements.value.key]]
+        filterdata = filterdata[[db.images.image_id.key, db.objects.object_number.key, db.objects.object_id.key, db.measurement_names.measurement_name.key, db.ref_planes.ref_plane_number.key, db.object_measurements.value.key]]
         filterdata[db.measurement_names.measurement_name.key] = "MeanIntensity"
         filterdata[db.measurement_types.measurement_type.key] = "intensity"
-        filterdata[db.ref_planes.ref_plane_id.key] = channel
+        filterdata[db.ref_planes.ref_plane_number.key] = channel
         filterdata[db.stacks.stack_name.key] = STACKNAME
         filterdata = filterdata.dropna()
         self.data._add_generic_tuple(filterdata, db.object_measurements)
