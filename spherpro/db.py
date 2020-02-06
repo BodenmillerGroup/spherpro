@@ -247,6 +247,7 @@ class ref_planes(Base):
         [ref_stack_id],
         [ref_stacks.ref_stack_id]),{})
 
+
 class stacks(Base):
     """docstring for stacks."""
     __tablename__ = 'stacks'
@@ -351,6 +352,7 @@ class object_relations(Base):
 class measurement_names(Base):
     """
     Convenience table
+    TODO: Consider removing
     """
     __tablename__ = 'measurement_names'
     measurement_name = Column(String(200), primary_key=True)
@@ -358,6 +360,7 @@ class measurement_names(Base):
 class measurement_types(Base):
     """
     Convenience table
+    TODO: Consider removing
     """
     __tablename__ = 'measurement_types'
     measurement_type = Column(String(200), primary_key=True)

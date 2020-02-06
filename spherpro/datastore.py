@@ -477,9 +477,9 @@ class DataStore(object):
         key_map = {stack_col: db.stacks.stack_name.key,
                    ref_col: db.ref_stacks.ref_stack_name.key}
 
-        stack =  (self._stack_relation_csv
-                          .loc[:, list(key_map.keys())]
-                         .rename(columns= key_map)
+        stack = (self._stack_relation_csv
+                        .loc[:, list(key_map.keys())]
+                        .rename(columns= key_map)
                          )
         # Add the 'objects' stack
         stack = stack.append({db.stacks.stack_name.key: OBJECTS_STACKNAME,
@@ -531,8 +531,8 @@ class DataStore(object):
         ])
         for stack in self.stack_csvs:
             self.stack_csvs[stack].rename(columns={
-                id_col:db.ref_planes.ref_plane_id.key,
-                stack_col:db.ref_stacks.ref_stack_name.key,
+                id_col: db.ref_planes.ref_plane_id.key,
+                stack_col: db.ref_stacks.ref_stack_name.key,
                 name_col: db.ref_planes.channel_name.key,
                 type_col: db.ref_planes.channel_type.key
             }, inplace = True)
