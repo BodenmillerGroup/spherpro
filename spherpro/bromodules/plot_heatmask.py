@@ -217,7 +217,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
         data = self.objmeasurements.get_measurements(q_obj=q_obj, q_meas=q_meas)
         data = self.objmeasurements.scale_anndata(data)
-        data = self.objmeasurements.convert_anndat_legacy(data)
+        data = self.objmeasurements.convert_anndata_legacy(data)
         return data
 
     def assemble_heatmap_image(self, dat_cells, image_numbers=None, cut_slices=None,
