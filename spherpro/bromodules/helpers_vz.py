@@ -8,6 +8,7 @@ import plotnine as gg
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import spherpro.bromodules.io_anndata as io_anndata
 import anndata
 
 import scipy.stats as stats
@@ -109,34 +110,42 @@ class HelperVZ(pltbase.BasePlot):
 
     def get_data(self, curcond=None, fil_good_meas=None, cond_ids=None,
                  meas_ids=None, object_type=None, session=None,
-                 img_ids=True, obj_filter_query=None):
-        q = (self.data.get_measurement_query(session=session)
-             )
+                 img_ids=True, obj_filter_query=None, legacy=True):
+
+        q_obj = self.data.get_objectmeta_query(session=session)
         if img_ids:
-            q = q.add_columns(db.images.image_id)
+            q_obj = q_obj.add_columns(db.objects.image_id)
         if (curcond is not None) or (cond_ids is not None):
-            q = q.join(db.conditions,
+            q_obj = q_obj.join(db.conditions,
                     db.images.condition_id == db.conditions.condition_id)
             if curcond is not None:
-                q = q.filter(db.conditions.condition_name == curcond)
+                q_obj = q_obj.filter(db.conditions.condition_name == curcond)
 
             if cond_ids is not None:
-                q = q.filter(db.conditions.condition_id.in_(cond_ids))
+                q_obj = q_obj.filter(db.conditions.condition_id.in_(cond_ids))
         if object_type is not None:
-            q = q.filter(db.objects.object_type==object_type)
+            q_obj = q_obj.filter(db.objects.object_type == object_type)
 
         if obj_filter_query is not None:
-            q = q.filter(db.objects.object_id == obj_filter_query.c.object_id)
+            q_obj = q_obj.filter(db.objects.object_id == obj_filter_query.c.object_id)
         q_meta = (self.data.get_measmeta_query(session=session)
-                  .with_entities(db.measurements.measurement_id)
+                  .with_entities(db.measurements.measurement_id, db.ref_stacks.scale)
                   )
         if fil_good_meas is not None:
             q_meta = q_meta.filter(fil_good_meas)
         if meas_ids is not None:
             q_meta = q_meta.filter(db.measurements.measurement_id.in_(meas_ids))
-        measids = [m[0] for m in q_meta.all()]
-        q = q.filter(db.measurements.measurement_id.in_(measids))
-        return self.bro.doquery(q)
+        dat_meas = self.bro.doquery(q_meta)
+        dat_obj = self.bro.doquery(q_obj)
+
+        dat = self.bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
+        dat = self.bro.io.objmeasurements.scale_anndata(dat)
+
+        if legacy:
+            d = pd.DataFrame(dat.X, index=dat.obs.object_id, columns=dat.var.measurement_id).stack()
+            d.name = V.COL_VALUE
+            dat = d.reset_index().merge(dat_obj)
+        return dat
 
     def get_d2rim(self):
         measdict = self.bro.data.conf[conf.QUERY_DEFAULTS][conf.CORRDIST]
