@@ -134,7 +134,8 @@ class IoObjMeasurements:
         dat = d.reset_index().merge(adat.obs).merge(adat.var)
         return dat
 
-    def add_anndata_datmeasurements(self, dat_new):
+    def add_anndata_datmeasurements(self, dat_new, replace=True,
+                                    drop_all_old=False):
         for obj_type, dat in dat_new.groupby(db.objects.object_type.key):
             adat_new = ad.AnnData(dat.pivot(index=db.objects.object_id.key,
                                             columns=db.measurements.measurement_id.key,

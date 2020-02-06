@@ -112,11 +112,9 @@ class MeasurementMaker(base.BasePlot):
                                           db.measurements)
         return measure_meta
 
-    def add_object_measurements(self, dat_meas, replace=True, drop_all_old=False ):
-        if drop_all_old:
-            self.delete_measurements_by_ids(dat_meas[db.measurements.measurement_id.key].unique())
-        self.data._add_generic_tuple(dat_meas, db.object_measurements,
-                                     replace=replace, pg=True)
+    def add_object_measurements(self, dat_meas, replace=True, drop_all_old=False):
+        self.bro.io.objmeasurements.add_anndata_datmeasurements(dat_meas, replace=replace,
+                                                                drop_all_old=drop_all_old)
 
     def delete_measurements_by_ids(self, meas_ids):
         q = (self.bro.session.query(db.object_measurements)
