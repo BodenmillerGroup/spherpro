@@ -16,6 +16,7 @@ CHILD_ID = db.object_relations.object_id_child.key
 PARENT_ID = db.object_relations.object_id_parent.key
 OBJ_ID = db.objects.object_id.key
 OLD_ID = 'oldid'
+OBJ_TYPE = db.objects.object_type.key
 
 class AggregateNeightbours(object):
     """docstring for CalculateDistRim."""
@@ -55,7 +56,7 @@ class AggregateNeightbours(object):
                (nb_dic_dat[PARENT_ID].isin(dat[OBJ_ID])) &
                (nb_dic_dat[PARENT_ID] != nb_dic_dat[CHILD_ID]))
         nb_dic_dat = nb_dic_dat.loc[fil, :]
-        nb_dict =self._gen_nb_dict(nb_dic_dat)
+        nb_dict = self._gen_nb_dict(nb_dic_dat)
         dat = dat.loc[dat[OBJ_ID].isin(nb_dic_dat[PARENT_ID]), :]
         nb_dat = self.agg_data(dat, nb_dict, nb_agg_fkt)
         old_ids = [int(i) for i in dat[MEAS_ID].unique()]
@@ -64,8 +65,8 @@ class AggregateNeightbours(object):
         self.mm.add_object_measurements(nb_dat, drop_all_old=True)
 
     def agg_data(self, data, nb_dict, fkt):
-        tdat = data.pivot(index=OBJ_ID, columns=MEAS_ID, values=VALUE)
-        nb_dat = tdat.apply(self._agg_nb_val, axis=1, nbdict=nb_dict, data=tdat, fkt=fkt)
+        tdat = data.pivot_table(index=[OBJ_ID, OBJ_TYPE], columns=MEAS_ID, values=VALUE)
+        nb_dat = tdat.apply(self._agg_nb_val, axis=1, nbdict=nb_dict, data=tdat.reset_index(OBJ_TYPE, drop=True), fkt=fkt)
         nb_dat = nb_dat.stack()
         nb_dat.name = VALUE
         nb_dat = nb_dat.reset_index(drop=False)
@@ -80,33 +81,32 @@ class AggregateNeightbours(object):
     def _get_data(self, object_type=None, measurement_name=None,
             stack_name=None, plane_id=None, measurement_type=None,
                   filter_query=None, filter_statement=None, image_id=None):
-        q = (self.session.query(db.object_measurements.value, db.object_measurements.measurement_id,
-                           db.object_measurements.object_id)
-              .join(db.measurements)
-              .join(db.planes)
-              .join(db.stacks)
-             .join(db.objects)
-              .join(db.images)
-             .join(db.valid_objects))
+        q_obj = self.data.get_objectmeta_query()
+        q_meas = self.data.get_measmeta_query()
+
         if object_type is not None:
-            q = q.filter(db.objects.object_type == object_type)
+            q_obj = q_obj.filter(db.objects.object_type == object_type)
         if measurement_name is not None:
-            q = q.filter(db.measurements.measurement_name == measurement_name)
+            q_meas = q_meas.filter(db.measurements.measurement_name == measurement_name)
+        if measurement_type is not None:
+            q_meas = q_meas.filter(db.measurements.measurement_type == measurement_type)
         if stack_name is not None:
-            q = q.filter(db.stacks.stack_name == stack_name)
+            q_meas = q_meas.filter(db.stacks.stack_name == stack_name)
         if filter_query is not None:
-            q = q.filter(db.objects.object_id == filter_query.c.object_id)
+            q_obj = q_obj.filter(db.objects.object_id == filter_query.c.object_id)
         if filter_statement is not None:
-            q = q.filter(filter_statement)
+            q_obj = q_obj.filter(filter_statement)
         if plane_id is not None:
-            q = q.filter(db.planes.plane_id == plane_id)
+            q_meas = q_meas.filter(db.planes.plane_id == plane_id)
         if image_id is not None:
-            q = q.filter(db.images.image_id == image_id)
-        return self.bro.doquery(q)
+            q_obj = q_obj.filter(db.images.image_id == image_id)
+        adat = self.bro.io.objmeasurements.get_measurements(q_obj=q_obj, q_meas=q_meas)
+        dat = self.bro.io.objmeasurements.convert_anndata_legacy(adat)
+        return dat
 
     @staticmethod
     def _agg_nb_val(row, data, nbdict, fkt):
-        objid = row.name
+        objid = row.name[0]
         y = data.loc[list(nbdict[objid]), :].apply(fkt, axis=0, raw=True)
         return y
 
