@@ -325,5 +325,6 @@ class Debarcode(object):
             plane_id)
         dat_db[db.measurements.measurement_id.key] = meas_id
         dat_db = dat_db.rename(columns={db.conditions.condition_id.key: db.object_measurements.value.key})
+        dat_db[db.objects.object_type.key] = self.DEFAULT_OBJTYPE
         self.bro.processing.measurement_maker.add_object_measurements(dat_db, drop_all_old=True)
 
