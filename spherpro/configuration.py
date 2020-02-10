@@ -45,7 +45,8 @@ IMAGENUMBER_FROM = 'first_image_number_col'
 IMAGENUMBER_TO = 'second_image_number_col'
 IMAGES_CSV = 'images_csv'
 LAYOUT_CSV = 'layout_csv'
-MASKFILENAME_PEFIX = 'mask_filename_col_prefix'
+MASK_FILENAME_PREFIX = 'mask_filename_col_prefix'
+STACKIMG_FILENAME_PREFIX = 'stackimg_filename_col_prefix'
 MEASUREMENT_CSV = 'measurement_csv'
 MODNAME = 'modname_col'
 MODPRE = 'modpre_col'
@@ -74,6 +75,7 @@ STACK_RELATIONS = 'stack_relations'
 TYPE = 'type_col'
 WELL_COL = 'well_col'
 MASK_DIR = 'mask_dir'
+STACKIMG_DIR= 'stackimg_dir'
 GROUP_SITE = 'group_site'
 GROUP_CROPID = 'group_cropid'
 GROUP_POSX = 'group_x'
@@ -213,7 +215,8 @@ default_dict = {
             RELATIONSHIP: 'Relationship'
         },
         IMAGES_CSV: {
-            MASKFILENAME_PEFIX: 'ObjectsFileName_',
+            MASK_FILENAME_PREFIX: 'ObjectsFileName_',
+            STACKIMG_FILENAME_PREFIX: 'FileName_',
             SEP: ',',
             SCALING_PREFIX: 'Scaling_',
             # in CP width and height seem to be switched
