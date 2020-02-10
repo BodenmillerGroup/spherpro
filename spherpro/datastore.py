@@ -312,6 +312,7 @@ class DataStore(object):
         self._write_pannel_table()
         self._write_condition_table()
         self._write_measurement_table(minimal)
+        self._write_image_stacks_table()
         self.reset_valid_objects()
         self.reset_valid_images()
         #self._write_object_relations_table()
@@ -602,7 +603,7 @@ class DataStore(object):
         imgconf = cpconf[conf.IMAGES_CSV]
         objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
         obj = objects[0]
-        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASK_FILENAME_PREFIX]
         #use any object to get a filename
         rename_dict = {
             prefix+obj: 'fn',
@@ -730,7 +731,7 @@ class DataStore(object):
     def _generate_masks(self):
         cpconf = self.conf[conf.CPOUTPUT]
         objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
-        prefix = cpconf[conf.IMAGES_CSV][conf.MASKFILENAME_PEFIX]
+        prefix = cpconf[conf.IMAGES_CSV][conf.MASK_FILENAME_PREFIX]
         dat_mask = {obj:
                     self._images_csv[
                         [db.images.image_number.key, prefix+obj]
@@ -757,9 +758,33 @@ class DataStore(object):
         dat_mask[db.masks.image_id.key] = dat_mask[db.images.image_number.key].replace(img_dict)
         return dat_mask
 
+    def _generate_image_stacks(self):
+        stack_col = 'column_stack'
+        cpconf = self.conf[conf.CPOUTPUT]
+        dat_stacks = self.bro.doquery(self.main_session.query(db.stacks))
+        dat_img = self._images_csv
+        prefix = cpconf[conf.IMAGES_CSV][conf.STACKIMG_FILENAME_PREFIX]
+        dat_stacks[stack_col] = dat_stacks[db.stacks.stack_name.key].map(lambda x: prefix+x)
+        fil = dat_stacks[stack_col].isin(dat_img.columns)
+        dat_stacks = dat_stacks.loc[fil, :]
+        dat_image_stack = dat_img.melt(id_vars=[db.images.image_number.key],
+                                       value_vars=dat_stacks[stack_col],
+                                       value_name=db.image_stacks.image_stack_filename.key,
+                                       var_name=stack_col)
+        dat_image_stack = dat_image_stack.merge(dat_stacks)
+        img_dict = {n: i for n, i in
+                    self.main_session.query(db.images.image_number,
+                                            db.images.image_id)}
+        dat_image_stack[db.image_stacks.image_id.key] = dat_image_stack[db.images.image_number.key].replace(img_dict)
+        return dat_image_stack
+
     def _write_masks_table(self):
         masks = self._generate_masks()
         self._bulkinsert(masks, db.masks)
+
+    def _write_image_stacks_table(self):
+        img_stacks = self._generate_image_stacks()
+        self._bulkinsert(img_stacks, db.image_stacks)
 
     def _write_objects_table(self):
         """
@@ -848,7 +873,7 @@ class DataStore(object):
         meta[db.ref_planes.ref_plane_number.key] = meta[db.ref_planes.ref_plane_number.key].map(lambda x: int(x.replace('c', '')))
 
         dat_planeids = pd.read_sql(self.main_session.query(
-                db.stacks.stack_name, db.planes.ref_plane_id, db.planes.plane_id)
+                db.stacks.stack_name, db.planes.ref_plane_number, db.planes.plane_id)
             .join(db.planes).statement, self.db_conn)
 
         meta = meta.merge(dat_planeids)
