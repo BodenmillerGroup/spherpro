@@ -1,22 +1,15 @@
 import spherpro.bromodules.plot_base as plot_base
 
 import copy
-import pandas as pd
 import numpy as np
-import re
 
-import spherpro as sp
-import spherpro.datastore as datastore
 import spherpro.db as db
 
 import pycytools as pct
-import pycytools.library
 
-import sqlalchemy as sa
 import matplotlib.pyplot as plt
 
 import ipywidgets as ipw
-import functools
 
 
 # TODO: move to the pycytools!
