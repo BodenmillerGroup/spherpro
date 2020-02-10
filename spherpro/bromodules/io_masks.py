@@ -19,6 +19,7 @@ import functools
 
 max_cache = 384
 
+
 class IoMasks(io_base.BaseIo):
     def __init__(self, bro):
         super().__init__(bro)
@@ -26,6 +27,8 @@ class IoMasks(io_base.BaseIo):
         self.basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
         if self.basedir is None:
             self.basedir = self.data.conf[conf.CP_DIR]
+        else:
+            self.basedir = self.basedir.format(**{conf.CP_DIR: self.data.conf[conf.CP_DIR]})
 
         self._dat_masks = None
         
