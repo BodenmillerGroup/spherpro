@@ -1188,12 +1188,20 @@ class DataStore(object):
         conn.commit()
 
     def _clean_columns(self, data, table):
+        """
+        Removes columns not in table, adds columns with default value None if they are missing from data.
+        Args:
+            data: a pandas data table
+            table: an sqlalchemy table definition
+
+        Returns:
+            The cleaned pandas data table
+
+        """
         data_cols = data.columns
         table_cols = table.__table__.columns.keys()
         uniq = list(set(table_cols)-set(data_cols))
-        data = data.loc[:, table_cols]
-        for un in uniq:
-            data.loc[:, un] = None
+        data = data.reindex(columns=table_cols, fill_value=None)
         return data
 
     def add_measurements(self, measurements, replace=False, backup=False,
