@@ -364,12 +364,12 @@ class DataStore(object):
         self._bulkinsert(modifications, db.modifications)
 
         # RefStacks
-        RefStack = self._generate_refstack()
-        self._bulkinsert(RefStack, db.ref_stacks)
+        refstack = self._generate_refstack()
+        self._bulkinsert(refstack, db.ref_stacks)
 
         # Stacks
-        Stack = self._generate_stack()
-        self._bulkinsert(Stack, db.stacks)
+        stack = self._generate_stack()
+        self._bulkinsert(stack, db.stacks)
 
         # StackModifications
         stackmodification = self._generate_stackmodification()
