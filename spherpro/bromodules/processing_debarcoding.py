@@ -244,7 +244,7 @@ class Debarcode(object):
                                .filter(db.measurements.measurement_id == dist_measid)
                                .add_columns(db.ref_stacks.scale))
         dat_fil = bro.io.objmeasurements.get_measurements(dat_obj, dat_filmeas)
-        bro.io.objmeasurements.scale_anndata(dat_fil)
+        dat_fil = bro.io.objmeasurements.scale_anndata(dat_fil)
 
         # Get the distance filters
         distfils = [
@@ -252,7 +252,7 @@ class Debarcode(object):
         if dist is not None:
             distfils+= [(dist_measid, operator.lt, dist)]
 
-        dat_obj = dat_fil.obs.loc[bro.filters.measurements.get_filter_vector(dat_fil, distfils),:]
+        dat_obj = dat_fil.obs.loc[bro.filters.measurements.get_filter_vector(dat_fil, distfils), :]
         # get the data query
         fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
                                                                     channel_names=[channels],
@@ -264,6 +264,7 @@ class Debarcode(object):
                                .add_columns(db.ref_stacks.scale,
                                            db.ref_planes.channel_name))
         dat_cells = bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
+        dat_cells = bro.io.objmeasurements.scale_anndata(dat_cells)
 
         dat_bccells = pd.DataFrame(dat_cells.X, index=pd.MultiIndex.from_frame(dat_cells.obs), columns=dat_cells.var[db.ref_planes.channel_name.key])
         return dat_bccells
