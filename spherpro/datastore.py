@@ -454,9 +454,8 @@ class DataStore(object):
         scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
         scale_names = [scale_col + n for n in
                        ref_stack[db.ref_stacks.ref_stack_name.key]]
-        dat_img = self._images_csv.loc[:, scale_names]
-        dat_img = dat_img.fillna(1)
-        scales = dat_img.iloc[0,:]
+        dat_img = self._images_csv.reindex(columns=scale_names, fill_value=1)
+        scales = dat_img.iloc[0, :]
         # assert that scales are equal in all images
         assert np.all(dat_img.eq(scales, axis=1))
         ref_stack[db.ref_stacks.scale.key] = scales.values
