@@ -33,25 +33,22 @@ class AggregateNeightbours(object):
                         nb_relationtype=None,
         object_type=None, measurement_name=None,
         stack_name=None, plane_id=None, measurement_type=None,
-        filter_query=None, filter_statement=None, image_id=None,
-        drop_all_old=False,
-        remove_fil_nb=True # Should neightbours of filtered objects also be removed?)
-                           ):
+        filter_query=None, filter_statement=None, image_id=None, valid_objects=True):
         if nb_relationtype is None:
             nb_relationtype = DEFAULT_RELATION
         if filter_statement is not None:
             raise('filter_statement not implemented yet')
 
-        if remove_fil_nb:
-            nbfil = filter_query
-        else:
-            nbfil = None
+        nbfil = filter_query
         nb_dic_dat = self.get_nb_dat(nb_relationtype, obj_type=object_type,
-                                     fil_query=nbfil)
+                                     fil_query=nbfil,
+                                     valid_objects=valid_objects)
         dat = self._get_data(
                 object_type, measurement_name,
                 stack_name, plane_id, measurement_type,
-                  filter_query, filter_statement, image_id)
+                  filter_query, filter_statement, image_id,
+                    valid_objects=valid_objects)
+
         fil = ((nb_dic_dat[CHILD_ID].isin(dat[OBJ_ID])) &
                (nb_dic_dat[PARENT_ID].isin(dat[OBJ_ID])) &
                (nb_dic_dat[PARENT_ID] != nb_dic_dat[CHILD_ID]))
@@ -73,15 +70,17 @@ class AggregateNeightbours(object):
         return nb_dat
 
 
-    def get_nb_dat(self, relationtype_name, obj_type=None, fil_query=None):
+    def get_nb_dat(self, relationtype_name, obj_type=None, fil_query=None,
+                   valid_objects=True):
         return self.bro.helpers.dbhelp.get_nb_dat(relationtype_name,
                                                   obj_type,
-                                                  fil_query)
+                                                  fil_query, valid_obj_only=valid_objects)
 
     def _get_data(self, object_type=None, measurement_name=None,
             stack_name=None, plane_id=None, measurement_type=None,
-                  filter_query=None, filter_statement=None, image_id=None):
-        q_obj = self.data.get_objectmeta_query()
+                  filter_query=None, filter_statement=None, image_id=None,
+                  valid_objects=True):
+        q_obj = self.data.get_objectmeta_query(valid_objects=valid_objects)
         q_meas = self.data.get_measmeta_query()
 
         if object_type is not None:
