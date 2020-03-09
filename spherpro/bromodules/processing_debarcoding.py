@@ -96,7 +96,7 @@ class Debarcode(object):
         dat = dat_bcstat.set_index(db.images.image_id.key, drop=False)
 
         imgids = [i[0] for i in session.query(db.images.image_id).all()]
-        dat = dat.loc[imgids, :]
+        dat = dat.reindex(index=imgids)
         for row in dat.to_dict(orient='records'):
             # convert all dtypes to int
             row.update({str(c): int(v) if np.isfinite(v) else None for c, v in row.items()})
