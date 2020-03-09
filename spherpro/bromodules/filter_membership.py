@@ -56,9 +56,9 @@ class FilterMembership(filter_base.BaseFilter):
         self.bro.io.objmeasurements.scale_anndata(dat)
 
         dat_filter = pd.DataFrame({
-            db.objects.object_id.key: map(int,dat.obs.index),
+            db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
-                dat[:, str(measid_area)].X[:] < minpix})
+                dat[:, str(measid_area)].X.squeeze() < minpix})
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
 
@@ -153,9 +153,9 @@ class FilterMembership(filter_base.BaseFilter):
         dat = self.bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
         self.bro.io.objmeasurements.scale_anndata(dat)
 
-        d = dat[:, str(measid)].X[:]
+        d = dat[:, str(measid)].X.squeeze()
         dat_filter = pd.DataFrame({
-            db.objects.object_id.key: map(int,dat.obs.index),
+            db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
            (d > distother) & (
            d < (2**16-2)).astype(int)})
@@ -192,9 +192,9 @@ class FilterMembership(filter_base.BaseFilter):
         dat = self.bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
         self.bro.io.objmeasurements.scale_anndata(dat)
 
-        d = dat[:, str(measid)].X[:]
+        d = dat[:, str(measid)].X.squeeze()
         dat_filter = pd.DataFrame({
-            db.objects.object_id.key: map(int,dat.obs.index),
+            db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
            (d > borderdist) & (
            d < (2**16-2)).astype(int)})
