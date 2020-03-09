@@ -163,8 +163,8 @@ class PlotHeatmask(plot_base.BasePlot):
         self.interactive = InteractiveHeatplot(self.data.main_session, self)
 
 
-    def _prepare_masks(self, image_numbers):
-        masks = [self.io_masks.get_mask(i) for i in image_numbers]
+    def _prepare_masks(self, image_ids):
+        masks = [self.io_masks.get_mask(i) for i in image_ids]
         return masks
 
     def _prepare_slices(self, image_numbers):
@@ -177,7 +177,7 @@ class PlotHeatmask(plot_base.BasePlot):
         slices = [slice_dict[i] for i in image_numbers]
         return slices
 
-    def get_heatmask_data(self, measurement_dict, image_numbers=None, filters=None, valid_objects=True,
+    def get_heatmask_data(self, measurement_dict, image_ids=None, filters=None, valid_objects=True,
                           valid_images=True, object_type='cell'):
 
         if filters is None:
@@ -199,8 +199,8 @@ class PlotHeatmask(plot_base.BasePlot):
         # add more output columns
         q_obj = q_obj.add_columns(db.objects.object_number)
 
-        if image_numbers is not None:
-            q_obj = q_obj.filter(db.images.image_id.in_(image_numbers))
+        if image_ids is not None:
+            q_obj = q_obj.filter(db.images.image_id.in_(image_ids))
         if len(filters) > 0:
             q_obj = q_obj.join(db.object_filters)
         for fil in filters:
@@ -259,7 +259,7 @@ class PlotHeatmask(plot_base.BasePlot):
                     label=intensity.index)
                 pimg_sl =pimg[sl]
 
-                fil = (timg.mask == False) & (np.isnan(timg.imag) == False)  &(
+                fil = (timg.mask == False) & (np.isnan(timg.imag) == False) & (
                     np.isnan(pimg_sl) == True)
                 pimg_sl[fil] = timg[fil]
                 fil2 = notbg[sl] == 0
@@ -270,7 +270,7 @@ class PlotHeatmask(plot_base.BasePlot):
         if out_shape is None:
             pimg = pimg[min(x_start):, min(y_start):]
 
-        return(pimg)
+        return pimg
 
     @staticmethod
     def do_heatplot(img, title=None, crange=None, ax=None, update_axrange=True, cmap=None, colorbar =True,
@@ -355,9 +355,9 @@ class PlotHeatmask(plot_base.BasePlot):
         data = self.get_heatmask_data({db.ref_planes.channel_name.key: channel,
                                                 db.stacks.stack_name.key: stack,
                                                 db.measurement_names.measurement_name.key: stat},
-                                                image_numbers=img_ids,
-                                                filters=fil
-                                               )
+                                      image_ids=img_ids,
+                                      filters=fil
+                                      )
         #print(data.shape)
         #print('Finished loading!')
         col_val = db.object_measurements.value.key
