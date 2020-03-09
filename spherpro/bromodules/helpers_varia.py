@@ -1,7 +1,7 @@
 import spherpro.db as db
 import sqlalchemy as sa
 
-class HelperDb(object):
+class HelperDb:
     def __init__(self, bro):
         self.bro = bro
         self.session = self.bro.data.main_session
@@ -63,3 +63,5 @@ class HelperDb(object):
             nbquery = nbquery.filter(db.object_relations.object_id_child == fil_query.c.object_id,
                 db.object_relations.object_id_parent == q_fil.c.object_id)
         return self.bro.doquery(nbquery)
+
+

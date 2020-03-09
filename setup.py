@@ -24,7 +24,7 @@ setup(
                            'colorcet',
                            'imctools',
                            'odo',
-                           'PyMySQL',
+                           #'PyMySQL',
                            'matplotlib',
                            'numpy',
                            'pandas',

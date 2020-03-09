@@ -1,6 +1,6 @@
 # Diffrent database collectors used by the datastore
 import sqlite3
-import pymysql
+#import pymysql
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
