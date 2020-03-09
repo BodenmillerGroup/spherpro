@@ -110,3 +110,18 @@ class ObjectFilterLib(filter_base.BaseFilter):
         return fil
 
 
+    def delete_by_filter(self, filter_statement):
+        """
+        Deletes objects from the 'valid_objects' list based
+        on an object filter statement.
+
+        Args:
+            filter_statement: an object filter statement
+
+        Returns:
+
+        """
+        stmt = self.session.query(db.valid_objects).filter(db.valid_objects.object_id.in_(filter_statement))
+        stmt.delete(synchronize_session='fetch')
+        self.session.commit()
+
