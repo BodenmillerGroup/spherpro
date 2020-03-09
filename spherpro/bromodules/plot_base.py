@@ -19,13 +19,3 @@ class BasePlot(HelperDb):
         ax.axis('off')
         return ax
 
-
-def adapt_ax_clims(axs):
-    caxs = [ax.images[0] for ax in axs if len(ax.images) > 0]
-    clims = [cax.get_clim() for cax in caxs]
-    clims = [c for c in clims if c != (True, True)]
-    clim_all = [f(c) for f, c in zip([np.min, np.max], zip(*clims))]
-    for cax in caxs:
-        cax.set_clim(clim_all)
-
-
