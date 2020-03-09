@@ -64,8 +64,7 @@ class IoAnnData(io_base.BaseIo):
         a = self._adat
         if ((a is None) or # Check if the data has been already loaded
                 (len(a.obs.index) != a.shape[0]) | (len(a.var.index) != a.shape[1])): # check if data consistent
-            self._adat = ad.AnnData(filename=self.filename,
-                                    filemode='r')
+            self._adat = ad.read_h5ad(self.filename, backed='r')
         return self._adat
 
 class IoObjMeasurements:
