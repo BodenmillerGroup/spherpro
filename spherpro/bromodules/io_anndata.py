@@ -96,9 +96,10 @@ class IoObjMeasurements:
             measids = set(map(str, sorted(measidx)))
 
         if dat_obj is not None:
-            dat_obj = dat_obj.sort_values(db.objects.object_id.key)
             obsidx = list(map(str, dat_obj[db.objects.object_id.key]))
             dat_obj.index = obsidx
+            dat_obj.index.name = None
+            dat_obj = dat_obj.sort_values(db.objects.object_id.key)
             it = dat_obj.groupby(db.objects.object_type.key)
         else:
             class obs:
