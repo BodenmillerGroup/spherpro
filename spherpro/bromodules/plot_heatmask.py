@@ -5,6 +5,7 @@ import numpy as np
 
 import spherpro.db as db
 
+import pycytools.library
 import pycytools as pct
 
 import matplotlib.pyplot as plt
