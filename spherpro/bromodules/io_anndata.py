@@ -131,7 +131,7 @@ class IoObjMeasurements:
         d = pd.DataFrame(adat.X, index=adat.obs.object_id,
                          columns=adat.var.measurement_id).stack()
         d.name = db.object_measurements.value.key
-        dat = d.reset_index().merge(adat.obs).merge(adat.var)
+        dat = d.reset_index().merge(adat.obs.reset_index(drop=True)).merge(adat.var)
         return dat
 
     def add_anndata_datmeasurements(self, dat_new, replace=True,
