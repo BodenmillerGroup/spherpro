@@ -8,10 +8,6 @@ from odo import odo
 import re
 import io
 import warnings
-import tifffile as tif
-# move to a  postgres specific location later!
-from pgcopy import CopyManager
-
 import numpy as np
 
 import spherpro as spp
@@ -125,10 +121,6 @@ class DataStore(object):
         # self._read_stack_meta()
         self._read_pannel()
         self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            self._bulkinsert = self._bulk_pg_insert
-        else:
-            from odo import odo
         self.bro = bro.Bro(self)
 
     def drop_all(self):
@@ -315,9 +307,6 @@ class DataStore(object):
         self.reset_valid_objects()
         self.reset_valid_images()
         # self._write_object_relations_table()
-        # vacuum after population in postgres
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            self._pg_vacuum()
 
     #### Helpers ####
 
@@ -814,37 +803,6 @@ class DataStore(object):
             for obj_type, meas in self._generate_anndata_measurements():
                 ioan = io_anndata.IoAnnData(self.bro, obj_type)
                 ioan.initialize_anndata(meas)
-        # increase performance
-        if self.conf[conf.BACKEND] == conf.CON_MYSQL:
-            measurements = self._generate_measurements(minimal, chuncksize=50000)
-            self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 0')
-            self.db_conn.execute('SET UNIQUE_CHECKS = 0')
-            for meas in measurements:
-                self._bulkinsert(meas, db.object_measurements)
-            self.db_conn.execute('SET FOREIGN_KEY_CHECKS = 1')
-            self.db_conn.execute('SET UNIQUE_CHECKS = 1')
-
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            measurements = self._generate_measurements(minimal, chuncksize=50000)
-            self.db_conn.execute('ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_pkey;')
-            self.db_conn.execute(
-                'ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_measurement_id_fkey;')
-            self.db_conn.execute(
-                'ALTER TABLE public.object_measurements DROP CONSTRAINT object_measurements_object_id_fkey;')
-            for meas in measurements:
-                logging.debug('Start inserting')
-                self._bulk_pg_insert_numeric(meas, db.object_measurements)
-                logging.debug('Start loading csv')
-            self.db_conn.execute('''ALTER TABLE public.object_measurements
-                                   ADD CONSTRAINT object_measurements_pkey PRIMARY KEY(object_id, measurement_id);''')
-            self.db_conn.execute('''ALTER TABLE public.object_measurements
-                                   ADD CONSTRAINT object_measurements_measurement_id_fkey FOREIGN KEY (measurement_id)
-                                       REFERENCES public.measurements (measurement_id) MATCH SIMPLE
-                                       ON UPDATE NO ACTION ON DELETE NO ACTION;''')
-            self.db_conn.execute('''ALTER TABLE public.object_measurements
-                                   ADD CONSTRAINT object_measurements_object_id_fkey FOREIGN KEY (object_id)
-                                       REFERENCES public.objects (object_id) MATCH SIMPLE
-                                       ON UPDATE NO ACTION ON DELETE NO ACTION;''')
 
     def _register_measurement_meta(self, dat_meas):
         meas_cols = list(set(dat_meas.columns) - set([db.objects.object_type.key,
@@ -996,10 +954,7 @@ class DataStore(object):
         self._bulkinsert(relation_types, db.object_relation_types)
         logging.debug('start generate object_relations')
         relations = self._generate_object_relations()
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            self._bulk_pg_insert(relations, db.object_relations)
-        else:
-            self._bulkinsert(relations, db.object_relations)
+        self._bulkinsert(relations, db.object_relations)
 
     def _write_pannel_table(self):
         pannel = self._generate_pannel_table()
@@ -1141,40 +1096,6 @@ class DataStore(object):
         odo(data, dbtable)
         self.main_session.commit()
 
-    def _bulk_pg_insert(self, data, table, drop=False):
-        if drop:
-            session = self.main_session
-            session.query(table).delete()
-            session.commit()
-        logging.debug('Insert table of dimension: ' + str(data.shape))
-        data = self._clean_columns(data, table)
-        output = io.StringIO()
-        # ignore the index
-        data.to_csv(output, sep='\t', header=False, index=False)
-        # jump to start of stream
-        output.seek(0)
-        con = self.db_conn
-        connection = con.raw_connection()
-        cursor = connection.cursor()
-        # null values become ''
-        table_name = table.__tablename__
-        cursor.copy_from(output, table_name, null="")
-        connection.commit()
-        cursor.close()
-
-    def _bulk_pg_insert_numeric(self, data, table, drop=False):
-        if drop:
-            session = self.main_session
-            session.query(table).delete()
-            session.commit()
-        logging.debug('Insert table of dimension: ' + str(data.shape))
-        data = self._clean_columns(data, table)
-        conn = self.db_conn.raw_connection()
-        table_name = table.__tablename__
-        mgr = CopyManager(conn, table_name, list(data.columns))
-        mgr.copy(data.to_records(index=False), io.BytesIO)
-        conn.commit()
-
     def _clean_columns(self, data, table):
         """
         Removes columns not in table, adds columns with default value None if they are missing from data.
@@ -1304,10 +1225,7 @@ class DataStore(object):
 
             query.delete(synchronize_session='fetch')
             self.main_session.commit()
-            if pg:
-                self._bulk_pg_insert(data, table)
-            else:
-                self._bulkinsert(data, table)
+            self._bulkinsert(data, table)
 
             return backup, None
         else:
@@ -1334,10 +1252,7 @@ class DataStore(object):
                 stri += 'maybe you tried to readd some rows.'
                 warnings.warn(stri, UserWarning)
 
-            if pg:
-                self._bulk_pg_insert(storable, table)
-            else:
-                self._bulkinsert(storable, table)
+            self._bulkinsert(storable, table)
 
             return None, unstored
 
@@ -1732,9 +1647,6 @@ class DataStore(object):
                                .filter(namecol.in_(names)))}
         return d
 
-    def _pg_vacuum(self):
-        self.db_conn.execution_options(isolation_level="AUTOCOMMIT").execute('VACUUM ANALYZE;')
-
     # Properties:
     @property
     def pannel(self):
@@ -1779,26 +1691,7 @@ class DataStore(object):
         return self._session
 
     def get_query_function(self):
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
-            from psycopg2 import connect
-            from sqlalchemy.dialects import postgresql
-            connection = connect(
-                host=self.conf[conf.CON_POSTGRESQL]['host'],
-                dbname=self.conf[conf.CON_POSTGRESQL]['db'],
-                user=self.conf[conf.CON_POSTGRESQL]['user'],
-                password=self.conf[conf.CON_POSTGRESQL]['pass']
-            )
-
-            def query_postgres(query):
-                comp = query.statement.compile(dialect=postgresql.dialect())
-                d = pd.read_sql(comp.string, connection, params=comp.params)
-                d = d.loc[:, ~d.columns.duplicated()]
-                return d
-
-            return query_postgres
-        else:
             def query_general(query):
                 d = pd.read_sql(query.statement, self.db_conn)
                 return d
-
             return query_general
