@@ -31,11 +31,13 @@ class PlotDebarcodeCells(plot_base.BasePlot):
         blockid = (self.session.query(db.sampleblocks)
                     .join(db.conditions)
                     .join(db.images)
-                    .filter(db.images.image_id == img_id)).subquery()
+                    ).subquery()
         unicols = [c[0] for c in self.session.query(db.conditions.condition_id)
                 .filter(db.conditions.sampleblock_id == blockid.c.sampleblock_id).all()]
         cmap = [color_invalid] + base_colormap
-        mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', cmap, N=max(unicols)+1)
+        ncol = max(unicols)+1
+        mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', cmap, N=ncol)
+
         if title is None:
             title=f'ImgId: {img_id}'
         return self.bro.plots.heatmask.plt_heatplot([img_id],
@@ -43,7 +45,8 @@ class PlotDebarcodeCells(plot_base.BasePlot):
                                         'ObjectStack',
                                         'object',
                                                 title=title,
-                                                transform=None,colorbar=colorbar,cmap=mymap, ax=ax
+                                                transform=None, colorbar=colorbar, cmap=mymap, ax=ax,
+                                                crange=[0, ncol-1]
                                             )
 
 

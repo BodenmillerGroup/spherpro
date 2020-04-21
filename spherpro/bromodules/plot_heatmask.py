@@ -330,7 +330,7 @@ class PlotHeatmask(plot_base.BasePlot):
 
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
-                     ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None):
+                     ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None, crange=None):
         """
         Retrieves images form the database and maps then on masks
         Args:
@@ -373,7 +373,9 @@ class PlotHeatmask(plot_base.BasePlot):
                 a = ax
         else:
             img = self.assemble_heatmap_image(data)
-            if (censor_min > 0) | (censor_max < 1):
+            if crange is not None:
+                pass
+            elif (censor_min > 0) | (censor_max < 1):
                 crange = (np.percentile(data[col_val], censor_min*100),
                         np.percentile(data[col_val], censor_max*100))
             else:
