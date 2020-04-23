@@ -19,6 +19,7 @@ class PlotConditionImages(plot_base.BasePlot):
         self.measurement_filters = bro.filters.measurements
         self.objectfilterlib = bro.filters.objectfilterlib
         self.imcimage = bro.io.imcimg
+        self.stackimage = io_stackimage.IoStackImage(bro)
         self.get_target_by_channel = bro.helpers.dbhelp.get_target_by_channel
 
     def plot_hm_conditions(self, condition_name, channel_name, stack_name='FullStackFiltered', measurement_name='MeanIntensity', object_type='cell',
@@ -42,6 +43,20 @@ class PlotConditionImages(plot_base.BasePlot):
 
         cond_list = self.get_cond_id_im_id(condition_name)
         im_dict = self.get_dict_imc_imgs(cond_list,channel_name)
+        if transf is not None:
+            for key, val in im_dict.items():
+                im_dict[key] = transf(val)
+
+        target = self.get_target_by_channel(channel_name)
+        title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
+
+        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+
+        return fig
+
+    def plot_stackimg_conditions(self, condition_name, channel_name, stack_name, minmax=(0,1), transf=None):
+        cond_list = self.get_cond_id_im_id(condition_name)
+        im_dict = self.get_dict_stack_imgs(cond_list, channel_name, stack_name)
         if transf is not None:
             for key, val in im_dict.items():
                 im_dict[key] = transf(val)
@@ -125,27 +140,12 @@ class PlotConditionImages(plot_base.BasePlot):
             imac[key] = val.get_img_by_metal(channel_name)
         return imac
 
-
-    def get_im_data(self, im_num, channelname, stack_name,
-            measurement_name, object_type):
-
-        #fil_hq = self.objectfilterlib.get_combined_filterstatement([('is-sphere', True), ('is-ambiguous', False)])
-
-        q = (self.data.get_measurement_query().filter(
-                                db.stacks.stack_name == stack_name,
-                                db.measurements.measurement_name == measurement_name,
-                                db.objects.object_type == object_type,
-                                db.images.image_id == im_num,
-                                db.ref_planes.channel_name == channelname)
-                .add_columns(db.images.image_id, db.objects.object_number)
-                                )
-
-
-        pdat = self.bro.doquery(q)
-        img = self.heatmask.assemble_heatmap_image(pdat)
-
-        return img
-
+    def get_dict_stack_imgs(self, cond_list, channel_name, stack_name):
+        plane_id = self.bro.helpers.dbhelp.get_plane_id(stack_name, channel_name)
+        imac = {imid: np.flipud(self.stackimage.get_planeimg(int(imid), plane_id))
+                        for c, img_ids in cond_list
+                        for imid in img_ids}
+        return imac
 
     @staticmethod
     def logvalue(val):
