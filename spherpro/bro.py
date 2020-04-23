@@ -35,7 +35,7 @@ class Bro(object):
         self.plots.load_modules(self)
         self.processing = processing.Processing()
         self.processing.load_modules(self)
-        self.doquery = self.data.get_query_function()
+        self.doquery = self.data.query_df
         self.session = self.data.main_session
 
     #########################################################################

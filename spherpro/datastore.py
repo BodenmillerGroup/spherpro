@@ -1267,9 +1267,14 @@ class DataStore(object):
             self._session = self.session_maker()
         return self._session
 
-    def get_query_function(self):
-        def query_general(query):
-            d = pd.read_sql(query.statement, self.db_conn)
-            return d
+    def query_df(self, query: sa.orm.query.Query) -> pd.DataFrame:
+        """
+        Executes an sqlalchemy query and returns the corresponding dataframe.
 
-        return query_general
+        Args:
+            query: an sqlalchemy query
+        Returns:
+            The resulting dataframe
+
+        """
+        return pd.read_sql(query.statement, self.db_conn)
