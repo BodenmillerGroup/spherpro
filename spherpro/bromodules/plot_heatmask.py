@@ -1,16 +1,14 @@
-import spherpro.bromodules.plot_base as plot_base
-
 import copy
-import numpy as np
-
-import spherpro.db as db
-
-import pycytools.library
-import pycytools as pct
-
-import matplotlib.pyplot as plt
+from typing import Iterable, List, Optional
 
 import ipywidgets as ipw
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pycytools as pct
+
+import spherpro.bromodules.plot_base as plot_base
+import spherpro.db as db
 
 
 # TODO: move to the pycytools!
@@ -27,6 +25,9 @@ transf_dict = {'none': lambda x: x,
                'log': logtransf_data,
                'asinh': asinhtransf_data,
                'sqrt': np.sqrt}
+
+COL_OBJECT_TYPE = db.objects.object_type.key
+
 
 class InteractiveHeatplot(object):
     def __init__(self, session, plotter):
@@ -168,9 +169,17 @@ class PlotHeatmask(plot_base.BasePlot):
             (db.measurement_types.measurement_type.key, None)]
         self.interactive = InteractiveHeatplot(self.data.main_session, self)
 
+    def _prepare_masks(self, image_ids: Iterable[int], object_type: str) -> List[np.ndarray]:
+        """
+        Gets masks for the images
+        Args:
+            image_ids: image_ids
+            object_type: object_type
 
-    def _prepare_masks(self, image_ids):
-        masks = [self.io_masks.get_mask(i) for i in image_ids]
+        Returns: List of masks.
+
+        """
+        masks = [self.io_masks.get_mask(i, object_type) for i in image_ids]
         return masks
 
     def _prepare_slices(self, image_numbers):
@@ -219,12 +228,29 @@ class PlotHeatmask(plot_base.BasePlot):
         data = self.objmeasurements.convert_anndata_legacy(data)
         return data
 
-    def assemble_heatmap_image(self, dat_cells, image_numbers=None, cut_slices=None,
-                               cut_masks=None, out_shape=None, value_var=None):
+    def assemble_heatmap_image(self, dat_cells: pd.DataFrame, image_ids: Optional[Iterable[int]] = None,
+                               cut_slices: Optional[Iterable[type(np.s_)]] = None,
+                               cut_masks: Optional[Iterable[np.ndarray]] = None,
+                               out_shape: Optional[Iterable[int]] = None,
+                               value_var: Optional[str] = None,
+                               object_type: Optional[str] = None):
+
         """
-        TODO: rewrite and move to pycytools
-        Assembles single cell data, masks and slices with the mask positions
-        into one heatmap image
+        Generates an image with the data mapped on the mask and the masks assembled into the original image.
+
+        Args:
+            dat_cells: A dataframe with the data to be mapped, most contain the value_var and object_number columns
+            image_ids: A list of image ids
+            cut_slices: [optional] A list of np.s_ slice -> indicates where the different cuts are located in the big image
+            cut_masks: [optional] A list of image masks with labels corresponding to object_numbers
+            out_shape: [optional] Final size of the assembled image -> Calculated if not provided
+            value_var: [optional] The variable containing the value to be mapped
+            object_type: [optional] The object type -> Required to get the correct mask if 'object_type' is not a column
+                        in the data.
+
+        Returns:
+            An masked array. NAN values indicate non-mapped values. The mask covers regions that were not segmented.
+
         """
 
         cut_id_name = db.images.image_id.key
@@ -240,7 +266,12 @@ class PlotHeatmask(plot_base.BasePlot):
             cut_slices = self._prepare_slices(image_ids)
 
         if cut_masks is None:
-            cut_masks = self._prepare_masks(image_numbers)
+            if object_type is None:
+                assert COL_OBJECT_TYPE in dat_cells.columns, f'{COL_OBJECT_TYPE} column not in data.'
+                assert dat_cells[COL_OBJECT_TYPE].nunique() == 1, f'Multiple {COL_OBJECT_TYPE}s present in data.' \
+                                                                  'cannot choose mask type.'
+                object_type = dat_cells[COL_OBJECT_TYPE].iloc[0]
+            cut_masks = self._prepare_masks(image_ids, object_type)
 
         if out_shape is None:
             x_start, x_stop, y_start, y_stop = \
