@@ -11,7 +11,9 @@ import spherpro.bromodules.plot_base as pltbase
 import spherpro.configuration as conf
 import spherpro.db as db
 
-
+"""
+TODO: move this to project specific package.
+"""
 class VariableBaseHelper:
     COL_CHANNELNAME = db.ref_planes.channel_name.key
     COL_CONDID = db.conditions.condition_id.key
