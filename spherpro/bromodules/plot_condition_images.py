@@ -1,10 +1,10 @@
-import numpy as np
-import spherpro.db as db
-import spherpro.bromodules.plot_base as plot_base
-import spherpro.bromodules.io_stackimage as io_stackimage
 import matplotlib.pyplot as plt
 import matplotlib_scalebar.scalebar as scalebar
+import numpy as np
 
+import spherpro.bromodules.io_stackimage as io_stackimage
+import spherpro.bromodules.plot_base as plot_base
+import spherpro.db as db
 
 LABEL_Y = "Condition ID number"
 LABEL_X = "Image ID number"
@@ -117,22 +117,27 @@ class PlotConditionImages(plot_base.BasePlot):
 
     def plot_im(self, img, title=None,crange=None, ax=None, update_axrange=True, cmap=None):
         cax = self.heatmask.do_heatplot(img=img, title=title, crange=crange, ax=ax,
-                update_axrange=update_axrange, cmap=cmap, colorbar=False)
+                                        update_axrange=update_axrange, cmap=cmap, colorbar=False)
         return cax
 
-
     @staticmethod
-    def get_crange(img_dict, minmax=(0,1)):
+    def get_crange(img_dict, minmax=(0, 1)):
         vals = np.concatenate([v[np.isnan(v) == False] for v in img_dict.values()])
-        crange = [np.percentile(vals, 100*minmax[0]), np.percentile(vals, 100*minmax[1])]
-        return  crange
+        crange = [np.percentile(vals, 100 * minmax[0]), np.percentile(vals, 100 * minmax[1])]
+        return crange
 
-    def get_dict_imgs(self, cond_list, channelname, stack_name, measurement_name, cell_type):
-        imgids = {img: self.get_im_data(str(img),channelname,
-            stack_name, measurement_name, cell_type) for c, imgs in cond_list for img in imgs}
-        return imgids
+    def get_dict_imgs(self, cond_list, channel_name, stack_name, measurement_name, object_type):
+        img_ids = [int(i) for c, imgs in cond_list for i in imgs]
+        dat_obj = self.heatmask.get_heatmask_data({db.stacks.stack_name.key: stack_name,
+                                                   db.measurements.measurement_name.key: measurement_name,
+                                                   db.ref_planes.channel_name.key: channel_name},
+                                                  image_ids=img_ids,
+                                                  object_type=object_type)
 
-
+        imgs = {img_id: self.heatmask.assemble_heatmap_image(
+            dat_obj.query(f'{db.images.image_id.key} == {img_id}'))
+            for c, imgs in cond_list for img_id in imgs}
+        return imgs
 
     def get_dict_imc_imgs(self, cond_list, channel_name):
         imac = {img: self.imcimage.get_imcimg(int(img)) for c, imgs in cond_list for img in imgs}
