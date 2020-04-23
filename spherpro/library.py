@@ -1,9 +1,12 @@
 import os
 import re
-import pandas as pd
+
 import networkx as nx
+import pandas as pd
+
 import spherpro.configuration as conf
 import spherpro.db as db
+
 
 def fill_null(data, table):
     """
@@ -11,10 +14,11 @@ def fill_null(data, table):
     """
     data_cols = data.columns
     table_cols = table.__table__.columns.keys()
-    uniq = list(set(table_cols)-set(data_cols))
+    uniq = list(set(table_cols) - set(data_cols))
     for un in uniq:
         data[un] = None
     return data
+
 
 def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
     """calculate_real_dist_rim
@@ -29,12 +33,12 @@ def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
     Returns:
         Float real distance to rim
     """
-    real_dist = radius_sphere - np.sqrt(radius_sphere**2 - 2*radius_cut*dist + dist**2)
+    real_dist = radius_sphere - np.sqrt(radius_sphere ** 2 - 2 * radius_cut * dist + dist ** 2)
     return real_dist
 
 
 def find_measurementmeta(stack_name, col_name,
-                  no_stack_str=None, no_plane_string=None):
+                         no_stack_str=None, no_plane_string=None):
     """
     finds the measurement meta information from a given string
 
@@ -48,9 +52,9 @@ def find_measurementmeta(stack_name, col_name,
         in this order:
         x | measurement type | measurement name | stack name | plane id
     """
-    stackpattern = '('+'|'.join(stack_name)+')'
+    stackpattern = '(' + '|'.join(stack_name) + ')'
     pre_pattern = '^([^_]*)_(.*)'
-    post_pattern = '(.*)_'+stackpattern+'_(c\d+)'
+    post_pattern = '(.*)_' + stackpattern + '_(c\d+)'
     match = re.search(pre_pattern, col_name)
     if match != None:
         match = match.groups()
@@ -72,6 +76,7 @@ def find_measurementmeta(stack_name, col_name,
 
     return pd.Series([col_name, mtype, name, stack, plane])
 
+
 def construct_in_clause_list(key_dict):
     """
     Construnct a list of IN clauses.
@@ -87,10 +92,11 @@ def construct_in_clause_list(key_dict):
         ['A IN ("1")', 'B IN ("c","d")']
 
     """
-    querylist = [k + ' IN ("'+ '","'.join(
+    querylist = [k + ' IN ("' + '","'.join(
         map(str, values)) + '")'
                  for k, values in key_dict.items()]
     return querylist
+
 
 def construct_sql_query(table, columns=None, clauses=None):
     """
@@ -119,11 +125,12 @@ def construct_sql_query(table, columns=None, clauses=None):
     query = ' '.join(['SELECT', ', '.join(columns),
                       'FROM', table])
     if (clauses is not None) and clauses:
-            query += ' WHERE '
-            query += ' AND '.join(clauses)
+        query += ' WHERE '
+        query += ' AND '.join(clauses)
 
     query += ';'
     return query
+
 
 def filter_and_rename_dict(indict, filterdict):
     """
@@ -142,6 +149,7 @@ def filter_and_rename_dict(indict, filterdict):
 
     return outdict
 
+
 def read_csv_from_config(configdict, base_dir=None):
     """
     Read the CSV from a configuration entry.
@@ -152,6 +160,7 @@ def read_csv_from_config(configdict, base_dir=None):
         path = os.path.join(base_dir, path)
     dat = pd.read_csv(path, sep=sep)
     return dat
+
 
 def map_group_re(x, re_str):
     """
@@ -167,8 +176,9 @@ def map_group_re(x, re_str):
     """
     qre = re.compile(re_str)
     m_list = [pd.DataFrame.from_dict(
-            [m.groupdict() for m in qre.finditer(s)]) for s in x]
+        [m.groupdict() for m in qre.finditer(s)]) for s in x]
     return pd.concat(m_list, ignore_index=True)
+
 
 def get_largest_commponent_objs(dat, keys=None):
     """
@@ -181,7 +191,7 @@ def get_largest_commponent_objs(dat, keys=None):
         A list of object ids
     """
     if keys is None:
-        keys = [ db.object_relations.object_id_parent.key,
+        keys = [db.object_relations.object_id_parent.key,
                 db.object_relations.object_id_child.key]
     g = nx.from_pandas_edgelist(dat[keys], source=keys[0], target=keys[1])
     gmax = max(nx.connected_components(g), key=len)

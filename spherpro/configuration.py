@@ -1,14 +1,14 @@
-import yaml
 import collections
 import copy
+
+import yaml
+
 import spherpro.db as db
 
 """
 This module defines the configuration file structure,
 defaults, required files, loading as well as validation functions.
 """
-
-
 
 """
 List of keywords fields used in the configuration file
@@ -75,7 +75,7 @@ STACK_RELATIONS = 'stack_relations'
 TYPE = 'type_col'
 WELL_COL = 'well_col'
 MASK_DIR = 'mask_dir'
-STACKIMG_DIR= 'stackimg_dir'
+STACKIMG_DIR = 'stackimg_dir'
 GROUP_SITE = 'group_site'
 GROUP_CROPID = 'group_cropid'
 GROUP_POSX = 'group_x'
@@ -98,7 +98,6 @@ IMAGE_WIDTH_PREFIX = 'image_width_col_prefix'
 CON_SQLITE = 'sqlite'
 CON_MYSQL = 'mysql'
 CON_POSTGRESQL = 'postgresql'
-
 
 LAYOUT_CSV_PLATE_NAME = 'plate_col'
 LAYOUT_CSV_WELL_NAME = 'well_col'
@@ -134,7 +133,7 @@ default_dict = {
             DEFAULT_MEASUREMENT_NAME: 'MeanIntensityComp',
             DEFAULT_STACK_NAME: 'FullStackFiltered',
             DEFAULT_MEASUREMENT_TYPE: 'Intensity'
-            },
+        },
         RAWDIST: {
             DEFAULT_MEASUREMENT_NAME: 'MeanIntensity',
             DEFAULT_STACK_NAME: 'DistStack',
@@ -152,8 +151,8 @@ default_dict = {
             DEFAULT_STACK_NAME: 'ObjectStack',
             DEFAULT_CHANNEL_NAME: 'object',
             DEFAULT_CHANNEL_TYPE: 'object'
-            },
         },
+    },
 
     IMAGENUMBER: 'ImageNumber',
     OBJECTNUMBER: 'ObjectNumber',
@@ -176,17 +175,17 @@ default_dict = {
     },
 
     LAYOUT_CSV: {
-    PATH: None,
-    LAYOUT_CSV_PLATE_NAME: 'plate',
-    LAYOUT_CSV_BC_PLATE_NAME: 'bc_plate',
-    LAYOUT_CSV_WELL_NAME: 'TargetWell',
-    LAYOUT_CSV_COND_NAME: None,
-    LAYOUT_CSV_CONTROL_NAME: 'control',
-    LAYOUT_CSV_TIMEPOINT_NAME: None,
-    LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
-    LAYOUT_CSV_BARCODE: 'barcode',
-    LAYOUT_CSV_COND_ID: 'conditionID',
-    SEP: ','
+        PATH: None,
+        LAYOUT_CSV_PLATE_NAME: 'plate',
+        LAYOUT_CSV_BC_PLATE_NAME: 'bc_plate',
+        LAYOUT_CSV_WELL_NAME: 'TargetWell',
+        LAYOUT_CSV_COND_NAME: None,
+        LAYOUT_CSV_CONTROL_NAME: 'control',
+        LAYOUT_CSV_TIMEPOINT_NAME: None,
+        LAYOUT_CSV_CONCENTRATION_NAME: 'concentration',
+        LAYOUT_CSV_BARCODE: 'barcode',
+        LAYOUT_CSV_COND_ID: 'conditionID',
+        SEP: ','
     },
 
     BACKEND: CON_MYSQL,
@@ -224,9 +223,9 @@ default_dict = {
             IMAGE_WIDTH_PREFIX: 'Width_',
             META_REGEXP: (
                 '(?P<{}>.*)_l(?P<{}>[0-9]*)_x(?P<{}>[0-9]*)_y(?P<{}>[0-9]*).tiff'
-            .format('basename', db.images.crop_number.key,
-                    db.images.image_pos_x.key, db.images.image_pos_y.key)),
-            MASK_DIR: None, # default take cpoutput dir
+                    .format('basename', db.images.crop_number.key,
+                            db.images.image_pos_x.key, db.images.image_pos_y.key)),
+            MASK_DIR: None,  # default take cpoutput dir
             GROUP_BASENAME: 'basename',
             GROUP_CROPID: db.images.crop_number.key,
             GROUP_SITE: db.sites.site_name.key,
@@ -234,15 +233,15 @@ default_dict = {
             GROUP_POSY: db.images.image_pos_y.key,
             IMAGE_OME_FOLDER_DIRS: [],
             IMAGE_OME_META_REGEXP: ('(?P<{}>.*)_s0_p(?P<{}>[0-9]+)_r(?P<{}>[0-9]+)_a(?P<{}>[0-9]+)_ac.*'
-            .format(db.slideacs.slideac_name.key,
-                    db.sites.site_mcd_panoramaid.key,
-                    db.acquisitions.acquisition_mcd_roiid.key,
-                    db.acquisitions.acquisition_mcd_acid.key)),
+                                    .format(db.slideacs.slideac_name.key,
+                                            db.sites.site_mcd_panoramaid.key,
+                                            db.acquisitions.acquisition_mcd_roiid.key,
+                                            db.acquisitions.acquisition_mcd_acid.key)),
             GROUP_SLIDEAC: db.slideacs.slideac_name.key,
             GROUP_PANORMAID: db.sites.site_mcd_panoramaid.key,
             GROUP_ACID: db.acquisitions.acquisition_mcd_acid.key,
             GROUP_ROIID: db.acquisitions.acquisition_mcd_roiid.key,
-            #IMAGE_SLIDE_REGEXP: '.*_(?P<{}>.*)_slide(?P<{}>[0-9]+)_'.format(
+            # IMAGE_SLIDE_REGEXP: '.*_(?P<{}>.*)_slide(?P<{}>[0-9]+)_'.format(
             #    db.sampleblocks.sampleblock_name.key, db.slides.slide_number.key),
             IMAGE_SLIDE_REGEXP: '.*_slide(?P<{}>[0-9]+)_'.format(
                 db.slides.slide_number.key),
@@ -267,11 +266,12 @@ default_dict = {
 """
 Required fields
 """
-#TODO
+# TODO
 
 """
 Functions
 """
+
 
 def read_configuration(path):
     """
@@ -293,6 +293,7 @@ def read_configuration(path):
     conf = add_defaults(conf)
     return conf
 
+
 def add_defaults(config):
     """
     Adds the default argument to  the configuration dictionary.
@@ -307,6 +308,7 @@ def add_defaults(config):
     new_config = _update_nested_dict(default_dict, config)
 
     return new_config
+
 
 def _update_nested_dict(input_d, u):
     """

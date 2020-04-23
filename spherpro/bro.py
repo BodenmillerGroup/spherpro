@@ -1,19 +1,10 @@
-import pandas as pd
-import numpy as np
-import re
-
-import spherpro as sp
+import spherpro.bromodules.filters as filters
+import spherpro.bromodules.helpers as helpers
+import spherpro.bromodules.io as io
+import spherpro.bromodules.plots as plots
+import spherpro.bromodules.processing as processing
 import spherpro.datastore as datastore
 import spherpro.db as db
-import spherpro.bromodules.filters as filters
-import spherpro.bromodules.plots as plots
-import spherpro.bromodules.io as io
-import spherpro.bromodules.processing as processing
-import spherpro.bromodules.helpers as helpers
-
-import sqlalchemy as sa
-
-import plotnine as gg
 
 
 def get_bro(fn_config):
@@ -46,13 +37,14 @@ class Bro(object):
         self.processing.load_modules(self)
         self.doquery = self.data.get_query_function()
         self.session = self.data.main_session
+
     #########################################################################
     #########################################################################
     #                         preparation functions:                        #
     #########################################################################
     #########################################################################
 
-    def calculate_dist_rim(self, assumed_spheresize = None):
+    def calculate_dist_rim(self, assumed_spheresize=None):
         """calculate_dist_rim
         calculates the distance to rim and saves it to the DB.
         By default, we calculate the distance using the real sphere radius
@@ -79,12 +71,10 @@ class Bro(object):
         else:
             raise NameError('Please specify a valid option!')
 
-
-
     @property
     def is_debarcoded(self):
         isdeb = False
-        q =self.data.main_session.query(db.images.condition_id)
+        q = self.data.main_session.query(db.images.condition_id)
         q = q.filter(db.images.condition_id.isnot(None)).count()
         if q > 0:
             isdeb = True

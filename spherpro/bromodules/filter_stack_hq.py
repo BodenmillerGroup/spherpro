@@ -3,19 +3,12 @@ A class to generate and add a hq filter to the database.
 this filter is a composition from diffrent silent (as in not saved to the db)
 conditions.
 """
-import spherpro.bromodules.filter_base as filter_base
-import spherpro.bromodules.filter_objectfilters as filter_objectfilters
-import spherpro.bromodules.filter_measurements as filter_measurements
 import pandas as pd
-import numpy as np
-import re
 
-import spherpro as sp
-import spherpro.datastore as datastore
+import spherpro.bromodules.filter_base as filter_base
+import spherpro.bromodules.filter_measurements as filter_measurements
+import spherpro.bromodules.filter_objectfilters as filter_objectfilters
 import spherpro.db as db
-import sqlalchemy as sa
-
-
 
 
 class StackHQ(filter_base.BaseFilter):
@@ -30,8 +23,7 @@ class StackHQ(filter_base.BaseFilter):
         self.col_measure_issphere = 'MeanIntensity'
         self.col_stack_issphere = 'BinStack'
         self.outcol_issphere = 'is-sphere-out'
-        self.non_zero_offset = 1/10000
-
+        self.non_zero_offset = 1 / 10000
 
         self.col_distother = "dist-other"
         self.col_measure = "MeanIntensity"
@@ -61,18 +53,18 @@ class StackHQ(filter_base.BaseFilter):
         non_zero_offset = self.non_zero_offset
 
         # Check Cells to be spherical
-            # get MI issphere
-            # get MI isother
+        # get MI issphere
+        # get MI isother
         issphere = self._get_joined_measurements(
-           [{db.ref_planes.channel_name.key: cn,
-             db.stacks.stack_name.key: col_stack_issphere,
-             db.measurements.measurement_name: col_measure_issphere}
-            for cn in (col_issphere_issphere, col_isother_issphere)
-            ])
+            [{db.ref_planes.channel_name.key: cn,
+              db.stacks.stack_name.key: col_stack_issphere,
+              db.measurements.measurement_name: col_measure_issphere}
+             for cn in (col_issphere_issphere, col_isother_issphere)
+             ])
         issphere.loc[:, outcol_issphere] = (
-            (((issphere[col_issphere_issphere]+non_zero_offset) >=
-             (issphere[col_isother_issphere]+non_zero_offset))) &
-            (issphere[col_issphere_issphere] >  minfrac))
+                (((issphere[col_issphere_issphere] + non_zero_offset) >=
+                  (issphere[col_isother_issphere] + non_zero_offset))) &
+                (issphere[col_issphere_issphere] > minfrac))
 
         # Check if cells are on rim touching another spheroid
         # get MinI dist-other
@@ -87,18 +79,18 @@ class StackHQ(filter_base.BaseFilter):
              db.stacks.stack_name.key: col_stack,
              db.measurements.measurement_name: col_measure}])
         isambigous.loc[:, outcol_ambigous] = (
-            (
-                isambigous[col_distother] > distother
-            )
-            &
-            (
-                isambigous[col_distother] < (2**16-2)
-            )
+                (
+                        isambigous[col_distother] > distother
+                )
+                &
+                (
+                        isambigous[col_distother] < (2 ** 16 - 2)
+                )
         )
         data = isambigous.join(issphere)
         # HQ Filter
         data.loc[:, db.object_filters.filter_value.key] = (
-            data[outcol_issphere] & (data[outcol_ambigous] == False)
+                data[outcol_issphere] & (data[outcol_ambigous] == False)
         ).map(int)
         data = data.reset_index(drop=False)
         self.filter_custom.write_filter_to_db(data, filname, drop=drop)
@@ -112,18 +104,18 @@ class StackHQ(filter_base.BaseFilter):
         for mdict in measurement_dicts:
             cname = mdict[db.ref_planes.channel_name.key]
             fil = self.filter_measurements.get_measurement_filter_statements(
-            *[[mdict.get(o,d)] for o, d in self.filter_measurements.measure_idx])
+                *[[mdict.get(o, d)] for o, d in self.filter_measurements.measure_idx])
             base_query = (self.session.query(
-                                    db.objects.object_id,
-                                    db.object_measurements.value,
-                                    db.ref_stacks.scale
-                                )
-                        .join(db.object_measurements)
-                        .join(db.measurements)
-                        .join(db.planes)
-                        .join(db.ref_planes)
-                        .join(db.ref_stacks))
-            q  = (base_query.filter(fil))
+                db.objects.object_id,
+                db.object_measurements.value,
+                db.ref_stacks.scale
+            )
+                          .join(db.object_measurements)
+                          .join(db.measurements)
+                          .join(db.planes)
+                          .join(db.ref_planes)
+                          .join(db.ref_stacks))
+            q = (base_query.filter(fil))
             data = self.doquery(q)
             data.loc[:, cname] = data[db.object_measurements.value.key] * data[db.ref_stacks.scale.key]
             data = data.set_index(db.objects.object_id.key)

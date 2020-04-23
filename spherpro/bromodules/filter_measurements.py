@@ -2,29 +2,25 @@
 A class to generate filter queries from measurements
 and save them into the database.
 """
-import re
-import operator
-import spherpro.bromodules.filter_base as filter_base
-import pandas as pd
-import numpy as np
 from itertools import chain, repeat
 
-import spherpro as sp
-import spherpro.datastore as datastore
-import spherpro.db as db
+import numpy as np
 import sqlalchemy as sa
+
+import spherpro.bromodules.filter_base as filter_base
+import spherpro.db as db
+
 
 class FilterMeasurements(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-        self.measure_idx =[ # idx_name, default
+        self.measure_idx = [  # idx_name, default
             (db.objects.object_type.key, 'cell'),
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
             (db.measurement_names.measurement_name.key, 'MeanIntensity'),
             (db.measurement_types.measurement_type.key, None)]
         self.get_filter_vector = get_filter_vector
-
 
     def get_filter_statement(self, measurement_dict, logical_operator,
                              treshold):
@@ -51,17 +47,17 @@ class FilterMeasurements(filter_base.BaseFilter):
         NEVER USE THIS ALONE BUT JUST THROUGH GET MULTIFILTER STATEMENT
         """
         filter_statement = self.get_measurement_filter_statements(*[[
-            measurement_dict.get(o,d)] for o, d in self.measure_idx])
+            measurement_dict.get(o, d)] for o, d in self.measure_idx])
         filter_statement = sa.and_(filter_statement,
-                logical_operator(db.object_measurements.value*db.ref_stacks.scale,
-                treshold))
+                                   logical_operator(db.object_measurements.value * db.ref_stacks.scale,
+                                                    treshold))
         return filter_statement
 
     def get_multifilter_query(self, query_triplets):
         filters = [self._get_filter_statement(m, l, t)
                    for m, l, t in query_triplets]
         meas_query = (self.data.get_measurement_query()
-                .with_entities(db.objects.object_id))
+                      .with_entities(db.objects.object_id))
         subquerys = [meas_query.filter(fil).subquery() for fil in
                      filters]
         combined_filter_query = self.session.query(db.objects.object_id)
@@ -108,19 +104,19 @@ class FilterMeasurements(filter_base.BaseFilter):
                               db.ref_planes.channel_name,
                               db.stacks.stack_name,
                               db.measurements.measurement_name,
-                             db.measurement_types.measurement_type]
+                              db.measurement_types.measurement_type]
 
         value_lists = [object_types,
-                                        channel_names,
-                                        stack_names,
-                                        measurement_names,
-                                        measurement_types]
+                       channel_names,
+                       stack_names,
+                       measurement_names,
+                       measurement_types]
         measure_filter = combine_constraints(constraint_columns,
-                value_lists=value_lists)
+                                             value_lists=value_lists)
         return measure_filter
 
     def get_measmeta_filter_statements(self, channel_names,
-                                          stack_names, measurement_names, measurement_types):
+                                       stack_names, measurement_names, measurement_types):
         """
         Generates a filter expression to filter measurements by,
         stack_names, measurement names and measurement types.
@@ -134,20 +130,19 @@ class FilterMeasurements(filter_base.BaseFilter):
             A dataframes with the selected measurements
         """
         constraint_columns = [
-                              db.ref_planes.channel_name,
-                              db.stacks.stack_name,
-                              db.measurements.measurement_name,
-                             db.measurement_types.measurement_type]
+            db.ref_planes.channel_name,
+            db.stacks.stack_name,
+            db.measurements.measurement_name,
+            db.measurement_types.measurement_type]
 
         value_lists = [
-                                        channel_names,
-                                        stack_names,
-                                        measurement_names,
-                                        measurement_types]
+            channel_names,
+            stack_names,
+            measurement_names,
+            measurement_types]
         measure_filter = combine_constraints(constraint_columns,
-                value_lists=value_lists)
+                                             value_lists=value_lists)
         return measure_filter
-
 
     def get_objectmeta_filter_statements(self, object_types):
         """
@@ -185,7 +180,8 @@ class FilterMeasurements(filter_base.BaseFilter):
                   .with_entities(db.measurements.measurement_id)
                   .all())
         if len(measid) > 1:
-            raise ValueError(f'Measurment not uniquely specified.\n {len(measid)} measurements found that match specification.')
+            raise ValueError(
+                f'Measurment not uniquely specified.\n {len(measid)} measurements found that match specification.')
         return measid[0][0]
 
 
@@ -200,6 +196,7 @@ def get_filter_vector(anndat, filter_triplets):
             barr = barr & tmp
     return barr
 
+
 def combine_constraints(columns, value_lists):
     """
     Combine constraints on columns in an sqlalchemy query.
@@ -213,14 +210,15 @@ def combine_constraints(columns, value_lists):
         A filter statement encoding the constraints.
     """
     constraints = [sa.and_(*[c.in_(v) if isinstance(v, tuple)
-        else c==v
-        for c, v in zip_exact(columns, values) if v is not None])
-        for values in zip_exact(*value_lists)]
+                             else c == v
+                             for c, v in zip_exact(columns, values) if v is not None])
+                   for values in zip_exact(*value_lists)]
     if len(constraints) > 1:
         measure_filter = sa.or_(*constraints)
     else:
         measure_filter = constraints[0]
     return measure_filter
+
 
 def zip_exact(*args):
     """
@@ -230,7 +228,7 @@ def zip_exact(*args):
     iters = [chain(it, repeat(sentinel)) for it in args]
     for result in zip(*iters):
         if sentinel in result:
-            if all(value==sentinel for value in result):
+            if all(value == sentinel for value in result):
                 return
             raise ValueError('sequences of different lengths')
         yield result

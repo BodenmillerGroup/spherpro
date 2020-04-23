@@ -1,6 +1,6 @@
-import spherpro.bromodules.io_masks as io_masks
-import spherpro.bromodules.io_imcfolder as io_imc
 import spherpro.bromodules.io_anndata as io_ann
+import spherpro.bromodules.io_imcfolder as io_imc
+import spherpro.bromodules.io_masks as io_masks
 
 
 class Io(object):

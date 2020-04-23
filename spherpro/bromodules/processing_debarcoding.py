@@ -1,15 +1,12 @@
-
-import pandas as pd
-import numpy as np
 import operator
+
+import numpy as np
+import pandas as pd
+import plotnine as gg
 
 import spherpro as sp
 import spherpro.configuration as conf
 import spherpro.db as db
-
-import logging
-
-import plotnine as gg
 
 NAME_BARCODE = "BCString"
 NAME_WELLCOLUMN = "CondID"
@@ -83,7 +80,7 @@ class Debarcode(object):
         p = (gg.ggplot(bcvals, gg.aes(x=transform, color='site')) +
              gg.facet_wrap('channel_name', scales='free') +
              gg.geom_density())
-        return(p)
+        return (p)
 
     def _write_bc(self, dat_bcstat, dist):
         """
@@ -107,14 +104,14 @@ class Debarcode(object):
                 row[db.images.condition_id.key] = None
 
             row[db.images.bc_depth.key] = dist
-            session.query(db.images).\
-                filter(db.images.image_id == row[db.images.image_id.key]).\
+            session.query(db.images). \
+                filter(db.images.image_id == row[db.images.image_id.key]). \
                 update(row)
         session.commit()
 
     @staticmethod
     def _default_treshfun(x):
-        return (x-np.mean(x) > 0)
+        return (x - np.mean(x) > 0)
 
     def _treshold_data(self, bc_dat, bc_tresh=None, transform=None,
                        meta_group=None, tresh_fun=None):
@@ -124,7 +121,7 @@ class Debarcode(object):
 
         if tresh_fun is None:
             def tresh_fun(x):
-                return (x-np.mean(x)) > 0
+                return (x - np.mean(x)) > 0
 
         if bc_tresh is None:
             if meta_group is not None:
@@ -140,12 +137,12 @@ class Debarcode(object):
         meta_cols_bc = self.COL_BC_METACOLS
         meta_cols_cell = self.COL_CELL_METACOLS
         dat_db = (bc_key
-                  .reset_index(drop=False)
-                  .merge(dat_tresh.reset_index(drop=False), how='right',
-                         )
-                  .fillna(self.NOT_VALID)
-                  .loc[:, set(meta_cols_bc + meta_cols_cell)]
-                  )
+                      .reset_index(drop=False)
+                      .merge(dat_tresh.reset_index(drop=False), how='right',
+                             )
+                      .fillna(self.NOT_VALID)
+                      .loc[:, set(meta_cols_bc + meta_cols_cell)]
+                      )
         return dat_db
 
     def _summarize_singlecell_barcodes(self, dat_db):
@@ -233,16 +230,16 @@ class Debarcode(object):
         dist_measid = self.filter.measmeta_to_measid(**filtdict)
 
         q_obj = (self.data.get_objectmeta_query()
-                   .filter(db.objects.object_type == self.DEFAULT_OBJTYPE)
-                   .add_columns(db.sampleblocks.sampleblock_id))
+                 .filter(db.objects.object_type == self.DEFAULT_OBJTYPE)
+                 .add_columns(db.sampleblocks.sampleblock_id))
 
         if additional_meta is not None:
             q_obj = q_obj.add_columns(*additional_meta)
         dat_obj = bro.doquery(q_obj)
 
         dat_filmeas = bro.doquery(self.data.get_measmeta_query()
-                               .filter(db.measurements.measurement_id == dist_measid)
-                               .add_columns(db.ref_stacks.scale))
+                                  .filter(db.measurements.measurement_id == dist_measid)
+                                  .add_columns(db.ref_stacks.scale))
         dat_fil = bro.io.objmeasurements.get_measurements(dat_obj, dat_filmeas)
         dat_fil = bro.io.objmeasurements.scale_anndata(dat_fil)
 
@@ -250,23 +247,24 @@ class Debarcode(object):
         distfils = [
             (dist_measid, operator.gt, borderdist)]
         if dist is not None:
-            distfils+= [(dist_measid, operator.lt, dist)]
+            distfils += [(dist_measid, operator.lt, dist)]
 
         dat_obj = dat_fil.obs.loc[bro.filters.measurements.get_filter_vector(dat_fil, distfils), :]
         # get the data query
         fil_meas = bro.filters.measurements.get_measmeta_filter_statements(
-                                                                    channel_names=[channels],
-                                                                    stack_names=[stack],
-                                                                    measurement_names=[measurement_name],
-                                                                    measurement_types=[None])
+            channel_names=[channels],
+            stack_names=[stack],
+            measurement_names=[measurement_name],
+            measurement_types=[None])
         dat_meas = bro.doquery(self.data.get_measmeta_query()
                                .filter(fil_meas)
                                .add_columns(db.ref_stacks.scale,
-                                           db.ref_planes.channel_name))
+                                            db.ref_planes.channel_name))
         dat_cells = bro.io.objmeasurements.get_measurements(dat_obj, dat_meas)
         dat_cells = bro.io.objmeasurements.scale_anndata(dat_cells)
 
-        dat_bccells = pd.DataFrame(dat_cells.X, index=pd.MultiIndex.from_frame(dat_cells.obs), columns=dat_cells.var[db.ref_planes.channel_name.key])
+        dat_bccells = pd.DataFrame(dat_cells.X, index=pd.MultiIndex.from_frame(dat_cells.obs),
+                                   columns=dat_cells.var[db.ref_planes.channel_name.key])
         return dat_bccells
 
     def _get_bc_cells_old(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
@@ -286,13 +284,13 @@ class Debarcode(object):
         ])
         bc_query = (self.data.get_measurement_query()
                     .filter(
-                             self.bro.filters.measurements.get_measurement_filter_statements(
-                                 channel_names=[channels],
-                                 object_types=['cell'],
-                                 stack_names=[stack],
-                                 measurement_names=[measurement_name],
-                                 measurement_types=['Intensity'],
-                             ))
+            self.bro.filters.measurements.get_measurement_filter_statements(
+                channel_names=[channels],
+                object_types=['cell'],
+                stack_names=[stack],
+                measurement_names=[measurement_name],
+                measurement_types=['Intensity'],
+            ))
                     .filter(bcfilt)
                     )
         # add additional columns to the output
@@ -328,4 +326,3 @@ class Debarcode(object):
         dat_db = dat_db.rename(columns={db.conditions.condition_id.key: db.object_measurements.value.key})
         dat_db[db.objects.object_type.key] = self.DEFAULT_OBJTYPE
         self.bro.processing.measurement_maker.add_object_measurements(dat_db, drop_all_old=True)
-

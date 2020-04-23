@@ -1,33 +1,31 @@
 """
 A class to handle Anndata as a backend
 """
-import spherpro.bromodules.io_base as io_base
-import spherpro.configuration as conf
-import anndata as ad
-import pandas as pd
 import pathlib
-import numpy as np
-import re
-import os
 import shutil
 import time
 
-import spherpro as sp
-import spherpro.datastore as datastore
+import anndata as ad
+import numpy as np
+import pandas as pd
+
+import spherpro.bromodules.io_base as io_base
 import spherpro.db as db
-import sqlalchemy as sa
 
 SUFFIX_ANNDATA = '.h5ad'
+
 
 def get_anndata_filename(conf: object, object_type: str):
     fn = pathlib.Path(conf['sqlite']['db']).parent / (object_type + SUFFIX_ANNDATA)
     return fn
+
 
 def scale_anndata(adat, col_scale=db.ref_stacks.scale.key, inplace=True):
     if not inplace:
         adat = adat.copy()
     adat.X = (adat.X.T * adat.var[col_scale][:, None]).T
     return adat
+
 
 def copy_in_memory(adat):
     """
@@ -40,7 +38,8 @@ def copy_in_memory(adat):
 
     """
     return ad.AnnData(np.array(adat.X), obs=adat.obs, var=adat.var,
-               varm=adat.varm)
+                      varm=adat.varm)
+
 
 class IoAnnData(io_base.BaseIo):
     def __init__(self, bro, obj_type):
@@ -62,10 +61,11 @@ class IoAnnData(io_base.BaseIo):
     @property
     def adat(self):
         a = self._adat
-        if ((a is None) or # Check if the data has been already loaded
-                (len(a.obs.index) != a.shape[0]) | (len(a.var.index) != a.shape[1])): # check if data consistent
+        if ((a is None) or  # Check if the data has been already loaded
+                (len(a.obs.index) != a.shape[0]) | (len(a.var.index) != a.shape[1])):  # check if data consistent
             self._adat = ad.read_h5ad(self.filename, backed='r')
         return self._adat
+
 
 class IoObjMeasurements:
     def __init__(self, bro):
@@ -104,6 +104,7 @@ class IoObjMeasurements:
         else:
             class obs:
                 index = list(map(str, sorted(objidx)))
+
             it = [(object_type, obs)]
 
         dats = []
@@ -141,7 +142,6 @@ class IoObjMeasurements:
                                             columns=db.measurements.measurement_id.key,
                                             values=db.object_measurements.value.key))
             self.add_anndata_objectmeasurements(obj_type, adat_new)
-
 
     def add_anndata_objectmeasurements(self, obj_type, adat_new,
                                        replace=True, drop_all_old=True):
@@ -189,7 +189,6 @@ class IoObjMeasurements:
         fn_backup = f'{ioan.filename}.{time.strftime("%Y%m%d-%H%M%S")}'
         shutil.move(str(ioan.filename), fn_backup)
 
-
         # check order of variables
         ordvars = sorted(adat.var.index, key=int)
         if ordvars != list(adat.var.index):
@@ -199,15 +198,14 @@ class IoObjMeasurements:
         ioan._adat = None
         return adat
 
+
 def get_overlap(a, b):
     sa = set(a)
     sb = set(b)
     return sa.intersection(sb)
 
+
 def get_difference(a, b):
     sa = set(a)
     sb = set(b)
     return sa.difference(sb)
-
-
-

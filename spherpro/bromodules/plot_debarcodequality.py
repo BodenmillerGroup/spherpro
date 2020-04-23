@@ -1,24 +1,17 @@
-import spherpro.bromodules.plot_base as plot_base
-import pandas as pd
-import numpy as np
-import re
-
-import spherpro as sp
-import spherpro.datastore as datastore
-import spherpro.db as db
-import sqlalchemy as sa
-
-import plotnine as gg
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-
 import colorcet
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import pandas as pd
+
+import spherpro.bromodules.plot_base as plot_base
+import spherpro.db as db
 
 LABEL_CBAR = "# of all cells with valid barcodes"
 LABEL_Y = "# of cells with\nmost prominent barcode"
 LABEL_X = "# of cells with second most prominent barcode"
 PLT_TITLE = "Debarcoding Quality"
 CBAR_HUE = db.images.bc_valid.key
+
 
 class PlotDebarcodeCells(plot_base.BasePlot):
     def __init__(self, bro):
@@ -29,25 +22,25 @@ class PlotDebarcodeCells(plot_base.BasePlot):
                               colorbar=False, ax=None, title=None):
         # get the conditions of the block
         blockid = (self.session.query(db.sampleblocks)
-                    .join(db.conditions)
-                    .join(db.images)
-                    ).subquery()
+                   .join(db.conditions)
+                   .join(db.images)
+                   ).subquery()
         unicols = [c[0] for c in self.session.query(db.conditions.condition_id)
-                .filter(db.conditions.sampleblock_id == blockid.c.sampleblock_id).all()]
+            .filter(db.conditions.sampleblock_id == blockid.c.sampleblock_id).all()]
         cmap = [color_invalid] + base_colormap
-        ncol = max(unicols)+1
+        ncol = max(unicols) + 1
         mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', cmap, N=ncol)
 
         if title is None:
-            title=f'ImgId: {img_id}'
+            title = f'ImgId: {img_id}'
         return self.bro.plots.heatmask.plt_heatplot([img_id],
-                                        'barcode',
-                                        'ObjectStack',
-                                        'object',
-                                                title=title,
-                                                transform=None, colorbar=colorbar, cmap=mymap, ax=ax,
-                                                crange=[0, ncol-1]
-                                            )
+                                                    'barcode',
+                                                    'ObjectStack',
+                                                    'object',
+                                                    title=title,
+                                                    transform=None, colorbar=colorbar, cmap=mymap, ax=ax,
+                                                    crange=[0, ncol - 1]
+                                                    )
 
 
 class PlotDebarcodeQuality(plot_base.BasePlot):
@@ -55,12 +48,11 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         super().__init__(bro)
         # make the dependency explicit
 
-
     def quality_plot(self,
-        filename = None,
-        show = None,
-        cm = None
-    ):
+                     filename=None,
+                     show=None,
+                     cm=None
+                     ):
         """
         Plots a quality Plot for the debarcoding. This function requires
         a debarcoded dataset!
@@ -80,7 +72,7 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         # get data
         table, zeros = self._get_data()
         # plot data
-        plt, ax = self._produce_plot(table, zeros, cm = cm)
+        plt, ax = self._produce_plot(table, zeros, cm=cm)
 
         if filename is not None:
             plt.savefig(filename)
@@ -98,8 +90,8 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         return table, zeros
 
     def _produce_plot(self, data, zeros,
-        cm = None
-    ):
+                      cm=None
+                      ):
         fig, ax = plt.subplots()
 
         if cm is None:
@@ -108,11 +100,11 @@ class PlotDebarcodeQuality(plot_base.BasePlot):
         y = data[db.images.bc_highest_count.key]
         x = data[db.images.bc_second_count.key]
         sc = ax.scatter(x, y,
-                   alpha=0.7, edgecolors='none', c=data[CBAR_HUE], cmap=cm)
-        upper = max(x.max()*1.1, y.max()*1.1)
+                        alpha=0.7, edgecolors='none', c=data[CBAR_HUE], cmap=cm)
+        upper = max(x.max() * 1.1, y.max() * 1.1)
         ax.set_xlim([0, upper])
         ax.set_ylim([0, upper])
-        #ax.legend()
+        # ax.legend()
         ax.grid(True)
         ax.set_aspect(1)
         plt.plot([0, upper], [0, upper], 'k-', c="grey", lw=1, alpha=0.5, label="_not in legend")

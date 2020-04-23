@@ -1,20 +1,14 @@
-import spherpro.bromodules.filter_base as filter_base
-import pandas as pd
-import numpy as np
-import re
-import sqlalchemy as sa
-
 import logging
 
-import plotnine as gg
+import pandas as pd
 
-import spherpro as sp
-import spherpro.datastore as datastore
+import spherpro.bromodules.filter_base as filter_base
+import spherpro.bromodules.filter_objectfilters as custfilter
 import spherpro.configuration as conf
 import spherpro.db as db
-import spherpro.bromodules.filter_objectfilters as custfilter
-from spherpro.bromodules.helpers_varia import HelperDb
 import spherpro.library as lib
+from spherpro.bromodules.helpers_varia import HelperDb
+
 
 class FilterMembership(filter_base.BaseFilter):
     def __init__(self, bro):
@@ -41,9 +35,9 @@ class FilterMembership(filter_base.BaseFilter):
                            .with_entities(db.measurements.measurement_id)
                            ).one()[0]
         q_meas = (self.data.get_measmeta_query()
-               .filter(db.measurements.measurement_id == measid_area)
-                .add_columns(db.ref_stacks.scale)
-               )
+                  .filter(db.measurements.measurement_id == measid_area)
+                  .add_columns(db.ref_stacks.scale)
+                  )
         q_obj = self.data.get_objectmeta_query()
 
         if object_type is not None:
@@ -69,9 +63,9 @@ class FilterMembership(filter_base.BaseFilter):
             name = 'is-maincomponent'
         dat_nb = self.helperdb.get_nb_dat(relation, obj_type=object_type)
         dat_obj = self.bro.doquery(self.session.query(db.objects.object_id, db.objects.image_id)
-                   .join(db.valid_objects)
-                   .filter(db.objects.object_type == object_type)
-                   )
+                                   .join(db.valid_objects)
+                                   .filter(db.objects.object_type == object_type)
+                                   )
         largest_obj = (dat_nb
                        .merge(dat_obj, left_on=db.object_relations.object_id_parent.key,
                               right_on=db.objects.object_id.key)
@@ -93,18 +87,18 @@ class FilterMembership(filter_base.BaseFilter):
         col_measure = 'MeanIntensity'
         col_stack = 'BinStack'
         outcol_issphere = 'is-sphere'
-        non_zero_offset = 1/2**20
+        non_zero_offset = 1 / 2 ** 20
         dat_meas = self.doquery(
-                     self.data.get_measmeta_query()
-                    .filter(db.measurements.measurement_name==col_measure)
-                    .filter(db.stacks.stack_name==col_stack)
-                    .filter(db.ref_planes.channel_name.in_(
-                        [col_isother,col_issphere,col_isbg]))
-                    .add_columns(db.ref_stacks.scale,
-                                 db.ref_planes.channel_name)
+            self.data.get_measmeta_query()
+                .filter(db.measurements.measurement_name == col_measure)
+                .filter(db.stacks.stack_name == col_stack)
+                .filter(db.ref_planes.channel_name.in_(
+                [col_isother, col_issphere, col_isbg]))
+                .add_columns(db.ref_stacks.scale,
+                             db.ref_planes.channel_name)
         )
         dat_obj = self.doquery(self.data.get_objectmeta_query()
-                               .filter(db.objects.object_type==object_type)
+                               .filter(db.objects.object_type == object_type)
                                )
         logging.debug(f'{dat_obj.shape}')
 
@@ -113,13 +107,13 @@ class FilterMembership(filter_base.BaseFilter):
         self.bro.io.objmeasurements.scale_anndata(dat)
 
         fil_issphere, fil_isbg, fil_isother = (dat.var[db.ref_planes.channel_name.key] == c
-                                               for c in (col_issphere, col_isbg, col_isother ))
+                                               for c in (col_issphere, col_isbg, col_isother))
         dat_filter = pd.DataFrame({
             db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
-                (((dat.X[:, fil_issphere]+non_zero_offset)/(
-                dat.X[:, fil_isother]+dat.X[:, fil_isbg]+
-                dat.X[:, fil_issphere]+non_zero_offset)) > minfrac).astype(int).flatten()})
+                (((dat.X[:, fil_issphere] + non_zero_offset) / (
+                        dat.X[:, fil_isother] + dat.X[:, fil_isbg] +
+                        dat.X[:, fil_issphere] + non_zero_offset)) > minfrac).astype(int).flatten()})
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
 
@@ -131,17 +125,17 @@ class FilterMembership(filter_base.BaseFilter):
         col_stack = 'DistStack'
         col_distother = 'dist-other'
         measid = (self.data.get_measmeta_query()
-                    .filter(db.measurements.measurement_name==col_measure)
-                    .filter(db.stacks.stack_name==col_stack)
-                    .filter(db.ref_planes.channel_name == col_distother)
-                    .with_entities(db.measurements.measurement_id)
-                    .one()[0]
-                    )
+            .filter(db.measurements.measurement_name == col_measure)
+            .filter(db.stacks.stack_name == col_stack)
+            .filter(db.ref_planes.channel_name == col_distother)
+            .with_entities(db.measurements.measurement_id)
+            .one()[0]
+            )
 
         q_meas = (self.data.get_measmeta_query()
-               .filter(db.measurements.measurement_id == measid)
-               .add_columns(db.ref_stacks.scale)
-               )
+                  .filter(db.measurements.measurement_id == measid)
+                  .add_columns(db.ref_stacks.scale)
+                  )
         q_obj = self.data.get_objectmeta_query()
 
         if object_type is not None:
@@ -157,8 +151,8 @@ class FilterMembership(filter_base.BaseFilter):
         dat_filter = pd.DataFrame({
             db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
-           (d > distother) & (
-           d < (2**16-2)).astype(int)})
+                (d > distother) & (
+                        d < (2 ** 16 - 2)).astype(int)})
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter
 
@@ -171,16 +165,16 @@ class FilterMembership(filter_base.BaseFilter):
         col_distsphere = 'dist-sphere'
 
         measid = (self.data.get_measmeta_query()
-                    .filter(db.measurements.measurement_name==col_measure)
-                    .filter(db.stacks.stack_name==col_stack)
-                    .filter(db.ref_planes.channel_name == col_distsphere)
-                    .with_entities(db.measurements.measurement_id)
-                    .one()[0]
-                    )
+            .filter(db.measurements.measurement_name == col_measure)
+            .filter(db.stacks.stack_name == col_stack)
+            .filter(db.ref_planes.channel_name == col_distsphere)
+            .with_entities(db.measurements.measurement_id)
+            .one()[0]
+            )
         q_meas = (self.data.get_measmeta_query()
-               .filter(db.measurements.measurement_id == measid)
-               .add_columns(db.ref_stacks.scale)
-               )
+                  .filter(db.measurements.measurement_id == measid)
+                  .add_columns(db.ref_stacks.scale)
+                  )
         q_obj = self.data.get_objectmeta_query()
 
         if object_type is not None:
@@ -196,7 +190,7 @@ class FilterMembership(filter_base.BaseFilter):
         dat_filter = pd.DataFrame({
             db.objects.object_id.key: map(int, dat.obs.index),
             db.object_filters.filter_value.key:
-           (d > borderdist) & (
-           d < (2**16-2)).astype(int)})
+                (d > borderdist) & (
+                        d < (2 ** 16 - 2)).astype(int)})
         self.filter_custom.write_filter_to_db(dat_filter, name, drop)
         return dat_filter

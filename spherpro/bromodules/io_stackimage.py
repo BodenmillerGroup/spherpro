@@ -1,14 +1,15 @@
 """
 A class to generate handle the loading of the stackimages specified in the database.
 """
-import spherpro.bromodules.io_base as io_base
-import spherpro.configuration as conf
-import numpy as np
+import functools
 import os
-import spherpro.db as db
+
+import numpy as np
 import tifffile as tif
 
-import functools
+import spherpro.bromodules.io_base as io_base
+import spherpro.configuration as conf
+import spherpro.db as db
 
 max_cache = 384
 
@@ -30,7 +31,7 @@ class IoStackImage(io_base.BaseIo):
     def get_planeimg(self, image_id, plane_id):
         stack_id, plane_number = self._get_stackmeta_for_plane(plane_id)
         img = self.get_stackimg(image_id, stack_id)
-        img_plane_number = plane_number-1
+        img_plane_number = plane_number - 1
         return img[img_plane_number, :, :]
 
     def get_stack_nchan(self, stack_id):
@@ -43,7 +44,7 @@ class IoStackImage(io_base.BaseIo):
     def _get_stackmeta_for_plane(self, plane_id):
         stack_id, plane_number = (self.bro.session.query(db.planes.stack_id,
                                                          db.planes.ref_plane_number)
-                                    .filter(db.planes.plane_id == plane_id)
+                                  .filter(db.planes.plane_id == plane_id)
                                   ).one()
         return stack_id, plane_number
 
@@ -67,7 +68,7 @@ class IoStackImage(io_base.BaseIo):
         if nchan == 1:
             img = img.squeeze()
             if len(img.shape) == 2:
-                img = img.reshape([0]+list(img.shape))
+                img = img.reshape([0] + list(img.shape))
             else:
                 raise ValueError(NCHANNEL_ERROR)
 

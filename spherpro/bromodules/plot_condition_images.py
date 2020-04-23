@@ -22,11 +22,12 @@ class PlotConditionImages(plot_base.BasePlot):
         self.stackimage = io_stackimage.IoStackImage(bro)
         self.get_target_by_channel = bro.helpers.dbhelp.get_target_by_channel
 
-    def plot_hm_conditions(self, condition_name, channel_name, stack_name='FullStackFiltered', measurement_name='MeanIntensity', object_type='cell',
-            minmax=(0,1), transf=None):
+    def plot_hm_conditions(self, condition_name, channel_name, stack_name='FullStackFiltered',
+                           measurement_name='MeanIntensity', object_type='cell',
+                           minmax=(0, 1), transf=None):
         cond_list = self.get_cond_id_im_id(condition_name)
         im_dict = self.get_dict_imgs(cond_list, channel_name,
-                stack_name, measurement_name, object_type)
+                                     stack_name, measurement_name, object_type)
         if transf is not None:
             for key, val in im_dict.items():
                 im_dict[key] = transf(val)
@@ -38,11 +39,10 @@ class PlotConditionImages(plot_base.BasePlot):
 
         return fig
 
-
-    def plot_imc_conditions(self, condition_name, channel_name, minmax=(0,1), transf=None):
+    def plot_imc_conditions(self, condition_name, channel_name, minmax=(0, 1), transf=None):
 
         cond_list = self.get_cond_id_im_id(condition_name)
-        im_dict = self.get_dict_imc_imgs(cond_list,channel_name)
+        im_dict = self.get_dict_imc_imgs(cond_list, channel_name)
         if transf is not None:
             for key, val in im_dict.items():
                 im_dict[key] = transf(val)
@@ -50,11 +50,11 @@ class PlotConditionImages(plot_base.BasePlot):
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
-        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+        fig, hm = self.plot_layout(cond_list, im_dict, title, minmax=minmax)
 
         return fig
 
-    def plot_stackimg_conditions(self, condition_name, channel_name, stack_name, minmax=(0,1), transf=None):
+    def plot_stackimg_conditions(self, condition_name, channel_name, stack_name, minmax=(0, 1), transf=None):
         cond_list = self.get_cond_id_im_id(condition_name)
         im_dict = self.get_dict_stack_imgs(cond_list, channel_name, stack_name)
         if transf is not None:
@@ -64,17 +64,17 @@ class PlotConditionImages(plot_base.BasePlot):
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
-        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+        fig, hm = self.plot_layout(cond_list, im_dict, title, minmax=minmax)
 
         return fig
 
-    def plot_layout(self, cond_list, im_dict, title, pltfkt=None, minmax=(0,1), crange=None):
+    def plot_layout(self, cond_list, im_dict, title, pltfkt=None, minmax=(0, 1), crange=None):
 
         if pltfkt is None:
             pltfkt = self.plot_im
 
         nrows = len(cond_list)
-        ncols = max([len(c[1]) for c in cond_list ])
+        ncols = max([len(c[1]) for c in cond_list])
 
         if crange is None:
             crange = self.get_crange(im_dict, minmax)
@@ -85,7 +85,7 @@ class PlotConditionImages(plot_base.BasePlot):
         x_shape = max(shape, key=lambda x: x[0])[0]
         y_shape = max(shape, key=lambda x: x[1])[1]
 
-        fig, ax = plt.subplots(nrows, ncols,  figsize= ( 2*ncols+2,2*nrows+2), squeeze=True)
+        fig, ax = plt.subplots(nrows, ncols, figsize=(2 * ncols + 2, 2 * nrows + 2), squeeze=True)
         if nrows == 1:
             ax = np.array([ax])
         if ncols == 1:
@@ -98,14 +98,14 @@ class PlotConditionImages(plot_base.BasePlot):
                 if j < len(images):
                     image = images[j]
                     img = im_dict[image]
-                    cax = pltfkt(img, ax=a, crange = crange)
+                    cax = pltfkt(img, ax=a, crange=crange)
                     sb = scalebar.ScaleBar(1, units='um', location=4, frameon=False,
-                            color='white')
+                                           color='white')
                     a.add_artist(sb)
                     a.set_xticks([])
                     a.set_yticks([])
-                    a.set_title('Im_id: %s' % str(image),  size='small')
-                    if j==0:
+                    a.set_title('Im_id: %s' % str(image), size='small')
+                    if j == 0:
                         a.set_ylabel('Cond_id: %s' % str(cond), rotation=0, size='small', labelpad=39)
 
                 else:
@@ -115,7 +115,7 @@ class PlotConditionImages(plot_base.BasePlot):
         plt.suptitle(title)
         return fig, ax
 
-    def plot_im(self, img, title=None,crange=None, ax=None, update_axrange=True, cmap=None):
+    def plot_im(self, img, title=None, crange=None, ax=None, update_axrange=True, cmap=None):
         cax = self.heatmask.do_heatplot(img=img, title=title, crange=crange, ax=ax,
                                         update_axrange=update_axrange, cmap=cmap, colorbar=False)
         return cax
@@ -148,8 +148,8 @@ class PlotConditionImages(plot_base.BasePlot):
     def get_dict_stack_imgs(self, cond_list, channel_name, stack_name):
         plane_id = self.bro.helpers.dbhelp.get_plane_id(stack_name, channel_name)
         imac = {imid: np.flipud(self.stackimage.get_planeimg(int(imid), plane_id))
-                        for c, img_ids in cond_list
-                        for imid in img_ids}
+                for c, img_ids in cond_list
+                for imid in img_ids}
         return imac
 
     @staticmethod
@@ -158,19 +158,16 @@ class PlotConditionImages(plot_base.BasePlot):
 
         return new_val
 
-
-
     def get_cond_id_im_id(self, condition_name):
 
-
         p = (self.session.query(db.images.image_id,
-                                     db.conditions.condition_id,
-                                    )
-                         .join(db.valid_images)
-                         .join(db.conditions)
-                         .filter(
-                                 db.conditions.condition_name == condition_name)
-                         )
+                                db.conditions.condition_id,
+                                )
+            .join(db.valid_images)
+            .join(db.conditions)
+            .filter(
+            db.conditions.condition_name == condition_name)
+        )
 
         pdat = self.bro.doquery(p)
 
