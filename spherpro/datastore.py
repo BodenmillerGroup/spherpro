@@ -24,7 +24,7 @@ import sqlalchemy as sa
 import logging
 
 DICT_DB_KEYS = {
-    'image_number': db.images.image_id.key,
+    'image_id': db.images.image_id.key,
     'object_number': db.objects.object_number.key,
     'measurement_type': db.measurement_types.measurement_type.key,
     'measurement_name': db.measurement_names.measurement_name.key,
@@ -1341,7 +1341,7 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'None', do not filter
+            int/array image_id: Image ID. If 'None', do not filter
 
         Returns:
             DataFrame
@@ -1369,7 +1369,7 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If 'False', do not filter
+            int/array image_id: ImageNumber. If 'False', do not filter
             int/array object_number: CellNumber. If 'False', do not filter
 
         Returns:
@@ -1462,7 +1462,7 @@ class DataStore(object):
         If you dont specify a value, the WHERE clause will be omitted.
 
         Args:
-            int/array image_number: ImageNumber. If NONE, do not filter
+            int/array image_id: ImageNumber. If NONE, do not filter
             int/array object_number: CellNumber. If NONE, do not filter
             str/array measurement_type: MeasurementType. If NONE, do not filter
             str/array measurement_name: MeasurementName. If NONE, do not filter
