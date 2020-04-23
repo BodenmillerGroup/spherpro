@@ -1,11 +1,7 @@
-import pandas as pd
 import numpy as np
-import re
-import spherpro as sp
-import spherpro.datastore as datastore
 import spherpro.db as db
 import spherpro.bromodules.plot_base as plot_base
-import sqlalchemy as sa
+import spherpro.bromodules.io_stackimage as io_stackimage
 import matplotlib.pyplot as plt
 import matplotlib_scalebar.scalebar as scalebar
 
@@ -28,7 +24,7 @@ class PlotConditionImages(plot_base.BasePlot):
     def plot_hm_conditions(self, condition_name, channel_name, stack_name='FullStackFiltered', measurement_name='MeanIntensity', object_type='cell',
             minmax=(0,1), transf=None):
         cond_list = self.get_cond_id_im_id(condition_name)
-        im_dict = self.get_dict_imgs(cond_list,channel_name,
+        im_dict = self.get_dict_imgs(cond_list, channel_name,
                 stack_name, measurement_name, object_type)
         if transf is not None:
             for key, val in im_dict.items():
@@ -37,7 +33,7 @@ class PlotConditionImages(plot_base.BasePlot):
         target = self.get_target_by_channel(channel_name)
         title = 'condition: %s\nchannel: %s - %s' % (condition_name, channel_name, target)
 
-        fig, hm = self.plot_layout(cond_list,im_dict, title, minmax=minmax)
+        fig, hm = self.plot_layout(cond_list, im_dict, title, minmax=minmax)
 
         return fig
 
@@ -122,10 +118,11 @@ class PlotConditionImages(plot_base.BasePlot):
         return imgids
 
 
-    def get_dict_imc_imgs(self, cond_list, channelname):
+
+    def get_dict_imc_imgs(self, cond_list, channel_name):
         imac = {img: self.imcimage.get_imcimg(int(img)) for c, imgs in cond_list for img in imgs}
         for key, val in imac.items():
-            imac[key] = val.get_img_by_metal(channelname)
+            imac[key] = val.get_img_by_metal(channel_name)
         return imac
 
 

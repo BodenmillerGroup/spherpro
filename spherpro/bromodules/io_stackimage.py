@@ -3,16 +3,9 @@ A class to generate handle the loading of the stackimages specified in the datab
 """
 import spherpro.bromodules.io_base as io_base
 import spherpro.configuration as conf
-import pandas as pd
 import numpy as np
-import re
 import os
-
-import spherpro as sp
-import spherpro.datastore as datastore
 import spherpro.db as db
-import sqlalchemy as sa
-
 import tifffile as tif
 
 import functools
@@ -38,8 +31,6 @@ class IoStackImage(io_base.BaseIo):
         stack_id, plane_number = self._get_stackmeta_for_plane(plane_id)
         img = self.get_stackimg(image_id, stack_id)
         img_plane_number = plane_number-1
-
-
         return img[img_plane_number, :, :]
 
     def get_stack_nchan(self, stack_id):
