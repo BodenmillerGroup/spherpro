@@ -49,10 +49,10 @@ def plot_contour(img_id, object_numbers, values, cmap):
     pass
 
 
-def add_scalebar(ax, resolution=0.000001, location=0, color='white', pad=0.5,
+def add_scalebar(ax, resolution=0.000001, location=4, color='white', pad=0.5,
                  frameon=False, **kwargs):
     scalebar = ScaleBar(resolution, location=location, color=color, pad=pad,
-                        rameon=frameon, **kwargs)  # 1 pixel = 0.2 meter
+                        frameon=frameon, **kwargs)  # 1 pixel = 0.2 meter
     ax.add_artist(scalebar)
 
 
