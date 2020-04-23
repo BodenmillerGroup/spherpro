@@ -27,6 +27,24 @@ class HelperDb:
                                         }
         return [id_dict[i] for i in obj_id]
 
+    def get_plane_id(self, stack_name: str, channel_name: str) -> int:
+        """
+        Get plane ID for given stack_name, channel_name
+        Args:
+            stack_name: A stack name
+            channel_name: A channel name as given in the ref_planes table.
+
+        Returns:
+            The plane id
+
+        """
+        return (self.session.query(db.planes.plane_id)
+                    .join(db.ref_planes)
+                    .join(db.stacks)
+                    .filter(db.ref_planes.channel_name == channel_name)
+                    .filter(db.stacks.stack_name == stack_name)
+                ).one()[0]
+
     def get_mask(self, img_id):
         bro = self.bro
         mask = bro.io.masks.get_mask(img_id)
