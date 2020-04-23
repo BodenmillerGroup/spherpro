@@ -3,4 +3,4 @@ class BaseFilter(object):
         self.bro = bro
         self.session = self.bro.data.main_session
         self.data = self.bro.data
-        self.doquery = self.data.get_query_function()
+        self.doquery = self.data.query_df
