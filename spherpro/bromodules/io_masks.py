@@ -33,16 +33,19 @@ class IoMasks(io_base.BaseIo):
         self._dat_masks = None
         
     @functools.lru_cache(maxsize=max_cache)
-    def get_mask(self, image_number):
+    def get_mask(self, image_id: int, object_type: str) -> np.ndarray:
         """
-        Retrieves masks based on an image_number
+        Retrieves masks based on an image_id
         Args:
-            image_number: Image number
+            image_id: Image number
+            object_type: Object type
         Returns:
             mask_array: numpy array with the mask labels as integer image
         """
-        fn = self.dat_masks.loc[self.dat_masks[db.images.image_id.key] == image_number,
-                           db.masks.mask_filename.key].iloc[0]
+        fn = (self.bro.session.query(db.masks.mask_filename)
+                   .filter(db.masks.image_id == image_id)
+                   .filter(db.masks.object_type == object_type)
+                   ).one()[0]
         return tif.imread(os.path.join(self.basedir, fn))
 
     def clear_caches(self):
@@ -51,5 +54,6 @@ class IoMasks(io_base.BaseIo):
     @property
     def dat_masks(self):
         if self._dat_masks is None:
-           self._dat_masks = self.data.get_table_data(db.masks.__tablename__)
+           q = self.bro.session.query(db.masks)
+           self._dat_masks = self.bro.doquery(q)
         return self._dat_masks
