@@ -1,5 +1,4 @@
 # Diffrent database collectors used by the datastore
-# import pymysql
 from sqlalchemy import Column, Integer, String, Float, Boolean, \
     ForeignKeyConstraint, UniqueConstraint
 from sqlalchemy import create_engine

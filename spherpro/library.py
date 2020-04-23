@@ -20,23 +20,6 @@ def fill_null(data, table):
     return data
 
 
-def calculate_real_dist_rim(dist, radius_cut, radius_sphere):
-    """calculate_real_dist_rim
-    Calculates the real distance to rim from the real sphere radius, the radius
-    of the cut and the measured distance to rim.
-
-    Args:
-        dist: Float stating the measured distance to rim
-        radius_cut: Float stating the radius of the segment
-        radius_sphere: float stating the real radius of the sphere
-
-    Returns:
-        Float real distance to rim
-    """
-    real_dist = radius_sphere - np.sqrt(radius_sphere ** 2 - 2 * radius_cut * dist + dist ** 2)
-    return real_dist
-
-
 def find_measurementmeta(stack_name, col_name,
                          no_stack_str=None, no_plane_string=None):
     """
@@ -96,40 +79,6 @@ def construct_in_clause_list(key_dict):
         map(str, values)) + '")'
                  for k, values in key_dict.items()]
     return querylist
-
-
-def construct_sql_query(table, columns=None, clauses=None):
-    """
-    Constructs an sql query with possibilty for selection clauses
-
-    Args:
-        table: the table name
-        columns: the selected columns, default: all
-        clauses: a dict with columns to potentially use for filtering
-                default: no filter
-    Return:
-        the constructed query
-
-    Example:
-        >>> construct_sql_query('Table')
-        'SELECT * FROM Table;'
-        >>> construct_sql_query('Table', columns=['ColA', 'ColB'])
-        'SELECT ColA, ColB FROM Table;'
-        >>> construct_sql_query('Table', columns=['ColA', 'ColB'],\
-                clauses=['B in ("c", "d")'])
-        'SELECT ColA, ColB FROM Table WHERE B in ("c", "d");'
-
-    """
-    if columns is None:
-        columns = ['*']
-    query = ' '.join(['SELECT', ', '.join(columns),
-                      'FROM', table])
-    if (clauses is not None) and clauses:
-        query += ' WHERE '
-        query += ' AND '.join(clauses)
-
-    query += ';'
-    return query
 
 
 def filter_and_rename_dict(indict, filterdict):
