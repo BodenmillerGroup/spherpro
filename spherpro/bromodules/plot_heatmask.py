@@ -328,7 +328,7 @@ class PlotHeatmask(plot_base.BasePlot):
             fig = ax.get_figure()
 
         if len(ax.images) == 0:
-            cax = ax.imshow(img, cmap=cmap)
+            cax = ax.imshow(img, cmap=cmap, interpolation='nearest')
             if colorbar:
                 fig.colorbar(cax)
         else:
