@@ -267,48 +267,6 @@ class Debarcode(object):
                                    columns=dat_cells.var[db.ref_planes.channel_name.key])
         return dat_bccells
 
-    def _get_bc_cells_old(self, key, dist, fils=None, borderdist=0, stack=None, measurement_name=None):
-        if measurement_name is None:
-            measurement_name = 'MeanIntensity'
-        if stack is None:
-            stack = 'FullStack'
-        channels = tuple(key.columns.tolist())
-        filtdict = {
-            db.stacks.stack_name.key: "DistStack",
-            db.ref_planes.channel_name.key: "dist-sphere",
-            db.measurement_names.measurement_name.key: "MeanIntensity"
-        }
-        bcfilt = self.filter.get_multifilter_statement([
-            (filtdict, operator.gt, borderdist),
-            (filtdict, operator.lt, dist)
-        ])
-        bc_query = (self.data.get_measurement_query()
-                    .filter(
-            self.bro.filters.measurements.get_measurement_filter_statements(
-                channel_names=[channels],
-                object_types=['cell'],
-                stack_names=[stack],
-                measurement_names=[measurement_name],
-                measurement_types=['Intensity'],
-            ))
-                    .filter(bcfilt)
-                    )
-        # add additional columns to the output
-        bc_query = (bc_query
-                    .add_columns(db.ref_planes.channel_name,
-                                 db.objects.image_id)
-                    )
-        bc_query = bc_query.join(db.acquisitions).join(db.sites).add_column(db.sites.site_id)
-        if fils is not None:
-            bc_query = bc_query.filter(fils)
-
-        dat = self.bro.doquery(bc_query)
-        dat = dat.pivot_table(values=db.object_measurements.value.key,
-                              columns=db.ref_planes.channel_name.key,
-                              index=[db.objects.image_id.key,
-                                     db.object_measurements.object_id.key, db.sites.site_id.key])
-        return dat
-
     def _write_singlecell_barcodes(self, dat_db):
         """
         Saves the singlecell barcodes to the database
