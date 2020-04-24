@@ -22,36 +22,6 @@ class FilterMeasurements(filter_base.BaseFilter):
             (db.measurement_types.measurement_type.key, None)]
         self.get_filter_vector = get_filter_vector
 
-    def get_measurement_filter_statements(self, object_types, channel_names,
-                                          stack_names, measurement_names, measurement_types):
-        """
-        Generates a filter expression to query for multiple channels, defined as channel_names,
-        stack_names, measurement names and measurement types.
-
-        Input:
-            object_types: list of object_types
-            channel_names: list of channel names
-            stack_names: list of stack_names
-            measurement_names: list of measurement_names
-            measurement_types: list of measurement measurement_types
-        Returns:
-            A dataframes with the selected measurements
-        """
-        constraint_columns = [db.objects.object_type,
-                              db.ref_planes.channel_name,
-                              db.stacks.stack_name,
-                              db.measurements.measurement_name,
-                              db.measurement_types.measurement_type]
-
-        value_lists = [object_types,
-                       channel_names,
-                       stack_names,
-                       measurement_names,
-                       measurement_types]
-        measure_filter = combine_constraints(constraint_columns,
-                                             value_lists=value_lists)
-        return measure_filter
-
     def get_measmeta_filter_statements(self, channel_names,
                                        stack_names, measurement_names, measurement_types):
         """
