@@ -5,6 +5,8 @@ import ipywidgets as ipw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+import pycytools.library
 import pycytools as pct
 
 import spherpro.bromodules.plot_base as plot_base
