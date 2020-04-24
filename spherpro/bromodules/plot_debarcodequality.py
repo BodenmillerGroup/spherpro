@@ -33,6 +33,7 @@ class PlotDebarcodeCells(plot_base.BasePlot):
 
         if title is None:
             title = f'ImgId: {img_id}'
+        # TODO: get barcoding variable names from the debarcoding module.
         return self.bro.plots.heatmask.plt_heatplot([img_id],
                                                     'barcode',
                                                     'ObjectStack',

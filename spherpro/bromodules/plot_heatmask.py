@@ -164,6 +164,7 @@ class PlotHeatmask(plot_base.BasePlot):
         self.io_masks = self.bro.io.masks
         self.filter_measurements = self.bro.filters.measurements
         self.objmeasurements = self.bro.io.objmeasurements
+        # TODO: add defaults from config
         self.measure_idx = [  # idx_name, default
             (db.ref_planes.channel_name.key, None),
             (db.stacks.stack_name.key, 'FullStack'),
