@@ -1,4 +1,3 @@
-
 crop_dir: '/home/mleutenegger/Data/20170613_Biotin_p56/analysis_data/crop/'
 
 backend: 'mysql'
@@ -59,7 +58,7 @@ barcode_csv:
   well_col: 'well'
   sep: ','
 
-# wells_csv:
+  # wells_csv:
   # path: ''
 
 

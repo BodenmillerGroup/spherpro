@@ -2,7 +2,6 @@
 
 from setuptools import setup, find_packages
 
-
 with open('README.rst') as f:
     readme = f.read()
 
@@ -19,18 +18,21 @@ setup(
     url='https://github.com/bodenmillerlab/spherpro',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
-    install_requires = [
-                       'tifffile',
-                       'scikit-image',
-                       'scikit-learn',
-                       'numpy',
-                       'pandas',
-                       'scipy',
-                       'requests',
-                       'matplotlib',
-                       'seaborn',
-                       'pyyaml',
-                       'PyMySQL',
-                        'colorcet',
-                       'sqlalchemy'],
+    install_requires=[
+        'anndata',
+        'colorcet',
+        'imctools',
+        'odo',
+        # 'PyMySQL',
+        'matplotlib',
+        'numpy',
+        'pandas',
+        'pyyaml',
+        'requests',
+        'scikit-image',
+        'scikit-learn',
+        'scipy',
+        'seaborn',
+        'sqlalchemy',
+        'tifffile'],
 )

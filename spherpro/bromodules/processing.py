@@ -1,7 +1,9 @@
-import spherpro.bromodules.processing_measurementmaker as processing_mm
 import spherpro.bromodules.processing_debarcoding as processing_debarcoding
 import spherpro.bromodules.processing_dist_rim as processing_dist_rim
+import spherpro.bromodules.processing_measurementmaker as processing_mm
 import spherpro.bromodules.processing_nb_agg as processing_nb_agg
+
+
 class Processing(object):
     def __init__(self):
         pass

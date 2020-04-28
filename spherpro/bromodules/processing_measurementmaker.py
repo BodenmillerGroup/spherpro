@@ -1,16 +1,8 @@
-
 import pandas as pd
-import numpy as np
-import re
-import operator
-
-import spherpro as sp
-import spherpro.datastore as datastore
-import spherpro.configuration as conf
-import spherpro.db as db
-import sqlalchemy as sa
 
 import spherpro.bromodules.plot_base as base
+import spherpro.configuration as conf
+import spherpro.db as db
 
 MEAS_ID = db.measurements.measurement_id.key
 MEAS_NAME = db.measurements.measurement_name.key
@@ -39,11 +31,11 @@ class MeasurementMaker(base.BasePlot):
         Registers an object metadata table
         Needs to have the columns:
             object_type
-            image_number
+            image_id
             object_number
         Registers them and returns a table
             object_type
-            image_number
+            image_id
             object_number
             object_id
             image_id
@@ -54,25 +46,25 @@ class MeasurementMaker(base.BasePlot):
         COL_OBJ_ID = db.objects.object_id.key
         img_dict = {n: i for n, i in
                     self.session.query(db.images.image_number,
-                                            db.images.image_id)}
+                                       db.images.image_id)}
         object_meta[db.images.image_id.key] = object_meta[db.images.image_number.key].replace(img_dict)
         if assume_new == False:
             object_meta[COL_OBJ_ID] = [
                 l[0] if l is not None else None
                 for l in [self.session.query(COL_OBJ_ID)
-                    .filter(db.objects.object_number == row[db.objects.object_number.key],
-                    db.objects.image_id == row[db.objects.image_id.key],
-                    db.objects.object_type == row[db.objects.object_type.key]).one_or_none()
-                    for idx, row in object_meta.iterrows()]]
+                              .filter(db.objects.object_number == row[db.objects.object_number.key],
+                                      db.objects.image_id == row[db.objects.image_id.key],
+                                      db.objects.object_type == row[db.objects.object_type.key]).one_or_none()
+                          for idx, row in object_meta.iterrows()]]
         else:
             object_meta[COL_OBJ_ID] = None
         fil = object_meta[COL_OBJ_ID].isnull()
         if sum(fil) > 0:
             object_meta.loc[fil, COL_OBJ_ID] = self.bro.data._query_new_ids(
                 db.objects.object_id, sum(fil))
-            object_meta[COL_OBJ_ID] = object_meta[COL_OBJ_ID].astype(np.int)
-            self.bro.data._bulk_pg_insert(object_meta.loc[fil, :],
-                                          db.objects)
+            # object_meta[COL_OBJ_ID] = object_meta[COL_OBJ_ID].astype(np.int)
+            self.bro.data._bulkinsert(object_meta.loc[fil, :],
+                                      db.objects)
         return object_meta
 
     def register_single_measurement(self, measurement_name, measurement_type, plane_id):
@@ -98,29 +90,27 @@ class MeasurementMaker(base.BasePlot):
         measure_meta[MEAS_ID] = [
             l[0] if l is not None else None
             for l in [self.session.query(db.measurements.measurement_id)
-                .filter(db.measurements.measurement_name == row[MEAS_NAME],
-                db.measurements.measurement_type == row[MEAS_TYPE],
-                db.measurements.plane_id == row[MEAS_PLANE]).one_or_none()
-                for idx, row in measure_meta.iterrows()]]
+                          .filter(db.measurements.measurement_name == row[MEAS_NAME],
+                                  db.measurements.measurement_type == row[MEAS_TYPE],
+                                  db.measurements.plane_id == row[MEAS_PLANE]).one_or_none()
+                      for idx, row in measure_meta.iterrows()]]
 
         fil = measure_meta[MEAS_ID].isnull()
         if sum(fil) > 0:
             measure_meta.loc[fil, MEAS_ID] = self.bro.data._query_new_ids(
                 db.measurements.measurement_id, sum(fil))
-            measure_meta[MEAS_ID] = measure_meta[MEAS_ID].astype(int)
-            self.bro.data._bulk_pg_insert(measure_meta.loc[fil, :],
-                                          db.measurements)
+            # measure_meta[MEAS_ID] = measure_meta[MEAS_ID].astype(int)
+            self.bro.data._bulkinsert(measure_meta.loc[fil, :],
+                                      db.measurements)
         return measure_meta
 
-    def add_object_measurements(self, dat_meas, replace=True, drop_all_old=False ):
-        if drop_all_old:
-            self.delete_measurements_by_ids(dat_meas[db.measurements.measurement_id.key].unique())
-        self.data._add_generic_tuple(dat_meas, db.object_measurements,
-                                     replace=replace, pg=True)
+    def add_object_measurements(self, dat_meas, replace=True, drop_all_old=False):
+        self.bro.io.objmeasurements.add_anndata_datmeasurements(dat_meas, replace=replace,
+                                                                drop_all_old=drop_all_old)
 
     def delete_measurements_by_ids(self, meas_ids):
         q = (self.bro.session.query(db.object_measurements)
-            .filter(db.object_measurements.measurement_id.in_([int(i) for i in meas_ids])))
+             .filter(db.object_measurements.measurement_id.in_([int(i) for i in meas_ids])))
         q.delete(synchronize_session=False)
         self.bro.session.commit()
 
@@ -136,10 +126,10 @@ class MeasurementMaker(base.BasePlot):
         OUT_CHANNEL_TYPE = def_obj[conf.DEFAULT_CHANNEL_TYPE]
         OUT_CHANNEL_NAME = def_obj[conf.DEFAULT_CHANNEL_NAME]
         plane_id = (self.bro.session.query(db.planes.plane_id)
-             .join(db.stacks)
-             .join(db.ref_stacks)
-             .join(db.ref_planes)
-             .filter(db.stacks.stack_name == OUT_STACK,
-                                        db.ref_planes.channel_type == OUT_CHANNEL_TYPE,
-                                        db.ref_planes.channel_name == OUT_CHANNEL_NAME)).one()[0]
+                    .join(db.stacks)
+                    .join(db.ref_stacks)
+                    .join(db.ref_planes)
+                    .filter(db.stacks.stack_name == OUT_STACK,
+                            db.ref_planes.channel_type == OUT_CHANNEL_TYPE,
+                            db.ref_planes.channel_name == OUT_CHANNEL_NAME)).one()[0]
         return plane_id
