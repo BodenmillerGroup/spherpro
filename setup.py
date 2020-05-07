@@ -10,7 +10,7 @@ with open('LICENSE') as f:
 
 setup(
     name='spherpro',
-    version='0.0.1',
+    version='0.2.0',
     description='Tool to analize tumor spheroid data',
     long_description=readme,
     author='Vito Zanotelli,',
