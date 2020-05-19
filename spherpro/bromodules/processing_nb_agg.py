@@ -3,14 +3,13 @@ import numpy as np
 import spherpro.db as db
 
 DEFAULT_RELATION = 'Neighbors'
-DEFAULT_MEASURETYPE = 'Intensity'
 VALUE = db.object_measurements.value.key
 MEAS_ID = db.measurements.measurement_id.key
 CHILD_ID = db.object_relations.object_id_child.key
 PARENT_ID = db.object_relations.object_id_parent.key
 OBJ_ID = db.objects.object_id.key
-OLD_ID = 'oldid'
 OBJ_TYPE = db.objects.object_type.key
+OLD_ID = 'oldid'
 
 
 class AggregateNeightbours(object):

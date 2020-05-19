@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 import spherpro.bro as bro
 import spherpro.bromodules.io_anndata as io_anndata
-import spherpro.configuration as conf
+import spherpro.configuration as config
 import spherpro.db as db
 import spherpro.library as lib
 
@@ -61,9 +61,9 @@ class DataStore(object):
         self._session = None
         self._session_maker = None
         self.connectors = {
-            conf.CON_SQLITE: db.connect_sqlite,
-            conf.CON_MYSQL: db.connect_mysql,
-            conf.CON_POSTGRESQL: db.connect_postgresql
+            config.CON_SQLITE: db.connect_sqlite,
+            config.CON_MYSQL: db.connect_mysql,
+            config.CON_POSTGRESQL: db.connect_postgresql
         }
 
     #########################################################################
@@ -82,7 +82,7 @@ class DataStore(object):
         Raises:
             YAMLError
         """
-        self.conf = conf.read_configuration(configpath)
+        self.conf = config.read_configuration(configpath)
 
     def import_data(self, minimal=None):
         """read_data
@@ -116,11 +116,11 @@ class DataStore(object):
         # self._read_measurement_data()
         # self._read_stack_meta()
         self._read_pannel()
-        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        self.db_conn = self.connectors[self.conf[config.BACKEND]](self.conf)
         self.bro = bro.Bro(self)
 
     def drop_all(self):
-        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        self.db_conn = self.connectors[self.conf[config.BACKEND]](self.conf)
         db.drop_all(self.db_conn)
 
     ##########################################
@@ -132,21 +132,21 @@ class DataStore(object):
         reads the experiment layout as stated in the config
         and saves it in the datastore
         """
-        if self.conf[conf.LAYOUT_CSV][conf.PATH] is not None:
-            sep = self.conf[conf.LAYOUT_CSV][conf.SEP]
+        if self.conf[config.LAYOUT_CSV][config.PATH] is not None:
+            sep = self.conf[config.LAYOUT_CSV][config.SEP]
             experiment_layout = pd.read_csv(
-                self.conf[conf.LAYOUT_CSV][conf.PATH], sep=sep
+                self.conf[config.LAYOUT_CSV][config.PATH], sep=sep
             )
             # rename the columns
-            rename_dict = {self.conf[conf.LAYOUT_CSV][c]: target for c, target in [
-                (conf.LAYOUT_CSV_COND_ID, db.conditions.condition_id.key),
-                (conf.LAYOUT_CSV_COND_NAME, db.conditions.condition_name.key),
-                (conf.LAYOUT_CSV_TIMEPOINT_NAME, db.conditions.time_point.key),
-                (conf.LAYOUT_CSV_BARCODE, db.conditions.barcode.key),
-                (conf.LAYOUT_CSV_CONCENTRATION_NAME, db.conditions.concentration.key),
-                (conf.LAYOUT_CSV_BC_PLATE_NAME, db.conditions.bc_plate.key),
-                (conf.LAYOUT_CSV_PLATE_NAME, db.conditions.plate_id.key),
-                (conf.LAYOUT_CSV_WELL_NAME, db.conditions.well_name.key)
+            rename_dict = {self.conf[config.LAYOUT_CSV][c]: target for c, target in [
+                (config.LAYOUT_CSV_COND_ID, db.conditions.condition_id.key),
+                (config.LAYOUT_CSV_COND_NAME, db.conditions.condition_name.key),
+                (config.LAYOUT_CSV_TIMEPOINT_NAME, db.conditions.time_point.key),
+                (config.LAYOUT_CSV_BARCODE, db.conditions.barcode.key),
+                (config.LAYOUT_CSV_CONCENTRATION_NAME, db.conditions.concentration.key),
+                (config.LAYOUT_CSV_BC_PLATE_NAME, db.conditions.bc_plate.key),
+                (config.LAYOUT_CSV_PLATE_NAME, db.conditions.plate_id.key),
+                (config.LAYOUT_CSV_WELL_NAME, db.conditions.well_name.key)
             ]}
             experiment_layout = experiment_layout.rename(columns=rename_dict)
             self.experiment_layout = experiment_layout.fillna(0)
@@ -157,20 +157,20 @@ class DataStore(object):
         """
         reads the barcode key as stated in the config
         """
-        conf_bc = self.conf[conf.BARCODE_CSV]
-        conf_layout = self.conf[conf.LAYOUT_CSV]
-        path = conf_bc[conf.PATH]
+        conf_bc = self.conf[config.BARCODE_CSV]
+        conf_layout = self.conf[config.LAYOUT_CSV]
+        path = conf_bc[config.PATH]
         if path is not None:
             # Load the barcode key
-            sep = conf_bc[conf.SEP]
+            sep = conf_bc[config.SEP]
             barcodes = pd.read_csv(
                 path, sep=sep
             )
             # Adapt the names
             rename_dict = {
-                conf_bc[conf.BC_CSV_PLATE_NAME]:
-                    conf_layout[conf.LAYOUT_CSV_BC_PLATE_NAME],
-                conf_bc[conf.BC_CSV_WELL_NAME]:
+                conf_bc[config.BC_CSV_PLATE_NAME]:
+                    conf_layout[config.LAYOUT_CSV_BC_PLATE_NAME],
+                conf_bc[config.BC_CSV_WELL_NAME]:
                     db.conditions.well_name.key
             }
             barcodes = barcodes.rename(columns=rename_dict)
@@ -191,10 +191,10 @@ class DataStore(object):
             self.barcode_key = None
 
     def _read_objtype_measurements(self, object_type, chunksize):
-        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
-        sep = conf_meas[conf.SEP]
-        cpdir = self.conf[conf.CP_DIR]
-        filetype = conf_meas[conf.FILETYPE]
+        conf_meas = self.conf[config.CPOUTPUT][config.MEASUREMENT_CSV]
+        sep = conf_meas[config.SEP]
+        cpdir = self.conf[config.CP_DIR]
+        filetype = conf_meas[config.FILETYPE]
         reader = pd.read_csv(os.path.join(cpdir, object_type + filetype),
                              sep=sep, chunksize=chunksize)
 
@@ -202,35 +202,35 @@ class DataStore(object):
             reader = [reader]
         for dat_objmeas in reader:
             rename_dict = {
-                self.conf[conf.OBJECTNUMBER]: db.objects.object_number.key,
-                self.conf[conf.IMAGENUMBER]: db.images.image_number.key}
+                self.conf[config.OBJECTNUMBER]: db.objects.object_number.key,
+                self.conf[config.IMAGENUMBER]: db.images.image_number.key}
             dat_objmeas.rename(columns=rename_dict, inplace=True)
             dat_objmeas[db.objects.object_type.key] = object_type
             yield dat_objmeas
 
     def _read_image_data(self):
-        cpdir = self.conf[conf.CP_DIR]
-        rename_dict = {self.conf[conf.IMAGENUMBER]: db.images.image_number.key}
+        cpdir = self.conf[config.CP_DIR]
+        rename_dict = {self.conf[config.IMAGENUMBER]: db.images.image_number.key}
         images_csv = lib.read_csv_from_config(
-            self.conf[conf.CPOUTPUT][conf.IMAGES_CSV],
+            self.conf[config.CPOUTPUT][config.IMAGES_CSV],
             base_dir=cpdir)
         images_csv = images_csv.rename(columns=rename_dict)
         self._images_csv = images_csv
 
     def _read_relation_data(self):
-        conf_rel = self.conf[conf.CPOUTPUT][conf.RELATION_CSV]
-        cpdir = self.conf[conf.CP_DIR]
+        conf_rel = self.conf[config.CPOUTPUT][config.RELATION_CSV]
+        cpdir = self.conf[config.CP_DIR]
         relation_csv = lib.read_csv_from_config(
-            self.conf[conf.CPOUTPUT][conf.RELATION_CSV],
+            self.conf[config.CPOUTPUT][config.RELATION_CSV],
             base_dir=cpdir)
         col_map = {conf_rel[c]: target for c, target in [
-            (conf.OBJECTTYPE_FROM, conf.OBJECTTYPE_FROM),
-            (conf.OBJECTTYPE_TO, conf.OBJECTTYPE_TO),
-            (conf.OBJECTNUMBER_FROM, conf.OBJECTNUMBER_FROM),
-            (conf.OBJECTNUMBER_TO, conf.OBJECTNUMBER_TO),
-            (conf.IMAGENUMBER_FROM, conf.IMAGENUMBER_FROM),
-            (conf.IMAGENUMBER_TO, conf.IMAGENUMBER_TO),
-            (conf.RELATIONSHIP, db.object_relation_types.object_relationtype_name.key)]}
+            (config.OBJECTTYPE_FROM, config.OBJECTTYPE_FROM),
+            (config.OBJECTTYPE_TO, config.OBJECTTYPE_TO),
+            (config.OBJECTNUMBER_FROM, config.OBJECTNUMBER_FROM),
+            (config.OBJECTNUMBER_TO, config.OBJECTNUMBER_TO),
+            (config.IMAGENUMBER_FROM, config.IMAGENUMBER_FROM),
+            (config.IMAGENUMBER_TO, config.IMAGENUMBER_TO),
+            (config.RELATIONSHIP, db.object_relation_types.object_relationtype_name.key)]}
 
         self._relation_csv = relation_csv.rename(columns=col_map)
 
@@ -239,26 +239,26 @@ class DataStore(object):
         reads the stack meta as stated in the config
         and saves it in the datastore
         """
-        stack_dir = self.conf[conf.STACK_DIR][conf.PATH]
-        sep = self.conf[conf.STACK_DIR][conf.SEP]
+        stack_dir = self.conf[config.STACK_DIR][config.PATH]
+        sep = self.conf[config.STACK_DIR][config.SEP]
         match = re.compile("(.*)\.csv")
         stack_files = [f for f in listdir(stack_dir) if isfile(join(stack_dir, f))]
         stack_data = [pd.read_csv(join(stack_dir, n), sep) for n in stack_files]
         stack_files = [match.match(name).groups()[0] for name in stack_files]
         self.stack_csvs = {stack: data for stack, data in zip(stack_files, stack_data)}
-        self._stack_relation_csv = lib.read_csv_from_config(self.conf[conf.STACK_RELATIONS])
+        self._stack_relation_csv = lib.read_csv_from_config(self.conf[config.STACK_RELATIONS])
 
     def _read_pannel(self):
         """
         Reads the pannel as stated in the config.
         """
-        self._pannel = lib.read_csv_from_config(self.conf[conf.PANNEL_CSV])
+        self._pannel = lib.read_csv_from_config(self.conf[config.PANNEL_CSV])
 
     def _populate_db(self, minimal):
         """
         Writes the tables to the database
         """
-        self.db_conn = self.connectors[self.conf[conf.BACKEND]](self.conf)
+        self.db_conn = self.connectors[self.conf[config.BACKEND]](self.conf)
         self.drop_all()
         db.initialize_database(self.db_conn)
 
@@ -334,9 +334,9 @@ class DataStore(object):
         """
         Generates the modification table
         """
-        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
-        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        modpre_col = self.conf[conf.STACK_RELATIONS][conf.MODPRE]
+        parent_col = self.conf[config.STACK_RELATIONS][config.PARENT]
+        modname_col = self.conf[config.STACK_RELATIONS][config.MODNAME]
+        modpre_col = self.conf[config.STACK_RELATIONS][config.MODPRE]
         stackrel = self._stack_relation_csv.loc[
             self._stack_relation_csv[parent_col] != '0']
         Modifications = pd.DataFrame(stackrel[modname_col])
@@ -351,9 +351,9 @@ class DataStore(object):
         """
         generates the stackmodification table
         """
-        parent_col = self.conf[conf.STACK_RELATIONS][conf.PARENT]
-        modname_col = self.conf[conf.STACK_RELATIONS][conf.MODNAME]
-        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
+        parent_col = self.conf[config.STACK_RELATIONS][config.PARENT]
+        modname_col = self.conf[config.STACK_RELATIONS][config.MODNAME]
+        stack_col = self.conf[config.STACK_RELATIONS][config.STACK]
         key_map = {parent_col: db.stack_modifications.stack_id_parent.key,
                    modname_col: db.modifications.modification_name.key,
                    stack_col: db.stack_modifications.stack_id_child.key}
@@ -395,15 +395,15 @@ class DataStore(object):
         """
         Generates the refstack table
         """
-        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
-        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        stack_col = self.conf[config.STACK_RELATIONS][config.STACK]
+        ref_col = self.conf[config.STACK_RELATIONS][config.REF]
         key_map = {stack_col: db.ref_stacks.ref_stack_name.key}
 
         ref_stack = (self._stack_relation_csv
                      .loc[self._stack_relation_csv[ref_col] == '0', list(key_map.keys())]
                      .rename(columns=key_map)
                      )
-        scale_col = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV][conf.SCALING_PREFIX]
+        scale_col = self.conf[config.CPOUTPUT][config.IMAGES_CSV][config.SCALING_PREFIX]
         scale_names = [scale_col + n for n in
                        ref_stack[db.ref_stacks.ref_stack_name.key]]
         dat_img = self._images_csv.reindex(columns=scale_names, fill_value=1)
@@ -423,8 +423,8 @@ class DataStore(object):
         """
         Genes the DerivedStack
         """
-        stack_col = self.conf[conf.STACK_RELATIONS][conf.STACK]
-        ref_col = self.conf[conf.STACK_RELATIONS][conf.REF]
+        stack_col = self.conf[config.STACK_RELATIONS][config.STACK]
+        ref_col = self.conf[config.STACK_RELATIONS][config.REF]
         key_map = {stack_col: db.stacks.stack_name.key,
                    ref_col: db.ref_stacks.ref_stack_name.key}
 
@@ -467,10 +467,10 @@ class DataStore(object):
 
     def _generate_refplanemeta(self):
 
-        stack_col = self.conf[conf.STACK_DIR][conf.STACK]
-        id_col = self.conf[conf.STACK_DIR][conf.ID]
-        name_col = self.conf[conf.STACK_DIR][conf.NAME]
-        type_col = self.conf[conf.STACK_DIR][conf.TYPE]
+        stack_col = self.conf[config.STACK_DIR][config.STACK]
+        id_col = self.conf[config.STACK_DIR][config.ID]
+        name_col = self.conf[config.STACK_DIR][config.NAME]
+        type_col = self.conf[config.STACK_DIR][config.TYPE]
         planes = pd.DataFrame(
 
             columns=[
@@ -549,32 +549,32 @@ class DataStore(object):
         """
         Generates the slide, site and roi metadata from the filenames or ome folders.
         """
-        cpconf = self.conf[conf.CPOUTPUT]
-        imgconf = cpconf[conf.IMAGES_CSV]
-        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
+        cpconf = self.conf[config.CPOUTPUT]
+        imgconf = cpconf[config.IMAGES_CSV]
+        objects = cpconf[config.MEASUREMENT_CSV][config.OBJECTS]
         obj = objects[0]
-        prefix = cpconf[conf.IMAGES_CSV][conf.MASK_FILENAME_PREFIX]
+        prefix = cpconf[config.IMAGES_CSV][config.MASK_FILENAME_PREFIX]
         # use any object to get a filename
         rename_dict = {
             prefix + obj: 'fn',
-            imgconf[conf.IMAGE_HEIGHT_PREFIX] + obj: db.images.image_shape_h.key,
-            imgconf[conf.IMAGE_WIDTH_PREFIX] + obj: db.images.image_shape_w.key,
+            imgconf[config.IMAGE_HEIGHT_PREFIX] + obj: db.images.image_shape_h.key,
+            imgconf[config.IMAGE_WIDTH_PREFIX] + obj: db.images.image_shape_w.key,
         }
         dat_fn = self._images_csv.loc[:,
                  [db.images.image_number.key] +
                  list(rename_dict.keys())]
         dat_fn = dat_fn.rename(columns=rename_dict)
 
-        re_meta = imgconf[conf.META_REGEXP]
+        re_meta = imgconf[config.META_REGEXP]
         img_meta = lib.map_group_re(dat_fn['fn'], re_meta)
         img_meta.index = dat_fn.index
         img_meta = img_meta.join(dat_fn)
 
         colmap = {imgconf[g]: v for g, v in [
-            (conf.GROUP_POSX, db.images.image_pos_x.key),
-            (conf.GROUP_POSY, db.images.image_pos_y.key),
-            (conf.GROUP_CROPID, db.images.crop_number.key),
-            (conf.GROUP_BASENAME, conf.GROUP_BASENAME)]
+            (config.GROUP_POSX, db.images.image_pos_x.key),
+            (config.GROUP_POSY, db.images.image_pos_y.key),
+            (config.GROUP_CROPID, db.images.crop_number.key),
+            (config.GROUP_BASENAME, config.GROUP_BASENAME)]
                   }
         img_meta = img_meta.rename(columns=colmap)
         img_meta[db.images.image_id.key] = \
@@ -587,29 +587,29 @@ class DataStore(object):
         Generates the ROi metadata table and updates the img_meta table to link
         to the roi_table
         """
-        imgconf = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV]
-        roi_basenames = img_meta[conf.GROUP_BASENAME]
+        imgconf = self.conf[config.CPOUTPUT][config.IMAGES_CSV]
+        roi_basenames = img_meta[config.GROUP_BASENAME]
         roi_basenames = roi_basenames.drop_duplicates().values
-        re_ome = imgconf[conf.IMAGE_OME_META_REGEXP]
+        re_ome = imgconf[config.IMAGE_OME_META_REGEXP]
         roi_meta = lib.map_group_re(roi_basenames, re_ome)
-        roi_meta[conf.GROUP_BASENAME] = roi_basenames
+        roi_meta[config.GROUP_BASENAME] = roi_basenames
         colmap = {imgconf[g]: v for g, v in [
-            (conf.GROUP_SLIDEAC, db.slideacs.slideac_name.key),
-            (conf.GROUP_PANORMAID, db.sites.site_mcd_panoramaid.key),
-            (conf.GROUP_ACID, db.acquisitions.acquisition_mcd_acid.key),
-            (conf.GROUP_ROIID, db.acquisitions.acquisition_mcd_roiid.key)]
+            (config.GROUP_SLIDEAC, db.slideacs.slideac_name.key),
+            (config.GROUP_PANORMAID, db.sites.site_mcd_panoramaid.key),
+            (config.GROUP_ACID, db.acquisitions.acquisition_mcd_acid.key),
+            (config.GROUP_ROIID, db.acquisitions.acquisition_mcd_roiid.key)]
                   }
         roi_meta = roi_meta.rename(columns=colmap)
         # set default values
-        roi_meta = roi_meta.reindex(columns=list(colmap.values()) + [conf.GROUP_BASENAME],
+        roi_meta = roi_meta.reindex(columns=list(colmap.values()) + [config.GROUP_BASENAME],
                                     fill_value=np.NAN)
         roi_meta[db.acquisitions.acquisition_id.key] = \
             self._query_new_ids(db.acquisitions.acquisition_id,
                                 roi_meta.shape[0])
         img_meta = pd.merge(img_meta,
                             roi_meta.loc[:, [db.acquisitions.acquisition_id.key,
-                                             conf.GROUP_BASENAME]],
-                            on=conf.GROUP_BASENAME)
+                                             config.GROUP_BASENAME]],
+                            on=config.GROUP_BASENAME)
         return img_meta, roi_meta
 
     def _generate_site_table(self, roi_meta):
@@ -629,12 +629,12 @@ class DataStore(object):
     def _generate_slideac_table(self, site_meta):
         slideacs = site_meta[db.slideacs.slideac_name.key]
         slideacs = slideacs.drop_duplicates().values
-        imgconf = self.conf[conf.CPOUTPUT][conf.IMAGES_CSV]
-        re_slide = imgconf[conf.IMAGE_SLIDE_REGEXP]
+        imgconf = self.conf[config.CPOUTPUT][config.IMAGES_CSV]
+        re_slide = imgconf[config.IMAGE_SLIDE_REGEXP]
         slideac_meta = lib.map_group_re(slideacs, re_slide)
         colmap = {imgconf[g]: v for g, v in [
-            (conf.GROUP_SLIDENUMBER, db.slides.slide_number.key),
-            (conf.GROUP_SAMPLEBLOCKNAME, db.sampleblocks.sampleblock_name.key)]
+            (config.GROUP_SLIDENUMBER, db.slides.slide_number.key),
+            (config.GROUP_SAMPLEBLOCKNAME, db.sampleblocks.sampleblock_name.key)]
                   }
         slideac_meta = slideac_meta.rename(columns=colmap)
         # set default values
@@ -678,9 +678,9 @@ class DataStore(object):
         return slide_meta, sampleblock_meta
 
     def _generate_masks(self):
-        cpconf = self.conf[conf.CPOUTPUT]
-        objects = cpconf[conf.MEASUREMENT_CSV][conf.OBJECTS]
-        prefix = cpconf[conf.IMAGES_CSV][conf.MASK_FILENAME_PREFIX]
+        cpconf = self.conf[config.CPOUTPUT]
+        objects = cpconf[config.MEASUREMENT_CSV][config.OBJECTS]
+        prefix = cpconf[config.IMAGES_CSV][config.MASK_FILENAME_PREFIX]
         dat_mask = {obj:
                         self._images_csv[
                             [db.images.image_number.key, prefix + obj]
@@ -694,10 +694,10 @@ class DataStore(object):
         #        If the width and height are not in the regexp, load all the
         #        mask and check the width
         #        """
-        #        cpconf = self.conf[conf.CPOUTPUT]
-        #        basedir = cpconf[conf.IMAGES_CSV][conf.MASK_DIR]
+        #        cpconf = self.config[config.CPOUTPUT]
+        #        basedir = cpconf[config.IMAGES_CSV][config.MASK_DIR]
         #        if basedir is None:
-        #            basedir = self.conf[conf.CP_DIR]
+        #            basedir = self.config[config.CP_DIR]
         #        dat_mask[db.masks.shape_w.key], dat_mask[db.masks.shape_h.key] = \
         #                zip(*dat_mask[db.masks.file_name.key].map(lambda fn:
         #                        tif.imread(os.path.join(basedir, fn)).shape))
@@ -709,10 +709,10 @@ class DataStore(object):
 
     def _generate_image_stacks(self):
         stack_col = 'column_stack'
-        cpconf = self.conf[conf.CPOUTPUT]
+        cpconf = self.conf[config.CPOUTPUT]
         dat_stacks = self.bro.doquery(self.main_session.query(db.stacks))
         dat_img = self._images_csv
-        prefix = cpconf[conf.IMAGES_CSV][conf.STACKIMG_FILENAME_PREFIX]
+        prefix = cpconf[config.IMAGES_CSV][config.STACKIMG_FILENAME_PREFIX]
         dat_stacks[stack_col] = dat_stacks[db.stacks.stack_name.key].map(lambda x: prefix + x)
         fil = dat_stacks[stack_col].isin(dat_img.columns)
         dat_stacks = dat_stacks.loc[fil, :]
@@ -768,7 +768,7 @@ class DataStore(object):
         and can therefore be quite slow
 
         """
-        if self.conf[conf.BACKEND] == conf.CON_SQLITE:
+        if self.conf[config.BACKEND] == config.CON_SQLITE:
             for obj_type, meas in self._generate_anndata_measurements():
                 ioan = io_anndata.IoAnnData(self.bro, obj_type)
                 ioan.initialize_anndata(meas)
@@ -814,8 +814,8 @@ class DataStore(object):
         ->
 
         """
-        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
-        for obj_type in conf_meas[conf.OBJECTS]:
+        conf_meas = self.conf[config.CPOUTPUT][config.MEASUREMENT_CSV]
+        for obj_type in conf_meas[config.OBJECTS]:
             logging.debug(f'Read {obj_type}:')
             dat_meas = next(self._read_objtype_measurements(obj_type, chunksize=None))
             # register the measurements
@@ -840,8 +840,8 @@ class DataStore(object):
     def _generate_measurements(self, minimal,
                                chuncksize=3000,
                                longform=True):
-        conf_meas = self.conf[conf.CPOUTPUT][conf.MEASUREMENT_CSV]
-        for obj_type in conf_meas[conf.OBJECTS]:
+        conf_meas = self.conf[config.CPOUTPUT][config.MEASUREMENT_CSV]
+        for obj_type in conf_meas[config.OBJECTS]:
             logging.debug(f'Read {obj_type}:')
             for dat_meas in self._read_objtype_measurements(obj_type, chuncksize):
                 # register the measurements
@@ -900,18 +900,18 @@ class DataStore(object):
 
         dat_relations = (self._relation_csv)
         logging.debug('Start replacing objfrom')
-        dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_FROM].replace(img_dict)
+        dat_relations['timg'] = dat_relations[config.IMAGENUMBER_FROM].replace(img_dict)
         dat_relations[db.object_relations.object_id_parent.key] = \
             dat_relations.loc[:, ['timg',
-                                  conf.OBJECTNUMBER_FROM,
-                                  conf.OBJECTTYPE_FROM]].apply(
+                                  config.OBJECTNUMBER_FROM,
+                                  config.OBJECTTYPE_FROM]].apply(
                 lambda x: obj_dict.get((x[0], x[1], x[2])), axis=1)
         logging.debug('Start replacing ids objto')
-        dat_relations['timg'] = dat_relations[conf.IMAGENUMBER_TO].replace(img_dict)
+        dat_relations['timg'] = dat_relations[config.IMAGENUMBER_TO].replace(img_dict)
         dat_relations[db.object_relations.object_id_child.key] = \
             dat_relations.loc[:, ['timg',
-                                  conf.OBJECTNUMBER_TO,
-                                  conf.OBJECTTYPE_TO]].apply(
+                                  config.OBJECTNUMBER_TO,
+                                  config.OBJECTTYPE_TO]].apply(
                 lambda x: obj_dict.get((x[0], x[1], x[2])), axis=1)
         dat_relations[db.object_relations.object_relationtype_id.key] = \
             dat_relations[db.object_relation_types.object_relationtype_name.key].replace(relation_dict)
@@ -931,15 +931,15 @@ class DataStore(object):
 
     def _generate_pannel_table(self):
         csv_pannel = self.pannel
-        conf_pannel = self.conf[conf.PANNEL_CSV]
+        conf_pannel = self.conf[config.PANNEL_CSV]
         col_map = {conf_pannel[c]: target for c, target in [
-            (conf.PANEL_CSV_CHANNEL_NAME, db.pannel.metal.key),
-            (conf.PANEL_CSV_ILASTIK_NAME, db.pannel.is_ilastik.key),
-            (conf.PANEL_CSV_BARCODE_NAME, db.pannel.is_barcode.key),
-            (conf.PANEL_CSV_CLONE_NAME, db.pannel.antibody_clone.key),
-            (conf.PANEL_CSV_CONCENTRATION_NAME, db.pannel.concentration.key),
-            (conf.PANEL_CSV_TARGET_NAME, db.pannel.target.key),
-            (conf.PANEL_CSV_TUBE_NAME, db.pannel.tube_number.key)]}
+            (config.PANEL_CSV_CHANNEL_NAME, db.pannel.metal.key),
+            (config.PANEL_CSV_ILASTIK_NAME, db.pannel.is_ilastik.key),
+            (config.PANEL_CSV_BARCODE_NAME, db.pannel.is_barcode.key),
+            (config.PANEL_CSV_CLONE_NAME, db.pannel.antibody_clone.key),
+            (config.PANEL_CSV_CONCENTRATION_NAME, db.pannel.concentration.key),
+            (config.PANEL_CSV_TARGET_NAME, db.pannel.target.key),
+            (config.PANEL_CSV_TUBE_NAME, db.pannel.tube_number.key)]}
         cols = [c for c in col_map]
         csv_pannel.drop(list(set(csv_pannel.columns) - set(cols)), axis=1, inplace=True)
         csv_pannel = csv_pannel.rename(columns=col_map)
@@ -961,7 +961,7 @@ class DataStore(object):
         """
         Generates the condition metadata table based on a barcode and or a condition file
         """
-        conf_layout = self.conf[conf.LAYOUT_CSV]
+        conf_layout = self.conf[config.LAYOUT_CSV]
         exp_layout = self.experiment_layout
         barcode_key = self.barcode_key
         if (exp_layout is None) and (barcode_key is None):
@@ -1011,7 +1011,7 @@ class DataStore(object):
                 to a column in a table
             n: how many id's are requested
         """
-        if self.conf[conf.BACKEND] == conf.CON_POSTGRESQL:
+        if self.conf[config.BACKEND] == config.CON_POSTGRESQL:
             session = self.session_maker()
             str_seq = str(id_col).replace('.', '_') + '_seq'
             # this will instantiate the sequence if it is not
@@ -1233,9 +1233,9 @@ class DataStore(object):
 
     @property
     def _name_dict(self):
-        conf_pannel = self.conf[conf.PANNEL_CSV]
-        col_channel = conf_pannel[conf.CHANNEL_NAME]
-        col_name = conf_pannel[conf.DISPLAY_NAME]
+        conf_pannel = self.conf[config.PANNEL_CSV]
+        col_channel = conf_pannel[config.CHANNEL_NAME]
+        col_name = conf_pannel[config.DISPLAY_NAME]
         name_dict = {metal: name for metal, name in zip(
             self._pannel[col_channel], self._pannel[col_name]
         )}
@@ -1244,7 +1244,7 @@ class DataStore(object):
     @property
     def _stacks(self):
         stacks = list(
-            self._stack_relation_csv[self.conf[conf.STACK_RELATIONS][conf.STACK]])
+            self._stack_relation_csv[self.conf[config.STACK_RELATIONS][config.STACK]])
         stacks += [s for s in [st for st in self.stack_csvs]]
         return set(stacks)
 

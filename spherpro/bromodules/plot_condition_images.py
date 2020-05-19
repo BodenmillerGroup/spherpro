@@ -10,6 +10,7 @@ LABEL_Y = "Condition ID number"
 LABEL_X = "Image ID number"
 PLT_TITLE = "All images from a single condition"
 
+# TODO: take all defaults from the configuration!
 
 class PlotConditionImages(plot_base.BasePlot):
     def __init__(self, bro):

@@ -7,6 +7,7 @@ import sqlalchemy as sa
 import spherpro.bromodules.filter_base as filter_base
 import spherpro.db as db
 
+# TODO: move to default configuration?
 FILTERSTACKNAME = "FilterStack"
 FILTERTYPENAME = "filter"
 
@@ -14,16 +15,6 @@ FILTERTYPENAME = "filter"
 class ObjectFilterLib(filter_base.BaseFilter):
     def __init__(self, bro):
         super().__init__(bro)
-
-    def _get_valueless_table(self):
-        """
-        Used to create a Valueless Table. The Table represents a db.object_measurements
-        table, missing the value, MEasurementType, MeasurementName and PlaneID-columns
-        """
-        q = self.data.main_session.query(db.objects)
-        objects = pd.read_sql_query(q.statement, self.data.db_conn)
-        objects[db.stacks.stack_name.key] = FILTERSTACKNAME
-        return objects
 
     def add_filtername(self, filtername):
         """

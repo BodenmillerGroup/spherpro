@@ -16,7 +16,7 @@ class HelperDb:
             target = [channel_name]
         return target[0]
 
-    def get_objnumbers(self, obj_id):
+    def get_objnumbers(self, obj_ids):
         bro = self.bro
         id_dict = {i: n for i, n in
                    bro.session.query(
@@ -24,10 +24,10 @@ class HelperDb:
                        db.objects.object_number)
                        .filter(
                        db.objects.object_id
-                           .in_(obj_id)
+                           .in_(obj_ids)
                    ).all()
                    }
-        return [id_dict[i] for i in obj_id]
+        return [id_dict[i] for i in obj_ids]
 
     def get_plane_id(self, stack_name: str, channel_name: str) -> int:
         """
@@ -47,9 +47,9 @@ class HelperDb:
                 .filter(db.stacks.stack_name == stack_name)
                 ).one()[0]
 
-    def get_mask(self, img_id):
+    def get_mask(self, img_id, object_type):
         bro = self.bro
-        mask = bro.io.masks.get_mask(img_id)
+        mask = bro.io.masks.get_mask(img_id, object_type)
         return mask
 
     def get_imc(self, img_id, channel):

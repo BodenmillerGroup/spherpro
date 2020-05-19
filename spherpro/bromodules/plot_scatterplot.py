@@ -87,9 +87,10 @@ class PlotScatter(plot_base.BasePlot):
 
     def get_marker_data(self, measures, image_ids=None,
                         filters=None):
+        # TODO: this does not work with the current database structure!
 
         filters_measurement = [
-            self.filter_measurements.get_measurement_filter_statements(
+            self.filter_measurements.to_delete1(
                 *[[meas.get(o, d)]
                   for o, d in self.measure_idx])
             for meas in measures]

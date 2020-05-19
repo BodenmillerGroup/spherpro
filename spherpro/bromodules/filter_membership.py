@@ -24,6 +24,7 @@ class FilterMembership(filter_base.BaseFilter):
         obj_def = self.defaults[conf.OBJECT_DEFAULTS]
         measfilts = self.bro.filters.measurements
 
+        # TODO: move to config
         if measid_area is None:
             fil = measfilts.get_measmeta_filter_statements(
                 channel_names=[obj_def[conf.DEFAULT_CHANNEL_NAME]],
@@ -38,6 +39,7 @@ class FilterMembership(filter_base.BaseFilter):
                   .filter(db.measurements.measurement_id == measid_area)
                   .add_columns(db.ref_stacks.scale)
                   )
+
         q_obj = self.data.get_objectmeta_query()
 
         if object_type is not None:
@@ -61,6 +63,7 @@ class FilterMembership(filter_base.BaseFilter):
                             object_type='cell'):
         if name is None:
             name = 'is-maincomponent'
+        # TODO: move to config
         dat_nb = self.helperdb.get_nb_dat(relation, obj_type=object_type)
         dat_obj = self.bro.doquery(self.session.query(db.objects.object_id, db.objects.image_id)
                                    .join(db.valid_objects)
@@ -81,6 +84,7 @@ class FilterMembership(filter_base.BaseFilter):
                      object_type='cell'):
         if name is None:
             name = 'is-sphere'
+        # TODO: move to config
         col_issphere = 'is-sphere'
         col_isother = 'is-other'
         col_isbg = 'is-bg'
@@ -121,6 +125,7 @@ class FilterMembership(filter_base.BaseFilter):
                         object_type='cell'):
         if name is None:
             name = 'is-ambiguous'
+        # TODO: move to config
         col_measure = 'MeanIntensity'
         col_stack = 'DistStack'
         col_distother = 'dist-other'
@@ -160,6 +165,8 @@ class FilterMembership(filter_base.BaseFilter):
                         object_type='cell'):
         if name is None:
             name = 'is-notborder'
+
+        # TODO: move to config
         col_measure = 'MinIntensity'
         col_stack = 'DistStack'
         col_distsphere = 'dist-sphere'

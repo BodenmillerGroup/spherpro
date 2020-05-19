@@ -19,7 +19,7 @@ class PlotDebarcodeCells(plot_base.BasePlot):
 
     def plot_debarcoded_cells(self, img_id, color_invalid='#F8F8F8',
                               base_colormap=colorcet.glasbey,
-                              colorbar=False, ax=None, title=None):
+                              colorbar=False, ax=None, title=None, **kwargs):
         # get the conditions of the block
         blockid = (self.session.query(db.sampleblocks)
                    .join(db.conditions)
@@ -33,13 +33,15 @@ class PlotDebarcodeCells(plot_base.BasePlot):
 
         if title is None:
             title = f'ImgId: {img_id}'
+        # TODO: get barcoding variable names from the debarcoding module.
         return self.bro.plots.heatmask.plt_heatplot([img_id],
                                                     'barcode',
                                                     'ObjectStack',
                                                     'object',
                                                     title=title,
                                                     transform=None, colorbar=colorbar, cmap=mymap, ax=ax,
-                                                    crange=[0, ncol - 1]
+                                                    crange=[0, ncol - 1],
+                                                    **kwargs
                                                     )
 
 
