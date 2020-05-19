@@ -47,9 +47,9 @@ class HelperDb:
                 .filter(db.stacks.stack_name == stack_name)
                 ).one()[0]
 
-    def get_mask(self, img_id):
+    def get_mask(self, img_id, object_type):
         bro = self.bro
-        mask = bro.io.masks.get_mask(img_id)
+        mask = bro.io.masks.get_mask(img_id, object_type)
         return mask
 
     def get_imc(self, img_id, channel):
