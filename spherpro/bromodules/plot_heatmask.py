@@ -371,7 +371,8 @@ class PlotHeatmask(plot_base.BasePlot):
 
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
-                     ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None, crange=None):
+                     ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None, crange=None,
+                     **kwargs):
         """
         Retrieves images form the database and maps then on masks
         Args:
@@ -426,5 +427,6 @@ class PlotHeatmask(plot_base.BasePlot):
                 title = channel
 
             a = self.do_heatplot(img, title=title,
-                                 crange=crange, ax=ax, update_axrange=~keepRange, colorbar=colorbar, cmap=cmap)
+                                 crange=crange, ax=ax, update_axrange=~keepRange, colorbar=colorbar, cmap=cmap,
+                                 **kwargs)
         a.axis('off')
