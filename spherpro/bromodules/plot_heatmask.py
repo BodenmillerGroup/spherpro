@@ -373,8 +373,8 @@ class PlotHeatmask(plot_base.BasePlot):
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
                      ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None, crange=None,
                      valid_objects=True,
-                     valid_images=True
-                                  ** kwargs):
+                     valid_images=True,
+                     **kwargs):
         """
         Retrieves images form the database and maps then on masks
         TODO: update
