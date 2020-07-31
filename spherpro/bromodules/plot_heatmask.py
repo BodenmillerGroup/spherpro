@@ -384,7 +384,9 @@ class PlotHeatmask(plot_base.BasePlot):
             stack: the Stackname
             channel: the ChannelName
             transform: a transform
-
+            ...
+        Returns:
+            The axis with the heatplot
         """
 
         # if filter_hq:
@@ -432,3 +434,4 @@ class PlotHeatmask(plot_base.BasePlot):
                                  crange=crange, ax=ax, update_axrange=~keepRange, colorbar=colorbar, cmap=cmap,
                                  **kwargs)
         a.axis('off')
+        return a
