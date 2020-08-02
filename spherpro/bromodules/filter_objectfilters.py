@@ -45,7 +45,7 @@ class ObjectFilterLib(filter_base.BaseFilter):
             filtername: String stating the Filtername
         """
         filterdata = filterdata.loc[:, [db.objects.object_id.key, db.object_filters.filter_value.key]]
-        filterdata.loc[:, db.object_filter_names.object_filter_id.key] = [self.add_filtername(filtername)]
+        filterdata.loc[:, db.object_filter_names.object_filter_id.key] = self.add_filtername(filtername)
 
         if drop:
             self.delete_filter_by_name(filtername)
