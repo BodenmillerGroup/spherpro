@@ -34,6 +34,7 @@ OBJECTS_CHANNELNAME = 'object'
 OBJECTS_PLANEID = '1'
 OBJECTS_CHANNELTYPE = 'object'
 
+READONLY = '_readonly'
 
 class DataStore(object):
     """DataStore
@@ -62,6 +63,7 @@ class DataStore(object):
         self._session_maker = None
         self.connectors = {
             config.CON_SQLITE: db.connect_sqlite,
+            config.CON_SQLITE + READONLY: db.connect_sqlite_ro,
             config.CON_MYSQL: db.connect_mysql,
             config.CON_POSTGRESQL: db.connect_postgresql
         }
@@ -102,7 +104,7 @@ class DataStore(object):
         self._read_stack_meta()
         self._populate_db(minimal)
 
-    def resume_data(self):
+    def resume_data(self, readonly=False):
         """read_data
         Reads non-database files and configures backend according to
         the configfile.
@@ -116,7 +118,11 @@ class DataStore(object):
         # self._read_measurement_data()
         # self._read_stack_meta()
         self._read_pannel()
-        self.db_conn = self.connectors[self.conf[config.BACKEND]](self.conf)
+        backend = self.conf[config.BACKEND]
+        if readonly:
+            backend += READONLY
+
+        self.db_conn = self.connectors[backend](self.conf)
         self.bro = bro.Bro(self)
 
     def drop_all(self):

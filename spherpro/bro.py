@@ -7,18 +7,19 @@ import spherpro.datastore as datastore
 import spherpro.db as db
 
 
-def get_bro(fn_config):
+def get_bro(fn_config, readonly=False):
     """
     Convenience function to get a bro with a datastore initialized
     with a config file
     Args:
-        fn_confio: path to the config file
+        fn_config: path to the config file
+        readonly: load database readonly?
     Returns:
         A true bro
     """
     store = datastore.DataStore()
     store.read_config(fn_config)
-    store.resume_data()
+    store.resume_data(readonly=readonly)
     bro = store.bro
     return bro
 
