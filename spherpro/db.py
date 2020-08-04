@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, String, Float, Boolean, \
     ForeignKeyConstraint, UniqueConstraint
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-
+import sqlite3
 Base = declarative_base()
 
 
@@ -26,6 +26,23 @@ def connect_sqlite(conf):
     Base.metadata.create_all(engine)
     return engine
 
+
+def connect_sqlite_ro(conf):
+    """
+    creates a read only sqlite connector to be used with the Datastore.
+
+    Args:
+
+    Returns:
+        SQLite3 conne:ctor
+    """
+    db = conf['sqlite']['db']
+
+    def connect():
+        return sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+
+    engine = create_engine("sqlite://", creator=connect)
+    return engine
 
 def connect_mysql(conf):
     """
