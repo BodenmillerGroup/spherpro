@@ -21,7 +21,7 @@ setup(
     install_requires=[
         'anndata',
         'colorcet',
-        'imctools',
+        'imctools=1.0.7',
         'odo',
         # 'PyMySQL',
         'matplotlib',
