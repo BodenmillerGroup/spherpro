@@ -22,7 +22,7 @@ setup(
         'anndata',
         'colorcet',
         'imctools==1.0.7',
-        'odo @ git+https://github.com/blaze/odo@master#egg=package-1.0',
+        # 'odo @ git+https://github.com/blaze/odo@master#egg=package-1.0',
         # 'PyMySQL',
         'matplotlib',
         'numpy',
