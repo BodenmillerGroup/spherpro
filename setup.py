@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-with open('README.md') as f:
+with open('README.rst') as f:
     readme = f.read()
 
 with open('LICENSE') as f:
@@ -22,7 +22,7 @@ setup(
         'anndata',
         'colorcet',
         'imctools==1.0.7',
-        'odo',
+        'odo @ git+https://github.com/blaze/odo@master#egg=package-1.0',
         # 'PyMySQL',
         'matplotlib',
         'numpy',
@@ -34,5 +34,10 @@ setup(
         'scipy',
         'seaborn',
         'sqlalchemy',
-        'tifffile'],
+        'tifffile',
+        'sphinx==3.2.1',
+        'plotnine',
+        'matplotlib_scalebar',
+        'pycytools @ git+https://github.com/BodenmillerGroup/pycytools@master#egg=package-1.0',
+        'ipywidgets']
 )
