@@ -1066,7 +1066,8 @@ class DataStore(object):
 
         logging.debug('Insert table of dimension: ' + str(data.shape))
         data = self._clean_columns(data, table)
-        data.to_sql(dbtable, self.db_conn, if_exists='append', index=False)
+        data.to_sql(dbtable, self.db_conn, if_exists='append', index=False,
+                    method='multi')
         # odo(data, dbtable)
         self.main_session.commit()
 
