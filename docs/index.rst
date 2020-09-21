@@ -1,8 +1,3 @@
-.. spherpro documentation master file, created by
-sphinx-quickstart on Mon Sep 21 13:12:59 2020.
-You can adapt this file completely to your liking, but it should at least
-contain the root `toctree` directive.
-
 Welcome to spherpro's documentation!
 ====================================
 
@@ -10,6 +5,8 @@ Welcome to spherpro's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+This is the documentation for the spherpro package from:
+https://github.com/BodenmillerGroup/spherpro
 
 
 Indices and tables
