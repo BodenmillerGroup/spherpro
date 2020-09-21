@@ -39,7 +39,7 @@ READONLY = '_readonly'
 class DataStore(object):
     """DataStore
     The DataStore class is intended to be used as a storage for spheroid IMC
-    data. It features two Backends, MySQL and SQLite.
+    data.
 
     Methods:
         Base:
