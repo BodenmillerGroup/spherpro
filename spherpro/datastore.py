@@ -9,7 +9,7 @@ from os.path import isfile, join
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from odo import odo
+# from odo import odo
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import sessionmaker
 
@@ -769,9 +769,7 @@ class DataStore(object):
     def _write_measurement_table(self, minimal):
         """
         Generates the Measurement, MeasurementType and MeasurementName
-        tables and writes them to the database.
-        The Measurement Table can contain an extremely high ammount of rows
-        and can therefore be quite slow
+        tables and writes them to an anndata object.
 
         """
         if self.conf[config.BACKEND] == config.CON_SQLITE:
@@ -1068,7 +1066,8 @@ class DataStore(object):
 
         logging.debug('Insert table of dimension: ' + str(data.shape))
         data = self._clean_columns(data, table)
-        odo(data, dbtable)
+        data.to_sql(table, self.db_conn, if_exists='append')
+        # odo(data, dbtable)
         self.main_session.commit()
 
     def _clean_columns(self, data, table):
