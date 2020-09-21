@@ -1058,7 +1058,7 @@ class DataStore(object):
         if drop is None:
             drop = False
 
-        dbtable = str(self.db_conn.url) + '::' + table.__table__.name
+        dbtable = table.__table__.name
         if drop:
             session = self.main_session
             session.query(table).delete()
@@ -1066,7 +1066,7 @@ class DataStore(object):
 
         logging.debug('Insert table of dimension: ' + str(data.shape))
         data = self._clean_columns(data, table)
-        data.to_sql(table, self.db_conn, if_exists='append')
+        data.to_sql(dbtable, self.db_conn, if_exists='append')
         # odo(data, dbtable)
         self.main_session.commit()
 
