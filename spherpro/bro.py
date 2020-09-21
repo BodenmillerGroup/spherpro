@@ -7,7 +7,7 @@ import spherpro.datastore as datastore
 import spherpro.db as db
 
 
-def get_bro(fn_config, readonly=False):
+def get_bro(fn_config, readonly=True):
     """
     Convenience function to get a bro with a datastore initialized
     with a config file
