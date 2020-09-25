@@ -21,7 +21,7 @@ def add_anndata_obsmeta(ad, dat_meta, on=None, on_index=False):
 
 
 def _add_anndata_meta(ad_meta, dat_meta, index_var, on=None, on_index=False):
-    if (on_index) or ((on is None) and index_var in ad_meta.columns) or (on == index_var):
+    if (on_index) or ((on is None) and index_var in dat_meta.columns) or (on == index_var):
         ad_meta = _join_indexvar(ad_meta, dat_meta, index_var, on_index)
     else:
         ad_meta = _merge_col(ad_meta, dat_meta, on=on)
@@ -29,6 +29,7 @@ def _add_anndata_meta(ad_meta, dat_meta, index_var, on=None, on_index=False):
 
 
 def _merge_col(admeta, dat, on=None):
+    admeta.index.name = 'index'
     return (admeta.reset_index()
             .merge(dat, on=on)
             .set_index('index')).loc[admeta.index, :]

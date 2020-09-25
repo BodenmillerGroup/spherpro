@@ -84,6 +84,7 @@ class IoImc(io_base.BaseIo):
                 subfol: self._get_acs_from_fol(os.path.join(fol, subfol))
                 for fol in self.ome_dirs
                 for subfol in os.listdir(fol)
+                if os.path.isdir(os.path.join(fol, subfol))
             }
         return self._ome_folddict
 

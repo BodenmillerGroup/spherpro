@@ -372,18 +372,21 @@ class PlotHeatmask(plot_base.BasePlot):
     def plt_heatplot(self, img_ids, stat, stack, channel, transform=None, censor_min=0,
                      censor_max=1, keepRange=False, filters=None, filter_hq=None,
                      ax=None, title=None, colorbar=True, transform_fkt=None, cmap=None, crange=None,
+                     valid_objects=True,
+                     valid_images=True,
                      **kwargs):
         """
         Retrieves images form the database and maps then on masks
+        TODO: update
         Args:
-            site: sitename
-            img_idx: 0: all images from the site are ploted
-                     #: the #th image form this site
+            img_ids:
             stat: The KEY_MEASUREMENTNAME
             stack: the Stackname
             channel: the ChannelName
             transform: a transform
-
+            ...
+        Returns:
+            The axis with the heatplot
         """
 
         # if filter_hq:
@@ -399,7 +402,8 @@ class PlotHeatmask(plot_base.BasePlot):
                                        db.stacks.stack_name.key: stack,
                                        db.measurement_names.measurement_name.key: stat},
                                       image_ids=img_ids,
-                                      filters=fil
+                                      filters=fil, valid_images=valid_images,
+                                      valid_objects=valid_objects
                                       )
         # print(data.shape)
         # print('Finished loading!')
@@ -430,3 +434,4 @@ class PlotHeatmask(plot_base.BasePlot):
                                  crange=crange, ax=ax, update_axrange=~keepRange, colorbar=colorbar, cmap=cmap,
                                  **kwargs)
         a.axis('off')
+        return a

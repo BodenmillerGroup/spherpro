@@ -9,7 +9,7 @@ from os.path import isfile, join
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
-from odo import odo
+# from odo import odo
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm import sessionmaker
 
@@ -34,11 +34,12 @@ OBJECTS_CHANNELNAME = 'object'
 OBJECTS_PLANEID = '1'
 OBJECTS_CHANNELTYPE = 'object'
 
+READONLY = '_readonly'
 
 class DataStore(object):
     """DataStore
     The DataStore class is intended to be used as a storage for spheroid IMC
-    data. It features two Backends, MySQL and SQLite.
+    data.
 
     Methods:
         Base:
@@ -62,6 +63,7 @@ class DataStore(object):
         self._session_maker = None
         self.connectors = {
             config.CON_SQLITE: db.connect_sqlite,
+            config.CON_SQLITE + READONLY: db.connect_sqlite_ro,
             config.CON_MYSQL: db.connect_mysql,
             config.CON_POSTGRESQL: db.connect_postgresql
         }
@@ -102,7 +104,7 @@ class DataStore(object):
         self._read_stack_meta()
         self._populate_db(minimal)
 
-    def resume_data(self):
+    def resume_data(self, readonly=False):
         """read_data
         Reads non-database files and configures backend according to
         the configfile.
@@ -116,7 +118,11 @@ class DataStore(object):
         # self._read_measurement_data()
         # self._read_stack_meta()
         self._read_pannel()
-        self.db_conn = self.connectors[self.conf[config.BACKEND]](self.conf)
+        backend = self.conf[config.BACKEND]
+        if readonly:
+            backend += READONLY
+
+        self.db_conn = self.connectors[backend](self.conf)
         self.bro = bro.Bro(self)
 
     def drop_all(self):
@@ -763,9 +769,7 @@ class DataStore(object):
     def _write_measurement_table(self, minimal):
         """
         Generates the Measurement, MeasurementType and MeasurementName
-        tables and writes them to the database.
-        The Measurement Table can contain an extremely high ammount of rows
-        and can therefore be quite slow
+        tables and writes them to an anndata object.
 
         """
         if self.conf[config.BACKEND] == config.CON_SQLITE:
@@ -1054,7 +1058,7 @@ class DataStore(object):
         if drop is None:
             drop = False
 
-        dbtable = str(self.db_conn.url) + '::' + table.__table__.name
+        dbtable = table.__table__.name
         if drop:
             session = self.main_session
             session.query(table).delete()
@@ -1062,7 +1066,9 @@ class DataStore(object):
 
         logging.debug('Insert table of dimension: ' + str(data.shape))
         data = self._clean_columns(data, table)
-        odo(data, dbtable)
+        data.to_sql(dbtable, self.db_conn, if_exists='append', index=False,
+                    method='multi', chunksize=999)
+        # odo(data, dbtable)
         self.main_session.commit()
 
     def _clean_columns(self, data, table):
