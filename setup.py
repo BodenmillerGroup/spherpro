@@ -10,9 +10,10 @@ with open('LICENSE') as f:
 
 setup(
     name='spherpro',
-    version='0.1.0',
+    version='0.1.1',
     description='Tool to analize tumor spheroid data',
     long_description=readme,
+    long_description_content_type='text/x-rst',
     author='Vito Zanotelli, Matthias Leutenegger, Bodenmiller Lab UZH',
     author_email='vito.zanotelli@uzh.ch',
     url='https://github.com/bodenmillerlab/spherpro',
@@ -36,6 +37,6 @@ setup(
         'sphinx==3.2.1',
         'plotnine',
         'matplotlib_scalebar',
-        'pycytools>0.6,
+        'pycytools>0.6',
         'ipywidgets']
 )
