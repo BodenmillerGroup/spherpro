@@ -13,7 +13,7 @@ import spherpro.db as db
 
 max_cache = 384
 
-NCHANNEL_ERROR = 'Image has incompatible number of channels.'
+NCHANNEL_ERROR = "Image has incompatible number of channels."
 
 
 class IoStackImage(io_base.BaseIo):
@@ -24,7 +24,9 @@ class IoStackImage(io_base.BaseIo):
         if self.basedir is None:
             self.basedir = self.data.conf[conf.CP_DIR]
         else:
-            self.basedir = self.basedir.format(**{conf.CP_DIR: self.data.conf[conf.CP_DIR]})
+            self.basedir = self.basedir.format(
+                **{conf.CP_DIR: self.data.conf[conf.CP_DIR]}
+            )
         self._dat_stackimgs = None
 
     @functools.lru_cache(maxsize=max_cache)
@@ -35,17 +37,19 @@ class IoStackImage(io_base.BaseIo):
         return img[img_plane_number, :, :]
 
     def get_stack_nchan(self, stack_id):
-        nchan = (self.session.query(db.planes.plane_id)
-                 .join(db.stacks)
-                 .filter(db.stacks.stack_id == stack_id)
-                 ).count()
+        nchan = (
+            self.session.query(db.planes.plane_id)
+            .join(db.stacks)
+            .filter(db.stacks.stack_id == stack_id)
+        ).count()
         return nchan
 
     def _get_stackmeta_for_plane(self, plane_id):
-        stack_id, plane_number = (self.bro.session.query(db.planes.stack_id,
-                                                         db.planes.ref_plane_number)
-                                  .filter(db.planes.plane_id == plane_id)
-                                  ).one()
+        stack_id, plane_number = (
+            self.bro.session.query(
+                db.planes.stack_id, db.planes.ref_plane_number
+            ).filter(db.planes.plane_id == plane_id)
+        ).one()
         return stack_id, plane_number
 
     @functools.lru_cache(maxsize=max_cache)
@@ -61,7 +65,7 @@ class IoStackImage(io_base.BaseIo):
             image_array: a (memorymapped) image array
         """
         fn = self.get_stackimg_fn(image_id, stack_id)
-        img = tif.imread(os.path.join(self.basedir, fn), out='memmap')
+        img = tif.imread(os.path.join(self.basedir, fn), out="memmap")
         imshape = img.shape
         nchan = self.get_stack_nchan(stack_id)
 
@@ -92,15 +96,15 @@ class IoStackImage(io_base.BaseIo):
             return img
 
     def get_stackimg_fn(self, image_id, stack_id=None, *, stack_name=None):
-        q = (self.bro.session.query(db.image_stacks.image_stack_filename)
-             .filter(db.image_stacks.image_id == image_id)
-             )
+        q = self.bro.session.query(db.image_stacks.image_stack_filename).filter(
+            db.image_stacks.image_id == image_id
+        )
         if stack_id is not None:
             q = q.filter(db.image_stacks.stack_id == stack_id)
         elif stack_name is not None:
             q = q.join(db.stacks).filter(db.stacks.stack_name == stack_name)
         else:
-            raise ValueError('Either stack_id or stack_name need to be provided.')
+            raise ValueError("Either stack_id or stack_name need to be provided.")
         fn = q.one()[0]
         return fn
 

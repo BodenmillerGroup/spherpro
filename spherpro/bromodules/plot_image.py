@@ -28,9 +28,10 @@ class PlotImage(plot_base.BasePlot):
         self.objmeasurements = self.bro.io.objmeasurements
         self.measure_idx = [  # idx_name, default
             (db.ref_planes.channel_name.key, None),
-            (db.stacks.stack_name.key, 'FullStackFiltered'),
-            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
-            (db.measurement_types.measurement_type.key, None)]
+            (db.stacks.stack_name.key, "FullStackFiltered"),
+            (db.measurement_names.measurement_name.key, "MeanIntensity"),
+            (db.measurement_types.measurement_type.key, None),
+        ]
 
 
 def plot_contour(img_id, object_numbers, values, cmap):
@@ -49,10 +50,12 @@ def plot_contour(img_id, object_numbers, values, cmap):
     pass
 
 
-def add_scalebar(ax, resolution=0.000001, location=4, color='white', pad=0.5,
-                 frameon=False, **kwargs):
-    scalebar = ScaleBar(resolution, location=location, color=color, pad=pad,
-                        frameon=frameon, **kwargs)  # 1 pixel = 0.2 meter
+def add_scalebar(
+    ax, resolution=0.000001, location=4, color="white", pad=0.5, frameon=False, **kwargs
+):
+    scalebar = ScaleBar(
+        resolution, location=location, color=color, pad=pad, frameon=frameon, **kwargs
+    )  # 1 pixel = 0.2 meter
     ax.add_artist(scalebar)
 
 
@@ -67,8 +70,8 @@ def adapt_ax_clims(axs):
 
 def map_img(mask, values, objectnr):
     timg = pct.library.map_series_on_mask(
-        mask, dat_curimg[valuevar],
-        label=dat_curimg[V.COL_OBJ_NR])
+        mask, dat_curimg[valuevar], label=dat_curimg[V.COL_OBJ_NR]
+    )
     return timg
 
 

@@ -12,11 +12,11 @@ import pandas as pd
 import spherpro.bromodules.io_base as io_base
 import spherpro.db as db
 
-SUFFIX_ANNDATA = '.h5ad'
+SUFFIX_ANNDATA = ".h5ad"
 
 
 def get_anndata_filename(conf: object, object_type: str):
-    fn = pathlib.Path(conf['sqlite']['db']).parent / (object_type + SUFFIX_ANNDATA)
+    fn = pathlib.Path(conf["sqlite"]["db"]).parent / (object_type + SUFFIX_ANNDATA)
     return fn
 
 
@@ -37,8 +37,7 @@ def copy_in_memory(adat):
         a in-memory copy of the anndata opbject
 
     """
-    return ad.AnnData(np.array(adat.X), obs=adat.obs, var=adat.var,
-                      varm=adat.varm)
+    return ad.AnnData(np.array(adat.X), obs=adat.obs, var=adat.var, varm=adat.varm)
 
 
 class IoAnnData(io_base.BaseIo):
@@ -61,9 +60,12 @@ class IoAnnData(io_base.BaseIo):
     @property
     def adat(self):
         a = self._adat
-        if ((a is None) or  # Check if the data has been already loaded
-                (len(a.obs.index) != a.shape[0]) | (len(a.var.index) != a.shape[1])):  # check if data consistent
-            self._adat = ad.read_h5ad(self.filename, backed='r')
+        if (a is None) or (  # Check if the data has been already loaded
+            len(a.obs.index) != a.shape[0]
+        ) | (
+            len(a.var.index) != a.shape[1]
+        ):  # check if data consistent
+            self._adat = ad.read_h5ad(self.filename, backed="r")
         return self._adat
 
 
@@ -80,9 +82,17 @@ class IoObjMeasurements:
             self._anndatadict[obj_type] = anndat
         return anndat.adat
 
-    def get_measurements(self, dat_obj=None, dat_meas=None, *,
-                         measidx=None, objidx=None, object_type=None,
-                         q_meas=None, q_obj=None):
+    def get_measurements(
+        self,
+        dat_obj=None,
+        dat_meas=None,
+        *,
+        measidx=None,
+        objidx=None,
+        object_type=None,
+        q_meas=None,
+        q_obj=None,
+    ):
         if q_meas is not None:
             dat_meas = self.bro.doquery(q_meas)
         if q_obj is not None:
@@ -102,6 +112,7 @@ class IoObjMeasurements:
             dat_obj = dat_obj.sort_values(db.objects.object_id.key)
             it = dat_obj.groupby(db.objects.object_type.key)
         else:
+
             class obs:
                 index = list(map(str, sorted(objidx)))
 
@@ -114,13 +125,15 @@ class IoObjMeasurements:
             varidx = list(set(measids).intersection(adat.var.index))
             if (len(varidx) > 0) & (len(obsidx) > 0):
                 adat = adat[:, sorted(varidx, key=int)]
-                dats.append(ad.AnnData(adat.X, obs=adat.obs, var=adat.var)[obsidx, :].copy())
+                dats.append(
+                    ad.AnnData(adat.X, obs=adat.obs, var=adat.var)[obsidx, :].copy()
+                )
         if len(dats) == 1:
             dat = dats[0]
         elif len(dats) == 0:
-            raise ValueError('No valid measurements found')
+            raise ValueError("No valid measurements found")
         else:
-            dat = ad.AnnData.concatenate(*dats, join='outer', index_unique=None)
+            dat = ad.AnnData.concatenate(*dats, join="outer", index_unique=None)
         if dat_meas is not None:
             dat.var = dat.var.join(dat_meas)
         if dat_obj is not None:
@@ -129,22 +142,27 @@ class IoObjMeasurements:
 
     @staticmethod
     def convert_anndata_legacy(adat):
-        d = pd.DataFrame(adat.X, index=adat.obs.object_id,
-                         columns=adat.var.measurement_id).stack()
+        d = pd.DataFrame(
+            adat.X, index=adat.obs.object_id, columns=adat.var.measurement_id
+        ).stack()
         d.name = db.object_measurements.value.key
         dat = d.reset_index().merge(adat.obs.reset_index(drop=True)).merge(adat.var)
         return dat
 
-    def add_anndata_datmeasurements(self, dat_new, replace=True,
-                                    drop_all_old=False):
+    def add_anndata_datmeasurements(self, dat_new, replace=True, drop_all_old=False):
         for obj_type, dat in dat_new.groupby(db.objects.object_type.key):
-            adat_new = ad.AnnData(dat.pivot(index=db.objects.object_id.key,
-                                            columns=db.measurements.measurement_id.key,
-                                            values=db.object_measurements.value.key))
+            adat_new = ad.AnnData(
+                dat.pivot(
+                    index=db.objects.object_id.key,
+                    columns=db.measurements.measurement_id.key,
+                    values=db.object_measurements.value.key,
+                )
+            )
             self.add_anndata_objectmeasurements(obj_type, adat_new)
 
-    def add_anndata_objectmeasurements(self, obj_type, adat_new,
-                                       replace=True, drop_all_old=True):
+    def add_anndata_objectmeasurements(
+        self, obj_type, adat_new, replace=True, drop_all_old=True
+    ):
         """
         Adds a measurments to the anndata
         Args:
@@ -160,28 +178,33 @@ class IoObjMeasurements:
         adat = self.get_anndata(obj_type)
         # Check that no new objects were added
         if len(get_difference(adat_new.obs.index, adat.obs.index)) != 0:
-            raise ValueError("The new data contains new objects, which is not supported yet.")
+            raise ValueError(
+                "The new data contains new objects, which is not supported yet."
+            )
 
         old_vars = get_overlap(adat.var.index, adat_new.var.index)
-        if (len(old_vars) > 0):
+        if len(old_vars) > 0:
             if not replace:
-                raise ValueError(f'Measurements {old_vars} already existing'
-                                 f' but replace=False was set!.\n'
-                                 f'Set replace=True to update values.')
+                raise ValueError(
+                    f"Measurements {old_vars} already existing"
+                    f" but replace=False was set!.\n"
+                    f"Set replace=True to update values."
+                )
             if (not drop_all_old) and (adat.shape[0] != adat_new.shape[0]):
-                raise ValueError("Updating of existing variables only allowed"
-                                 " if values for all observations"
-                                 " are provided  or 'drop_all_old=True'")
+                raise ValueError(
+                    "Updating of existing variables only allowed"
+                    " if values for all observations"
+                    " are provided  or 'drop_all_old=True'"
+                )
             else:
                 kvars = [i for i in adat.var.index if i not in old_vars]
                 adat = adat[:, kvars]
 
         adat = copy_in_memory(adat)
-        adat = adat.T.concatenate(adat_new.T,
-                                  index_unique=None,
-                                  batch_key='batch',
-                                  join='outer').T
-        adat.var = adat.var.drop(columns='batch')
+        adat = adat.T.concatenate(
+            adat_new.T, index_unique=None, batch_key="batch", join="outer"
+        ).T
+        adat.var = adat.var.drop(columns="batch")
 
         ioan = self._anndatadict[obj_type]
         ioan.adat.file.close()

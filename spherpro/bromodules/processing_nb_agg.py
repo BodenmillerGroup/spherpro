@@ -2,14 +2,14 @@ import numpy as np
 
 import spherpro.db as db
 
-DEFAULT_RELATION = 'Neighbors'
+DEFAULT_RELATION = "Neighbors"
 VALUE = db.object_measurements.value.key
 MEAS_ID = db.measurements.measurement_id.key
 CHILD_ID = db.object_relations.object_id_child.key
 PARENT_ID = db.object_relations.object_id_parent.key
 OBJ_ID = db.objects.object_id.key
 OBJ_TYPE = db.objects.object_type.key
-OLD_ID = 'oldid'
+OLD_ID = "oldid"
 
 
 class AggregateNeightbours(object):
@@ -23,29 +23,50 @@ class AggregateNeightbours(object):
         self._register_measurement_name = self.mm.register_measurement_name
         self._register_measurement_type = self.mm.register_measurement_type
 
-    def add_nb_measurement(self, nb_meas_prefix, nb_agg_fkt,
-                           nb_relationtype=None,
-                           object_type=None, measurement_name=None,
-                           stack_name=None, plane_id=None, measurement_type=None,
-                           filter_query=None, filter_statement=None, image_id=None, valid_objects=True):
+    def add_nb_measurement(
+        self,
+        nb_meas_prefix,
+        nb_agg_fkt,
+        nb_relationtype=None,
+        object_type=None,
+        measurement_name=None,
+        stack_name=None,
+        plane_id=None,
+        measurement_type=None,
+        filter_query=None,
+        filter_statement=None,
+        image_id=None,
+        valid_objects=True,
+    ):
         if nb_relationtype is None:
             nb_relationtype = DEFAULT_RELATION
         if filter_statement is not None:
-            raise ('filter_statement not implemented yet')
+            raise ("filter_statement not implemented yet")
 
         nbfil = filter_query
-        nb_dic_dat = self.get_nb_dat(nb_relationtype, obj_type=object_type,
-                                     fil_query=nbfil,
-                                     valid_objects=valid_objects)
+        nb_dic_dat = self.get_nb_dat(
+            nb_relationtype,
+            obj_type=object_type,
+            fil_query=nbfil,
+            valid_objects=valid_objects,
+        )
         dat = self._get_data(
-            object_type, measurement_name,
-            stack_name, plane_id, measurement_type,
-            filter_query, filter_statement, image_id,
-            valid_objects=valid_objects)
+            object_type,
+            measurement_name,
+            stack_name,
+            plane_id,
+            measurement_type,
+            filter_query,
+            filter_statement,
+            image_id,
+            valid_objects=valid_objects,
+        )
 
-        fil = ((nb_dic_dat[CHILD_ID].isin(dat[OBJ_ID])) &
-               (nb_dic_dat[PARENT_ID].isin(dat[OBJ_ID])) &
-               (nb_dic_dat[PARENT_ID] != nb_dic_dat[CHILD_ID]))
+        fil = (
+            (nb_dic_dat[CHILD_ID].isin(dat[OBJ_ID]))
+            & (nb_dic_dat[PARENT_ID].isin(dat[OBJ_ID]))
+            & (nb_dic_dat[PARENT_ID] != nb_dic_dat[CHILD_ID])
+        )
         nb_dic_dat = nb_dic_dat.loc[fil, :]
         nb_dict = self._gen_nb_dict(nb_dic_dat)
         dat = dat.loc[dat[OBJ_ID].isin(nb_dic_dat[PARENT_ID]), :]
@@ -57,23 +78,37 @@ class AggregateNeightbours(object):
 
     def agg_data(self, data, nb_dict, fkt):
         tdat = data.pivot_table(index=[OBJ_ID, OBJ_TYPE], columns=MEAS_ID, values=VALUE)
-        nb_dat = tdat.apply(self._agg_nb_val, axis=1, nbdict=nb_dict, data=tdat.reset_index(OBJ_TYPE, drop=True),
-                            fkt=fkt)
+        nb_dat = tdat.apply(
+            self._agg_nb_val,
+            axis=1,
+            nbdict=nb_dict,
+            data=tdat.reset_index(OBJ_TYPE, drop=True),
+            fkt=fkt,
+        )
         nb_dat = nb_dat.stack()
         nb_dat.name = VALUE
         nb_dat = nb_dat.reset_index(drop=False)
         return nb_dat
 
-    def get_nb_dat(self, relationtype_name, obj_type=None, fil_query=None,
-                   valid_objects=True):
-        return self.bro.helpers.dbhelp.get_nb_dat(relationtype_name,
-                                                  obj_type,
-                                                  fil_query, valid_obj_only=valid_objects)
+    def get_nb_dat(
+        self, relationtype_name, obj_type=None, fil_query=None, valid_objects=True
+    ):
+        return self.bro.helpers.dbhelp.get_nb_dat(
+            relationtype_name, obj_type, fil_query, valid_obj_only=valid_objects
+        )
 
-    def _get_data(self, object_type=None, measurement_name=None,
-                  stack_name=None, plane_id=None, measurement_type=None,
-                  filter_query=None, filter_statement=None, image_id=None,
-                  valid_objects=True):
+    def _get_data(
+        self,
+        object_type=None,
+        measurement_name=None,
+        stack_name=None,
+        plane_id=None,
+        measurement_type=None,
+        filter_query=None,
+        filter_statement=None,
+        image_id=None,
+        valid_objects=True,
+    ):
         q_obj = self.data.get_objectmeta_query(valid_objects=valid_objects)
         q_meas = self.data.get_measmeta_query()
 
@@ -116,18 +151,24 @@ class AggregateNeightbours(object):
         return nb_dict
 
     def update_measurement_ids(self, old_ids, meas_name_prefix):
-        measure_meta = self.bro.doquery(self.session.query(db.measurements)
-            .filter(db.measurements.measurement_id.in_(
-            old_ids)))
+        measure_meta = self.bro.doquery(
+            self.session.query(db.measurements).filter(
+                db.measurements.measurement_id.in_(old_ids)
+            )
+        )
         dic_meas_name = dict()
         for m in measure_meta[db.measurements.measurement_name.key].unique():
             m_new = meas_name_prefix + m
             dic_meas_name.update({m: m_new})
             self._register_measurement_name(m_new)
-        measure_meta[db.measurements.measurement_name.key] = \
-            measure_meta[db.measurements.measurement_name.key].replace(dic_meas_name)
+        measure_meta[db.measurements.measurement_name.key] = measure_meta[
+            db.measurements.measurement_name.key
+        ].replace(dic_meas_name)
         measure_meta = measure_meta.rename(columns={MEAS_ID: OLD_ID})
         measure_meta = self.mm.register_measurements(measure_meta)
-        id_dict = {old: new for old, new in zip(measure_meta[OLD_ID], measure_meta[MEAS_ID])
-                   if old != new}
+        id_dict = {
+            old: new
+            for old, new in zip(measure_meta[OLD_ID], measure_meta[MEAS_ID])
+            if old != new
+        }
         return id_dict

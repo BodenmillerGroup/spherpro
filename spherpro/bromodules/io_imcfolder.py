@@ -46,13 +46,14 @@ class IoImc(io_base.BaseIo):
         posy = int(meta[db.images.image_pos_y.key])
         w = int(meta[db.images.image_shape_w.key])
         h = int(meta[db.images.image_shape_h.key])
-        sl = np.s_[:, posx:(h + posx), posy:(w + posy)]
+        sl = np.s_[:, posx : (h + posx), posy : (w + posy)]
         cutac = imcacquisition.ImcAcquisition(
             imcac.image_ID,
             imcac.original_file,
             imcac.data[sl],
             imcac._channel_metals,
-            imcac._channel_labels)
+            imcac._channel_labels,
+        )
         cutac.original_imcac = imcac
         return cutac
 
@@ -62,19 +63,25 @@ class IoImc(io_base.BaseIo):
 
     @functools.lru_cache(maxsize=max_cache)
     def _get_imgmeta(self, imgid):
-        q = (self.data.main_session
-             .query(db.images.image_id,
-                    db.images.image_pos_x,
-                    db.images.image_pos_y,
-                    db.images.image_shape_w,
-                    db.images.image_shape_h,
-                    db.acquisitions.acquisition_mcd_acid,
-                    db.slideacs.slideac_name)
-             .join(db.acquisitions, db.sites, db.slideacs)
-             .filter(db.images.image_id == imgid))
-        r = {l: v for r in [q.one_or_none()]
-             if r is not None
-             for l, v in zip(r.keys(), r)}
+        q = (
+            self.data.main_session.query(
+                db.images.image_id,
+                db.images.image_pos_x,
+                db.images.image_pos_y,
+                db.images.image_shape_w,
+                db.images.image_shape_h,
+                db.acquisitions.acquisition_mcd_acid,
+                db.slideacs.slideac_name,
+            )
+            .join(db.acquisitions, db.sites, db.slideacs)
+            .filter(db.images.image_id == imgid)
+        )
+        r = {
+            l: v
+            for r in [q.one_or_none()]
+            if r is not None
+            for l, v in zip(r.keys(), r)
+        }
         return r
 
     @property

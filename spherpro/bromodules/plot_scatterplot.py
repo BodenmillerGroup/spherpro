@@ -16,11 +16,12 @@ class PlotScatter(plot_base.BasePlot):
         # define the measurement indexes with defaults
         # order is order expected by _get_measurement_filters
         self.measure_idx = [  # idx_name, default
-            (db.objects.object_id.key, 'cell'),
+            (db.objects.object_id.key, "cell"),
             (db.ref_planes.channel_name.key, None),
-            (db.stacks.stack_name.key, 'FullStack'),
-            (db.measurement_names.measurement_name.key, 'MeanIntensity'),
-            (db.measurement_types.measurement_type.key, 'Intensity')]
+            (db.stacks.stack_name.key, "FullStack"),
+            (db.measurement_names.measurement_name.key, "MeanIntensity"),
+            (db.measurement_types.measurement_type.key, "Intensity"),
+        ]
 
     def plot_bin2d(self, measure_x, measure_y, image_ids=None, filters=None):
         """
@@ -37,19 +38,18 @@ class PlotScatter(plot_base.BasePlot):
             p:  the plot figure object
 
         """
-        dat = self.get_marker_data([measure_x, measure_y],
-                                   image_ids=image_ids,
-                                   filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x="0_" + VAL_COL, y='1_' + VAL_COL)) +
-             gg.geom_bin2d() +
-             gg.geom_smooth(method='lm') +
-             gg.xlab(' - '.join([measure_x.get(o, d) for o, d in
-                                 self.measure_idx])) +
-             gg.ylab(' - '.join([measure_y.get(o, d) for o, d in
-                                 self.measure_idx])) +
-             gg.scale_x_sqrt() +
-             gg.scale_y_sqrt()
-             )
+        dat = self.get_marker_data(
+            [measure_x, measure_y], image_ids=image_ids, filters=filters
+        )
+        p = (
+            gg.ggplot(dat, gg.aes(x="0_" + VAL_COL, y="1_" + VAL_COL))
+            + gg.geom_bin2d()
+            + gg.geom_smooth(method="lm")
+            + gg.xlab(" - ".join([measure_x.get(o, d) for o, d in self.measure_idx]))
+            + gg.ylab(" - ".join([measure_y.get(o, d) for o, d in self.measure_idx]))
+            + gg.scale_x_sqrt()
+            + gg.scale_y_sqrt()
+        )
         return p
 
     def plot_points(self, measure_x, measure_y, image_ids=None, filters=None):
@@ -70,36 +70,33 @@ class PlotScatter(plot_base.BasePlot):
             p:  the plot figure object
 
         """
-        dat = self.get_marker_data([measure_x, measure_y],
-                                   image_ids=image_ids,
-                                   filters=filters)
-        p = (gg.ggplot(dat, gg.aes(x='0_' + VAL_COL, y='1_' + VAL_COL)) +
-             gg.geom_point() +
-             gg.geom_smooth(method='lm') +
-             gg.xlab(' - '.join([measure_x.get(o, d) for o, d in
-                                 self.measure_idx])) +
-             gg.ylab(' - '.join([measure_y.get(o, d) for o, d in
-                                 self.measure_idx])) +
-             gg.scale_x_sqrt() +
-             gg.scale_y_sqrt()
-             )
+        dat = self.get_marker_data(
+            [measure_x, measure_y], image_ids=image_ids, filters=filters
+        )
+        p = (
+            gg.ggplot(dat, gg.aes(x="0_" + VAL_COL, y="1_" + VAL_COL))
+            + gg.geom_point()
+            + gg.geom_smooth(method="lm")
+            + gg.xlab(" - ".join([measure_x.get(o, d) for o, d in self.measure_idx]))
+            + gg.ylab(" - ".join([measure_y.get(o, d) for o, d in self.measure_idx]))
+            + gg.scale_x_sqrt()
+            + gg.scale_y_sqrt()
+        )
         return p
 
-    def get_marker_data(self, measures, image_ids=None,
-                        filters=None):
+    def get_marker_data(self, measures, image_ids=None, filters=None):
         # TODO: this does not work with the current database structure!
 
         filters_measurement = [
             self.filter_measurements.to_delete1(
-                *[[meas.get(o, d)]
-                  for o, d in self.measure_idx])
-            for meas in measures]
+                *[[meas.get(o, d)] for o, d in self.measure_idx]
+            )
+            for meas in measures
+        ]
         query = self._get_measurement_query()
         if image_ids is not None:
-            query = query.filter(
-                db.images.image_id.in_(image_ids))
-        query_joins = self._get_joined_filtered_queries(query,
-                                                        filters_measurement)
+            query = query.filter(db.images.image_id.in_(image_ids))
+        query_joins = self._get_joined_filtered_queries(query, filters_measurement)
         if filters is not None:
             # TODO: This needs to be fixed!
             query = query.filter(filters)
@@ -121,19 +118,25 @@ class PlotScatter(plot_base.BasePlot):
             the query to get the results
         """
         if on_cols is None:
-            on_cols = [db.images.image_id.key,
-                       db.objects.object_number.key]
-        queries = [base_query.filter(fil).subquery(name=str(i))
-                   for i, fil in enumerate(filters)]
+            on_cols = [db.images.image_id.key, db.objects.object_number.key]
+        queries = [
+            base_query.filter(fil).subquery(name=str(i))
+            for i, fil in enumerate(filters)
+        ]
         # queries =[q.apply_labels() for q in queries]
         query_joins = self.session.query(*queries)
         for i in range(len(queries) - 1):
             query_joins = query_joins.join(
                 queries[i + 1],
-                (sa.and_(*[
-                    getattr(queries[0].c, col) ==
-                    getattr(queries[i + 1].c, col) for col in
-                    on_cols])))
+                (
+                    sa.and_(
+                        *[
+                            getattr(queries[0].c, col) == getattr(queries[i + 1].c, col)
+                            for col in on_cols
+                        ]
+                    )
+                ),
+            )
         query_joins = query_joins.with_labels()
         return query_joins
 
@@ -149,7 +152,7 @@ class PlotScatter(plot_base.BasePlot):
         return dat
 
     def _get_measurement_query(self):
-        query = (self.data.get_measurement_query()
-                 .add_columns(db.images.image_id,
-                              db.objects.object_number))
+        query = self.data.get_measurement_query().add_columns(
+            db.images.image_id, db.objects.object_number
+        )
         return query
