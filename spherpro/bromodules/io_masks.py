@@ -22,7 +22,9 @@ class IoMasks(io_base.BaseIo):
         if self.basedir is None:
             self.basedir = self.data.conf[conf.CP_DIR]
         else:
-            self.basedir = self.basedir.format(**{conf.CP_DIR: self.data.conf[conf.CP_DIR]})
+            self.basedir = self.basedir.format(
+                **{conf.CP_DIR: self.data.conf[conf.CP_DIR]}
+            )
 
         self._dat_masks = None
 
@@ -36,10 +38,11 @@ class IoMasks(io_base.BaseIo):
         Returns:
             mask_array: numpy array with the mask labels as integer image
         """
-        fn = (self.bro.session.query(db.masks.mask_filename)
-              .filter(db.masks.image_id == image_id)
-              .filter(db.masks.object_type == object_type)
-              ).one()[0]
+        fn = (
+            self.bro.session.query(db.masks.mask_filename)
+            .filter(db.masks.image_id == image_id)
+            .filter(db.masks.object_type == object_type)
+        ).one()[0]
         return tif.imread(os.path.join(self.basedir, fn))
 
     def clear_caches(self):

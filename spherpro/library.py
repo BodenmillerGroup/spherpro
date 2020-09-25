@@ -20,8 +20,7 @@ def fill_null(data, table):
     return data
 
 
-def find_measurementmeta(stack_name, col_name,
-                         no_stack_str=None, no_plane_string=None):
+def find_measurementmeta(stack_name, col_name, no_stack_str=None, no_plane_string=None):
     """
     finds the measurement meta information from a given string
 
@@ -35,16 +34,16 @@ def find_measurementmeta(stack_name, col_name,
         in this order:
         x | measurement type | measurement name | stack name | plane id
     """
-    stackpattern = '(' + '|'.join(stack_name) + ')'
-    pre_pattern = '^([^_]*)_(.*)'
-    post_pattern = '(.*)_' + stackpattern + '_(c\d+)'
+    stackpattern = "(" + "|".join(stack_name) + ")"
+    pre_pattern = "^([^_]*)_(.*)"
+    post_pattern = "(.*)_" + stackpattern + "_(c\d+)"
     match = re.search(pre_pattern, col_name)
     if match != None:
         match = match.groups()
         mtype = match[0]
         rside = match[1]
     else:
-        return pd.Series(['', '', '', '', ''])
+        return pd.Series(["", "", "", "", ""])
 
     match = re.search(post_pattern, rside)
     if match != None:
@@ -75,9 +74,10 @@ def construct_in_clause_list(key_dict):
         ['A IN ("1")', 'B IN ("c","d")']
 
     """
-    querylist = [k + ' IN ("' + '","'.join(
-        map(str, values)) + '")'
-                 for k, values in key_dict.items()]
+    querylist = [
+        k + ' IN ("' + '","'.join(map(str, values)) + '")'
+        for k, values in key_dict.items()
+    ]
     return querylist
 
 
@@ -93,8 +93,11 @@ def filter_and_rename_dict(indict, filterdict):
         {'c': 1, 'd': [2, 2]}
 
     """
-    outdict = {filterdict[k]: v for k, v in indict.items()
-               if ((v is not None) and (k in filterdict.keys()))}
+    outdict = {
+        filterdict[k]: v
+        for k, v in indict.items()
+        if ((v is not None) and (k in filterdict.keys()))
+    }
 
     return outdict
 
@@ -124,8 +127,9 @@ def map_group_re(x, re_str):
 
     """
     qre = re.compile(re_str)
-    m_list = [pd.DataFrame.from_dict(
-        [m.groupdict() for m in qre.finditer(s)]) for s in x]
+    m_list = [
+        pd.DataFrame.from_dict([m.groupdict() for m in qre.finditer(s)]) for s in x
+    ]
     return pd.concat(m_list, ignore_index=True)
 
 
@@ -140,8 +144,10 @@ def get_largest_commponent_objs(dat, keys=None):
         A list of object ids
     """
     if keys is None:
-        keys = [db.object_relations.object_id_parent.key,
-                db.object_relations.object_id_child.key]
+        keys = [
+            db.object_relations.object_id_parent.key,
+            db.object_relations.object_id_child.key,
+        ]
     g = nx.from_pandas_edgelist(dat[keys], source=keys[0], target=keys[1])
     gmax = max(nx.connected_components(g), key=len)
     return pd.Series((int(n) for n in gmax), name=db.objects.object_id.key)
