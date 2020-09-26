@@ -5,12 +5,9 @@ from setuptools import setup, find_packages
 with open('README.rst') as f:
     readme = f.read()
 
-with open('LICENSE') as f:
-    license = f.read()
-
 setup(
     name='spherpro',
-    version='0.1.2',
+    version='0.1.5',
     description='Tool to analize tumor spheroid data',
     long_description=readme,
     long_description_content_type='text/x-rst',
@@ -36,7 +33,7 @@ setup(
         'tifffile',
         'sphinx==3.2.1',
         'plotnine',
-        'matplotlib_scalebar',
+        'matplotlib-scalebar',
         'pycytools>0.6',
         'ipywidgets']
 )

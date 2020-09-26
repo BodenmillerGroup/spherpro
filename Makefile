@@ -1,24 +1,22 @@
-clean:
-	find . -type d -name __pycache__ -exec rm -r {} \+
-	find . -type d -name .pytest_cache -exec rm -r {} \+
-	find . -type d -name .mypy_cache -exec rm -r {} \+
-	find . -name '*.egg-info' -exec rm -fr {} +
-	rm -fr build/
-	rm -fr dist/
-	rm -fr tests/testdata
-
 
 build_dist:
 	python setup.py sdist bdist_wheel
 
-upload_test:
+upload_test: build_dist
 	python -m twine upload --repository testpypi dist/*
 
-upload:
+upload_pypi: build_dist
 	python -m twine upload dist/*
 
-check:
-	python -m twine check dist/*
+condabuild:
+	mkdir condabuild
 
-black:
-	black spherpro
+condabuild/spherpro/meta.yaml: condabuild
+	cd condabuild;\
+		conda skeleton pypi spherpro
+
+conda_build: condabuild/spherpro/meta.yaml
+	cd condabuild && mamba build -c votti -c conda-forge spherpro
+
+
+

@@ -3,7 +3,6 @@ import spherpro.bromodules.helpers as helpers
 import spherpro.bromodules.io as io
 import spherpro.bromodules.plots as plots
 import spherpro.bromodules.processing as processing
-import spherpro.datastore as datastore
 import spherpro.db as db
 
 
@@ -17,6 +16,7 @@ def get_bro(fn_config, readonly=True):
     Returns:
         A true bro
     """
+    import spherpro.datastore as datastore
     store = datastore.DataStore()
     store.read_config(fn_config)
     store.resume_data(readonly=readonly)
