@@ -13,7 +13,7 @@ setup(
     long_description_content_type='text/x-rst',
     author='Vito Zanotelli, Matthias Leutenegger, Bodenmiller Lab UZH',
     author_email='vito.zanotelli@uzh.ch',
-    url='https://github.com/bodenmillerlab/spherpro',
+    url='https://github.com/BodenmillerGroup/spherpro',
     license='BSD-3 License',
     packages=find_packages(exclude=('tests', 'docs')),
     install_requires=[
