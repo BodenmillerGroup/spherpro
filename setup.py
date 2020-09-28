@@ -8,7 +8,7 @@ with open('README.rst') as f:
 setup(
     name='spherpro',
     version='0.1.5',
-    description='Tool to analize tumor spheroid data',
+    description='Tool to analyze tumor spheroid data',
     long_description=readme,
     long_description_content_type='text/x-rst',
     author='Vito Zanotelli, Matthias Leutenegger, Bodenmiller Lab UZH',
